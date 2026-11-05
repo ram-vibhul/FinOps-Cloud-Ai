@@ -94,3 +94,24 @@ def test_procrastinate_worker_runs_deferred_job_on_postgres(
     assert calls == []
     asyncio.run(run_worker_async(app, wait=False))
     assert calls == [7]
+
+
+def test_every_job_module_registers() -> None:
+    """Guards against registration imports being removed by an automatic clean-up."""
+    from costlens.jobs import load_all_jobs, registry
+
+    load_all_jobs()
+    expected = {
+        "email.send",
+        "costs.import_cost_explorer",
+        "costs.import_cur",
+        "costs.import_file",
+        "costs.detect_anomalies",
+        "fx.refresh",
+        "demo.reset",
+        "privacy.apply_retention",
+        "system.cleanup_rate_limits",
+        "inventory.collect",
+        "changes.import_cloudtrail",
+    }
+    assert expected <= set(registry.jobs)

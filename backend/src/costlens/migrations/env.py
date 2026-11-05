@@ -5,6 +5,7 @@ from sqlalchemy import Connection
 
 from costlens import models  # noqa: F401  (register models)
 from costlens.db.base import Base
+from costlens.db.schema_filter import include_name
 from costlens.db.session import build_engine
 
 config = context.config
@@ -17,6 +18,7 @@ def run_migrations(connection: Connection) -> None:
         target_metadata=target_metadata,
         render_as_batch=connection.dialect.name == "sqlite",
         compare_type=True,
+        include_name=include_name,
     )
     with context.begin_transaction():
         context.run_migrations()

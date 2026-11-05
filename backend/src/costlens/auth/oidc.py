@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import re
 import secrets
 import threading
 import time
@@ -21,12 +22,14 @@ import httpx
 import jwt
 
 from costlens.auth.providers import ProviderConfig
+from costlens.core.netguard import Resolver, UnsafeURLError, check_public_https_url, system_resolver
 
 ALLOWED_ALGORITHMS = frozenset({"RS256", "RS384", "RS512", "PS256", "ES256", "ES384", "EdDSA"})
 METADATA_TTL = 3600.0
 JWKS_TTL = 3600.0
 JWKS_MIN_REFRESH = 60.0
 LEEWAY = 60
+ENTRA_ISSUER = re.compile(r"^https://login\.microsoftonline\.com/([0-9a-f-]{36})/v2\.0$")
 
 
 class OIDCError(Exception):
@@ -59,16 +62,27 @@ def _truthy(value: Any) -> bool:
 
 
 class OIDCClient:
-    def __init__(self, provider: ProviderConfig, http: httpx.Client) -> None:
+    def __init__(
+        self, provider: ProviderConfig, http: httpx.Client, resolver: Resolver = system_resolver
+    ) -> None:
         self.provider = provider
         self.http = http
+        self.resolver = resolver
         self._lock = threading.Lock()
         self._metadata: tuple[float, dict[str, Any]] | None = None
         self._jwks: tuple[float, dict[str, Any]] | None = None
 
     # --- documents ------------------------------------------------------
 
+    def _guard(self, url: str) -> None:
+        if self.provider.customer_supplied:
+            try:
+                check_public_https_url(url, self.resolver)
+            except UnsafeURLError as exc:
+                raise OIDCError("provider_misconfigured", str(exc)) from exc
+
     def _get_json(self, url: str) -> dict[str, Any]:
+        self._guard(url)
         try:
             response = self.http.get(url, timeout=10.0)
             response.raise_for_status()
@@ -82,7 +96,10 @@ class OIDCClient:
                 return self._metadata[1]
         url = self.provider.issuer.rstrip("/") + "/.well-known/openid-configuration"
         doc = self._get_json(url)
-        if doc.get("issuer") not in self.provider.issuers:
+        if self.provider.entra_multitenant:
+            if not str(doc.get("issuer", "")).startswith("https://login.microsoftonline.com/"):
+                raise OIDCError("provider_misconfigured", f"issuer mismatch: {doc.get('issuer')}")
+        elif doc.get("issuer") not in self.provider.issuers:
             raise OIDCError("provider_misconfigured", f"issuer mismatch: {doc.get('issuer')}")
         with self._lock:
             self._metadata = (time.monotonic(), doc)
@@ -126,9 +143,11 @@ class OIDCClient:
         return f"{self.metadata()['authorization_endpoint']}?{urlencode(params)}"
 
     def exchange_code(self, *, code: str, redirect_uri: str, code_verifier: str) -> dict[str, Any]:
+        token_endpoint = self.metadata()["token_endpoint"]
+        self._guard(token_endpoint)
         try:
             response = self.http.post(
-                self.metadata()["token_endpoint"],
+                token_endpoint,
                 data={
                     "grant_type": "authorization_code",
                     "code": code,
@@ -160,30 +179,49 @@ class OIDCClient:
         if alg not in ALLOWED_ALGORITHMS:
             raise OIDCError("invalid_token", f"algorithm not allowed: {alg}")
         key = self._signing_key(header.get("kid"))
+        multitenant = self.provider.entra_multitenant
         try:
             claims = jwt.decode(
                 token,
                 key.key,
                 algorithms=[alg],
                 audience=self.provider.client_id,
-                issuer=list(self.provider.issuers),
+                issuer=None if multitenant else list(self.provider.issuers),
                 leeway=LEEWAY,
-                options={"require": ["exp", "iat", "iss", "aud", "sub"]},
+                options={
+                    "require": ["exp", "iat", "iss", "aud", "sub"],
+                    "verify_iss": not multitenant,
+                },
             )
         except jwt.PyJWTError as exc:
             raise OIDCError("invalid_token", str(exc)) from exc
+        if multitenant:
+            # Multi-tenant Entra: the issuer must name the same tenant as the token's tid.
+            match = ENTRA_ISSUER.match(str(claims.get("iss", "")))
+            if not match or match.group(1) != str(claims.get("tid", "")).lower():
+                raise OIDCError("invalid_token", "issuer does not match tenant")
         aud = claims.get("aud")
         if isinstance(aud, list) and len(aud) > 1 and claims.get("azp") != self.provider.client_id:
             raise OIDCError("invalid_token", "azp does not match client id")
         if not secrets.compare_digest(str(claims.get("nonce", "")), nonce):
             raise OIDCError("invalid_token", "nonce mismatch")
         email = claims.get("email")
+        trust = self.provider.trust_email
+        if not email and trust and "@" in str(claims.get("preferred_username", "")):
+            email = claims["preferred_username"]  # Entra work accounts often omit `email`
         if not email:
             raise OIDCError("email_missing", "token has no email claim")
+        verified = _truthy(claims.get("email_verified")) or (
+            trust and "email_verified" not in claims
+        )
+        subject = str(claims["sub"])
+        if self.provider.kind == "entra" and claims.get("tid") and claims.get("oid"):
+            # Entra `sub` is per-application; tid+oid identifies the person stably.
+            subject = f"{claims['tid']}:{claims['oid']}"
         return IdentityClaims(
-            subject=str(claims["sub"]),
+            subject=subject,
             email=str(email),
-            email_verified=_truthy(claims.get("email_verified")),
+            email_verified=verified,
             name=str(claims.get("name") or ""),
             picture=claims.get("picture"),
             raw=claims,

@@ -23,7 +23,7 @@ from costlens.db.rls import enable_tenant_rls_sql, ident, is_privileged_role, rl
 from costlens.db.tenant import current_tenant, set_tenant, tenant_tables
 from costlens.jobs import InProcessRunner
 from costlens.main import create_app
-from tests.conftest import POSTGRES_URL
+from tests.conftest import POSTGRES_URL, TEST_ENCRYPTION_KEY
 
 pg_only = pytest.mark.skipif(not POSTGRES_URL, reason="needs PostgreSQL")
 
@@ -213,7 +213,7 @@ def _prod_settings(url: str) -> Settings:
         deployment_mode=DeploymentMode.SELF_HOSTED,
         database_url=url,
         secret_key="s",  # type: ignore[arg-type]
-        encryption_keys="k",  # type: ignore[arg-type]
+        encryption_keys=TEST_ENCRYPTION_KEY,  # type: ignore[arg-type]
         jobs_in_process=True,
     )
 

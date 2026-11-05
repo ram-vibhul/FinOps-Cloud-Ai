@@ -57,7 +57,7 @@ class ProcrastinateRunner:
         self.jobs = jobs or registry
         self._tasks: dict[str, Any] = {}
         for spec in self.jobs.jobs.values():
-            task = app.task(name=spec.name, queue=spec.queue)(spec.func)
+            task = app.task(name=spec.name, queue=spec.queue, retry=spec.retry)(spec.func)
             if spec.cron:
                 app.periodic(cron=spec.cron, periodic_id=spec.name)(task)
             self._tasks[spec.name] = task
@@ -86,6 +86,9 @@ async def run_worker_async(app: Any, *, wait: bool = True) -> None:
 
 
 def build_runner(settings: Settings) -> JobRunner:
+    from costlens.jobs import load_all_jobs
+
+    load_all_jobs()
     if settings.run_jobs_in_process:
         return InProcessRunner()
     app = build_procrastinate_app(settings.database_url)

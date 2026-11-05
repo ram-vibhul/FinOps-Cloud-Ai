@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router";
 import { Toaster } from "sonner";
 import { routes } from "@/app/routes";
+import { SessionProvider } from "@/lib/session";
 import { ThemeProvider, useTheme } from "@/lib/theme";
 import "./index.css";
 
@@ -19,7 +20,9 @@ if (!root) throw new Error("root element missing");
 createRoot(root).render(
   <StrictMode>
     <ThemeProvider>
-      <RouterProvider router={router} />
+      <SessionProvider>
+        <RouterProvider router={router} />
+      </SessionProvider>
       <ThemedToaster />
     </ThemeProvider>
   </StrictMode>,

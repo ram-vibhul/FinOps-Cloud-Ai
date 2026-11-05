@@ -80,8 +80,25 @@ def grant_app_role(conn: Connection, role: str) -> None:
         f"GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO {r}",
         f"GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO {r}",
         f"REVOKE INSERT, UPDATE, DELETE ON alembic_version FROM {r}",
+        # Audit entries are append-only for the application (deletes only via retention).
+        f"REVOKE UPDATE ON audit_events FROM {r}",
+        # ...except pseudonymising who did it when a person deletes their account.
+        f"GRANT UPDATE (actor_label, ip, user_agent) ON audit_events TO {r}",
     ):
         conn.execute(text(stmt))
+    # Partitions are reached only through their parent (where RLS applies).
+    partitions = (
+        conn.execute(
+            text(
+                "SELECT c.relname FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid "
+                "WHERE c.relkind = 'r'"
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for name in partitions:
+        conn.execute(text(f"REVOKE ALL ON {ident(name)} FROM {r}"))
 
 
 def is_privileged_role(conn: Connection) -> bool:
@@ -101,7 +118,7 @@ def rls_status(conn: Connection) -> dict[str, tuple[bool, bool, bool]]:
                    EXISTS (SELECT 1 FROM pg_policies p
                            WHERE p.tablename = c.relname AND p.policyname = :policy)
             FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-            WHERE n.nspname = current_schema() AND c.relkind = 'r'
+            WHERE n.nspname = current_schema() AND c.relkind IN ('r', 'p')
             """
         ),
         {"policy": POLICY_NAME},

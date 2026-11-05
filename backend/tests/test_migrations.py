@@ -8,6 +8,7 @@ from sqlalchemy import inspect
 from costlens import models  # noqa: F401
 from costlens.cli import alembic_config, migrate
 from costlens.db import Base, Database
+from costlens.db.schema_filter import include_name
 
 
 def test_upgrade_and_downgrade(admin_database_url: str) -> None:
@@ -26,12 +27,7 @@ def test_models_match_migrations(admin_database_url: str) -> None:
     migrate(url)
     db = Database(url)
     with db.engine.connect() as conn:
-        context = MigrationContext.configure(
-            conn,
-            opts={
-                "include_name": lambda name, type_, _p: not (name or "").startswith("procrastinate")
-            },
-        )
+        context = MigrationContext.configure(conn, opts={"include_name": include_name})
         diff = compare_metadata(context, Base.metadata)
     db.dispose()
     assert diff == []

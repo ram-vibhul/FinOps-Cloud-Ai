@@ -7,8 +7,10 @@ services:
     environment:
       COSTLENS_DEPLOYMENT_MODE: local
       COSTLENS_DATABASE_URL: sqlite:////data/costlens.db
+      # Sign in with just an email (no identity provider). Local mode only.
+      COSTLENS_LOCAL_LOGIN: "true"
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"  # this machine only
     volumes:
       - data:/data
 volumes:

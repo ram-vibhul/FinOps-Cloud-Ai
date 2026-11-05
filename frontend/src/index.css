@@ -28,6 +28,17 @@
   --input: oklch(0.91 0.005 260);
   --ring: oklch(0.51 0.1 185);
   --sidebar: oklch(0.975 0.003 260);
+  /* Chart palette (validated: CVD-safe adjacent pairs; relief via labels/table view). */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #6250d6;
+  --series-8: #e34948;
+  --series-other: #9a9994;
+  --chart-grid: oklch(0.91 0.005 260);
 }
 
 .dark {
@@ -52,6 +63,16 @@
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.7 0.12 185);
   --sidebar: oklch(0.18 0.01 260);
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+  --series-other: #6f6e69;
+  --chart-grid: oklch(1 0 0 / 10%);
 }
 
 @theme inline {

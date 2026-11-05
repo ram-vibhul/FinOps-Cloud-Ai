@@ -45,6 +45,7 @@ costlens = ["py.typed", "migrations/script.py.mako"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["../agent/src"]
 addopts = "-q --strict-markers"
 filterwarnings = ["error::DeprecationWarning:costlens.*"]
 
@@ -63,6 +64,7 @@ ignore = ["PLR0913", "PLR0917", "PLR2004", "PLC0415"]  # lazy imports keep CLI a
 
 [tool.pyright]
 include = ["src", "tests"]
+extraPaths = ["../agent/src"]  # end-to-end test drives the real agent code
 pythonVersion = "3.13"
 typeCheckingMode = "standard"
 venvPath = "."

@@ -25,6 +25,24 @@ from costlens.models import Identity, Membership, Organization, User, UserSessio
 SESSION_TTL = timedelta(days=14)
 SESSION_TOUCH_INTERVAL = timedelta(minutes=5)
 _SLUG_STRIP = re.compile(r"[^a-z0-9]+")
+# Never given to customer organisations (demo, product URLs, support impersonation).
+RESERVED_SLUGS = frozenset(
+    {
+        "demo",
+        "admin",
+        "api",
+        "app",
+        "www",
+        "support",
+        "status",
+        "docs",
+        "help",
+        "billing",
+        "partners",
+        "costlens",
+        "yugiverse",
+    }
+)
 
 
 def normalize_email(email: str) -> str:
@@ -98,7 +116,7 @@ def slugify(name: str) -> str:
 
 def _unique_slug(db: Session, name: str) -> str:
     base = slugify(name)
-    slug = base
+    slug = base if base not in RESERVED_SLUGS else f"{base}-{secrets.token_hex(3)}"
     while db.scalar(
         select(func.count()).select_from(Organization).where(Organization.slug == slug)
     ):
@@ -120,6 +138,17 @@ def create_organization(
     db.add(org)
     db.flush()
     set_tenant(db, org_id=org.id, user_id=owner.id)
+    from costlens.audit.recorder import record
+
+    record(
+        db,
+        org_id=org.id,
+        action="organization.created",
+        target_type="organization",
+        target_id=org.id,
+        summary=f"organization created: {org.name}",
+        changes={"name": [None, org.name], "slug": [None, org.slug]},
+    )
     db.add(Membership(org_id=org.id, user_id=owner.id, role=Role.OWNER))
     db.flush()
     return org

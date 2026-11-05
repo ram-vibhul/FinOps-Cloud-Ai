@@ -27,7 +27,11 @@ def _url_user(url: str) -> str | None:
 
 
 def migrate(
-    database_url: str | None = None, revision: str = "head", *, app_role: str | None = None
+    database_url: str | None = None,
+    revision: str = "head",
+    *,
+    app_role: str | None = None,
+    partition_months: tuple[int, int] = (36, 12),
 ) -> None:
     """Apply Alembic migrations; on PostgreSQL also the queue schema and app-role grants.
 
@@ -44,14 +48,18 @@ def migrate(
     command.upgrade(alembic_config(database_url), revision)
     if database_url.startswith(("postgresql", "postgres")):
         apply_queue_schema(database_url)
-        if app_role:
-            from costlens.db.rls import grant_app_role
-            from costlens.db.session import build_engine
+        from datetime import date
 
-            engine = build_engine(database_url)
-            with engine.begin() as conn:
+        from costlens.costs.partitions import ensure_partitions
+        from costlens.db.rls import grant_app_role
+        from costlens.db.session import build_engine
+
+        engine = build_engine(database_url)
+        with engine.begin() as conn:
+            if app_role:
                 grant_app_role(conn, app_role)
-            engine.dispose()
+            ensure_partitions(conn, today=date.today(), app_role=app_role)
+        engine.dispose()
 
 
 def apply_queue_schema(url: str) -> None:
@@ -80,6 +88,11 @@ def main(argv: list[str] | None = None) -> int:
     serve.add_argument("--port", type=int, default=8000)
     serve.add_argument("--reload", action="store_true")
     sub.add_parser("worker", help="run the background job worker (PostgreSQL only)")
+    demo = sub.add_parser("demo", help="create or reset the demo organisation")
+    demo.add_argument("action", choices=["seed", "reset"])
+    sub.add_parser(
+        "rotate-keys", help="re-encrypt stored secrets with the first COSTLENS_ENCRYPTION_KEYS key"
+    )
     args = parser.parse_args(argv)
 
     if args.command == "migrate":
@@ -98,6 +111,33 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "worker":
         return run_worker()
+    if args.command == "demo":
+        from costlens.core.crypto import configure_encryption
+        from costlens.db import Database
+        from costlens.demo.seed import ensure_demo, reset_demo
+        from costlens.main import build_secret_box
+
+        settings = get_settings()
+        configure_encryption(build_secret_box(settings))
+        db = Database(settings.migration_database_url or settings.database_url)
+        with db.session() as session:
+            org = ensure_demo(session) if args.action == "seed" else reset_demo(session)
+            print(f"demo organisation ready: {org.id}")
+        db.dispose()
+        return 0
+    if args.command == "rotate-keys":
+        from costlens.db import Database
+        from costlens.db.keys import rotate_encryption_keys
+        from costlens.main import build_secret_box
+
+        settings = get_settings()
+        box = build_secret_box(settings)
+        db = Database(settings.migration_database_url or settings.database_url)
+        counts = rotate_encryption_keys(db, box)
+        db.dispose()
+        for name, n in counts.items():
+            print(f"{name}: {n} re-encrypted")
+        return 0
     return 2
 
 
@@ -112,6 +152,24 @@ def run_worker() -> int:
     if settings.run_jobs_in_process:
         print("jobs run in-process with this configuration; no worker needed", file=sys.stderr)
         return 1
+    from costlens.core.crypto import configure_encryption
+    from costlens.core.email import build_sender, configure_email
+    from costlens.core.storage import build_storage
+    from costlens.db import Database
+    from costlens.jobs import load_all_jobs
+    from costlens.jobs.context import JobContext, configure_jobs
+    from costlens.main import build_secret_box
+
+    configure_encryption(build_secret_box(settings))
+    configure_email(build_sender(settings))
+    configure_jobs(
+        JobContext(
+            settings=settings,
+            db=Database(settings.database_url),
+            storage=build_storage(settings.data_dir),
+        )
+    )
+    load_all_jobs()
     app = build_procrastinate_app(settings.database_url)
     ProcrastinateRunner(app)
     asyncio.run(run_worker_async(app))

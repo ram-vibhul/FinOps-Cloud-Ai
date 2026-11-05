@@ -49,6 +49,12 @@ def sign_in(web: TestClient, idp: FakeIdP, return_to: str | None = None, **claim
     return web.get("/api/v1/auth/callback/google", params={"code": code, "state": state})
 
 
+def logout(web: TestClient):
+    return web.post(
+        "/api/v1/auth/logout", headers={"X-CSRF-Token": web.cookies.get("costlens_csrf") or ""}
+    )
+
+
 def error_of(response) -> str | None:
     assert response.status_code == 303, response.text
     q = parse_qs(urlparse(response.headers["location"]).query)
@@ -80,7 +86,9 @@ def test_full_sign_in_creates_user_and_session(web: TestClient, idp: FakeIdP, db
     assert r.headers["location"] == "/costs?range=30d"
     cookie = r.headers["set-cookie"]
     assert "costlens_session=" in cookie and "HttpOnly" in cookie and "SameSite=lax" in cookie
+    assert web.cookies.get("costlens_csrf")
     me = web.get("/api/v1/auth/me").json()
+    assert me["csrf_token"] == web.cookies.get("costlens_csrf")
     assert me["user"]["email"] == "asha@example.com"
     assert me["user"]["name"] == "Asha Raman"
     assert me["organizations"] == [] and me["active_organization_id"] is None
@@ -109,7 +117,7 @@ def test_me_lists_organizations_and_active_role(
 def test_logout_revokes_session(web: TestClient, idp: FakeIdP) -> None:
     sign_in(web, idp)
     assert web.get("/api/v1/auth/me").status_code == 200
-    assert web.post("/api/v1/auth/logout").status_code == 204
+    assert logout(web).status_code == 204
     r = web.get("/api/v1/auth/me")
     assert r.status_code == 401
     assert r.json()["code"] == "unauthorized"
@@ -118,7 +126,7 @@ def test_logout_revokes_session(web: TestClient, idp: FakeIdP) -> None:
 def test_stolen_cookie_useless_after_logout(web: TestClient, idp: FakeIdP) -> None:
     sign_in(web, idp)
     token = web.cookies.get("costlens_session") or ""
-    web.post("/api/v1/auth/logout")
+    logout(web)
     web.cookies.clear()
     web.cookies.set("costlens_session", token)
     assert web.get("/api/v1/auth/me").status_code == 401
@@ -234,14 +242,14 @@ def test_unsigned_token_rejected(web: TestClient, idp: FakeIdP) -> None:
 
 def test_key_rotation_refreshes_jwks(web: TestClient, idp: FakeIdP) -> None:
     sign_in(web, idp)
-    web.post("/api/v1/auth/logout")
+    logout(web)
     idp.rotate("k2")
     # Bypass the 60 s refresh floor by expiring the cache.
     client = web.app.state.oidc_clients["google"]  # type: ignore[attr-defined]
     client._jwks = (client._jwks[0] - 120, client._jwks[1])
     r = sign_in(web, idp)
     assert r.headers["location"] == "/"
-    assert idp.requests.count("GET /oauth2/v3/certs") == 2
+    assert sum(r.endswith("/keys") for r in idp.requests) == 2
 
 
 def test_unverified_email_cannot_take_over(web: TestClient, idp: FakeIdP, db: Database) -> None:
@@ -326,3 +334,25 @@ def test_signer() -> None:
         Signer("secret", "other-purpose").loads(token, now=1000)
     with pytest.raises(BadSignatureError):
         signer.loads("garbage", now=1000)
+
+
+def test_local_login_only_when_enabled(client: TestClient, settings: Settings) -> None:
+    assert client.post("/api/v1/auth/local", json={"email": "dev@x.com"}).status_code == 404
+    settings.local_login = True
+    assert {"id": "local", "name": "Local account (development)"} in client.get(
+        "/api/v1/auth/providers"
+    ).json()
+    assert client.post("/api/v1/auth/local", json={"email": "Dev@X.com"}).status_code == 204
+    assert client.get("/api/v1/auth/me").json()["user"]["email"] == "dev@x.com"
+
+
+def test_local_login_refused_outside_local_mode() -> None:
+    with pytest.raises(ValueError, match="only allowed in local mode"):
+        Settings(
+            _env_file=None,  # type: ignore[call-arg]
+            deployment_mode="saas",
+            local_login=True,
+            secret_key="s",  # type: ignore[arg-type]
+            encryption_keys="k",  # type: ignore[arg-type]
+            database_url="postgresql://u@h/db",
+        )

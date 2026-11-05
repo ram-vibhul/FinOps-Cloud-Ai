@@ -1,0 +1,73 @@
+{{- if not .Values.costlens.url }}{{ fail "Set costlens.url to the address of your CostLens." }}{{ end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "costlens-agent.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: costlens-agent
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels: {{- include "costlens-agent.labels" . | nindent 8 }}
+      annotations:
+        checksum/token: {{ .Values.costlens.token | sha256sum | trunc 16 }}
+        {{- with .Values.podAnnotations }}{{ toYaml . | nindent 8 }}{{ end }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: agent
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: COSTLENS_URL
+              value: {{ .Values.costlens.url | quote }}
+            - name: COSTLENS_CLUSTER_NAME
+              value: {{ .Values.costlens.clusterName | quote }}
+            - name: COSTLENS_TOKEN_FILE
+              value: /var/run/costlens/token
+            {{- if .Values.costlens.allowHttp }}
+            - name: COSTLENS_ALLOW_HTTP
+              value: "true"
+            {{- end }}
+          volumeMounts:
+            - name: token
+              mountPath: /var/run/costlens
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: token
+          secret:
+            secretName: {{ include "costlens-agent.secretName" . }}
+            items:
+              - key: token
+                path: token
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity: {{- toYaml . | nindent 8 }}
+      {{- end }}

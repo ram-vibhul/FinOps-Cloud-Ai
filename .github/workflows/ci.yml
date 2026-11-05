@@ -48,6 +48,19 @@ jobs:
       - run: ruff check .
       - run: pyright
       - run: pytest
+      - name: Agent (lint, types, tests)
+        run: |
+          ruff format --check ../agent && ruff check ../agent
+          pyright -p ../agent --pythonpath "$(which python)"
+          python -m pytest ../agent
+      - name: Agent Helm chart
+        if: matrix.database != 'postgres'
+        working-directory: .
+        run: |
+          helm lint deploy/helm/costlens-agent --strict \
+            --set costlens.url=https://costlens.example --set costlens.token=ckt_lint_token
+          helm template t deploy/helm/costlens-agent \
+            --set costlens.url=https://costlens.example --set costlens.token=ckt_lint_token > /dev/null
 
   frontend:
     name: Frontend

@@ -9,13 +9,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 from costlens.accounts import service as acc
 from costlens.accounts.roles import Role
 from costlens.api.deps import CurrentAuth, SessionDep, SettingsDep
 from costlens.auth.oidc import OIDCClient, OIDCError, new_pkce_pair
-from costlens.auth.providers import configured_providers
+from costlens.auth.providers import configured_providers, resolve_provider
 from costlens.auth.web import (
     STATE_COOKIE,
     STATE_COOKIE_PATH,
@@ -24,7 +25,7 @@ from costlens.auth.web import (
     safe_return_to,
     set_session_cookie,
 )
-from costlens.config import Settings
+from costlens.config import DeploymentMode, Settings
 from costlens.core.errors import AppError
 from costlens.core.signing import BadSignatureError, Signer
 
@@ -57,16 +58,19 @@ class MeOut(BaseModel):
     organizations: list[OrganizationOut]
     active_organization_id: uuid.UUID | None
     role: Role | None
+    csrf_token: str
 
 
-def _client(request: Request, provider_id: str) -> OIDCClient:
+def _client(request: Request, db: Session, provider_id: str) -> OIDCClient:
+    provider = resolve_provider(db, request.app.state.settings, provider_id)
+    if provider is None:
+        raise HTTPException(status_code=404, detail="Unknown sign-in provider.")
     clients: dict[str, OIDCClient] = request.app.state.oidc_clients
-    if provider_id not in clients:
-        provider = configured_providers(request.app.state.settings).get(provider_id)
-        if provider is None:
-            raise HTTPException(status_code=404, detail="Unknown sign-in provider.")
-        clients[provider_id] = OIDCClient(provider, request.app.state.http)
-    return clients[provider_id]
+    cached = clients.get(provider_id)
+    if cached is None or cached.provider != provider:  # config changed: drop caches
+        cached = OIDCClient(provider, request.app.state.http, request.app.state.resolver)
+        clients[provider_id] = cached
+    return cached
 
 
 def _signer(request: Request) -> Signer:
@@ -85,10 +89,69 @@ def _fail(code: str) -> RedirectResponse:
 
 @router.get("/providers", response_model=list[ProviderOut])
 def providers(settings: SettingsDep) -> list[ProviderOut]:
-    """Sign-in options configured on this instance."""
-    return [
+    """Sign-in options configured on this instance (``local`` = development sign-in)."""
+    found = [
         ProviderOut(id=p.id, name=p.display_name) for p in configured_providers(settings).values()
     ]
+    if local_login_allowed(settings):
+        found.append(ProviderOut(id="local", name="Local account (development)"))
+    return found
+
+
+def local_login_allowed(settings: Settings) -> bool:
+    return settings.local_login and settings.deployment_mode is DeploymentMode.LOCAL
+
+
+class LocalLoginIn(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+    name: str = Field(default="", max_length=200)
+
+
+@router.post("/local", status_code=204, include_in_schema=False)
+def local_login(
+    body: LocalLoginIn, request: Request, db: SessionDep, settings: SettingsDep
+) -> Response:
+    """Development/trial sign-in without an identity provider (local mode + opt-in only)."""
+    if not local_login_allowed(settings):
+        raise HTTPException(status_code=404)
+    user = acc.sign_in_with_identity(
+        db,
+        provider="local",
+        subject=body.email.strip().lower(),
+        email=body.email,
+        email_verified=True,
+        name=body.name,
+    )
+    token, _ = acc.create_session(
+        db,
+        user,
+        ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+    response = Response(status_code=204)
+    set_session_cookie(response, settings, token, request.app.state.signing_key)
+    return response
+
+
+@router.get("/organizations/{slug}/providers", response_model=list[ProviderOut])
+def organization_providers(slug: str, db: SessionDep) -> list[ProviderOut]:
+    """Single sign-on options of one organisation, for its sign-in page."""
+    from sqlalchemy import select
+
+    from costlens.db.tenant import set_tenant
+    from costlens.models import Organization, OrgIdentityProvider
+
+    set_tenant(db, bypass=True)
+    org = db.scalar(select(Organization).where(Organization.slug == slug))
+    if org is None:
+        return []
+    rows = db.scalars(
+        select(OrgIdentityProvider).where(
+            OrgIdentityProvider.org_id == org.id, OrgIdentityProvider.enabled.is_(True)
+        )
+    ).all()
+    set_tenant(db)
+    return [ProviderOut(id=r.provider_id, name=r.display_name) for r in rows]
 
 
 @router.get("/login/{provider_id}", include_in_schema=False)
@@ -96,9 +159,10 @@ def login(
     provider_id: str,
     request: Request,
     settings: SettingsDep,
+    db: SessionDep,
     return_to: Annotated[str | None, Query(max_length=500)] = None,
 ) -> RedirectResponse:
-    client = _client(request, provider_id)
+    client = _client(request, db, provider_id)
     state, nonce = secrets.token_urlsafe(24), secrets.token_urlsafe(24)
     verifier, challenge = new_pkce_pair()
     try:
@@ -151,7 +215,7 @@ def callback(  # noqa: PLR0911 - each early return is a distinct sign-in failure
         or not secrets.compare_digest(str(saved.get("s")), state)
     ):
         return _fail("state_mismatch")
-    client = _client(request, provider_id)
+    client = _client(request, db, provider_id)
     try:
         tokens = client.exchange_code(
             code=code, redirect_uri=_redirect_uri(settings, provider_id), code_verifier=saved["v"]
@@ -185,7 +249,7 @@ def callback(  # noqa: PLR0911 - each early return is a distinct sign-in failure
     )
     response = RedirectResponse(safe_return_to(saved.get("r")), status_code=303)
     response.delete_cookie(STATE_COOKIE, path=STATE_COOKIE_PATH)
-    set_session_cookie(response, settings, token)
+    set_session_cookie(response, settings, token, request.app.state.signing_key)
     return response
 
 
@@ -201,6 +265,7 @@ def me(auth: CurrentAuth, db: SessionDep) -> MeOut:
         ],
         active_organization_id=auth.org_id,
         role=auth.role,
+        csrf_token=auth.csrf_token,
     )
 
 

@@ -19,6 +19,7 @@ class JobSpec:
     func: JobFunc
     queue: str = "default"
     cron: str | None = None  # periodic schedule, five-field cron syntax
+    retry: int = 0  # attempts after the first failure (PostgreSQL queue only)
 
 
 @dataclass
@@ -41,10 +42,17 @@ registry = JobRegistry()
 
 
 def job(
-    name: str, *, queue: str = "default", cron: str | None = None, into: JobRegistry | None = None
+    name: str,
+    *,
+    queue: str = "default",
+    cron: str | None = None,
+    retry: int = 0,
+    into: JobRegistry | None = None,
 ) -> Callable[[JobFunc], JobFunc]:
     def decorator(func: JobFunc) -> JobFunc:
-        (into or registry).register(JobSpec(name=name, func=func, queue=queue, cron=cron))
+        (into or registry).register(
+            JobSpec(name=name, func=func, queue=queue, cron=cron, retry=retry)
+        )
         return func
 
     return decorator

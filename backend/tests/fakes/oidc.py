@@ -38,6 +38,19 @@ class FakeIdP:
     codes: dict[str, dict[str, Any]] = field(default_factory=dict)
     requests: list[str] = field(default_factory=list)
     available: bool = True
+    # What discovery reports as issuer (multi-tenant Entra publishes a template).
+    discovery_issuer: str | None = None
+    # Override the iss claim in ID tokens (multi-tenant Entra: the user's tenant).
+    token_issuer: str | None = None
+    default_claims: dict[str, Any] = field(
+        default_factory=lambda: {
+            "sub": "google-sub-1",
+            "email": "asha@example.com",
+            "email_verified": True,
+            "name": "Asha Raman",
+            "picture": "https://example.com/a.png",
+        }
+    )
 
     def __post_init__(self) -> None:
         self.keys[self.active_kid] = _new_key(self.active_kid)
@@ -54,15 +67,8 @@ class FakeIdP:
         assert q["client_id"] == self.client_id
         assert q["code_challenge_method"] == "S256"
         code = secrets.token_urlsafe(16)
-        base = {
-            "sub": "google-sub-1",
-            "email": "asha@example.com",
-            "email_verified": True,
-            "name": "Asha Raman",
-            "picture": "https://example.com/a.png",
-        }
         self.codes[code] = {
-            "claims": {**base, **claims},
+            "claims": {**self.default_claims, **claims},
             "nonce": q["nonce"],
             "challenge": q["code_challenge"],
             "redirect_uri": q["redirect_uri"],
@@ -80,7 +86,7 @@ class FakeIdP:
     ) -> str:
         now = int(time.time())
         payload = {
-            "iss": self.issuer,
+            "iss": self.token_issuer or self.issuer,
             "aud": self.client_id,
             "iat": now,
             "exp": now + 300,
@@ -99,42 +105,45 @@ class FakeIdP:
         if not self.available:
             return httpx.Response(503)
         path = request.url.path
-        if path == "/.well-known/openid-configuration":
+        if path.endswith("/.well-known/openid-configuration"):
             return httpx.Response(
                 200,
                 json={
-                    "issuer": self.issuer,
-                    "authorization_endpoint": f"{self.issuer}/o/oauth2/v2/auth",
-                    "token_endpoint": "https://oauth2.googleapis.com/token",
-                    "jwks_uri": "https://www.googleapis.com/oauth2/v3/certs",
+                    "issuer": self.discovery_issuer or self.issuer,
+                    "authorization_endpoint": f"{self.issuer}/authorize",
+                    "token_endpoint": f"{self.issuer}/token",
+                    "jwks_uri": f"{self.issuer}/keys",
                     "id_token_signing_alg_values_supported": ["RS256"],
                 },
             )
-        if path == "/oauth2/v3/certs":
+        if path.endswith("/keys"):
             return httpx.Response(200, json={"keys": [jwk for _, jwk in self.keys.values()]})
-        if path == "/token" and request.method == "POST":
-            form = {k: v[0] for k, v in parse_qs(request.content.decode()).items()}
-            grant = self.codes.pop(form.get("code", ""), None)  # single use
-            if grant is None or form.get("client_secret") != self.client_secret:
-                return httpx.Response(400, json={"error": "invalid_grant"})
-            verifier = form.get("code_verifier", "")
-            challenge = (
-                base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
-                .rstrip(b"=")
-                .decode()
-            )
-            if challenge != grant["challenge"] or form.get("redirect_uri") != grant["redirect_uri"]:
-                return httpx.Response(400, json={"error": "invalid_grant"})
-            override = grant["claims"].pop("_id_token", None)
-            token = (
-                override(self, grant)
-                if override
-                else self.id_token(grant["claims"], nonce=grant["nonce"])
-            )
-            return httpx.Response(
-                200, json={"id_token": token, "access_token": "x", "token_type": "Bearer"}
-            )
+        if path.endswith("/token") and request.method == "POST":
+            return self._token(request)
         return httpx.Response(404)
+
+    def _token(self, request: httpx.Request) -> httpx.Response:
+        form = {k: v[0] for k, v in parse_qs(request.content.decode()).items()}
+        grant = self.codes.pop(form.get("code", ""), None)  # single use
+        if grant is None or form.get("client_secret") != self.client_secret:
+            return httpx.Response(400, json={"error": "invalid_grant"})
+        verifier = form.get("code_verifier", "")
+        challenge = (
+            base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
+            .rstrip(b"=")
+            .decode()
+        )
+        if challenge != grant["challenge"] or form.get("redirect_uri") != grant["redirect_uri"]:
+            return httpx.Response(400, json={"error": "invalid_grant"})
+        override = grant["claims"].pop("_id_token", None)
+        token = (
+            override(self, grant)
+            if override
+            else self.id_token(grant["claims"], nonce=grant["nonce"])
+        )
+        return httpx.Response(
+            200, json={"id_token": token, "access_token": "x", "token_type": "Bearer"}
+        )
 
     def client(self) -> httpx.Client:
         return httpx.Client(transport=httpx.MockTransport(self.handler))

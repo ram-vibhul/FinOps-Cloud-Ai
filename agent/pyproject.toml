@@ -1,0 +1,45 @@
+[project]
+name = "costlens-agent"
+version = "0.1.0"
+description = "CostLens in-cluster Kubernetes agent (read-only) by Yugiverse"
+license = "LicenseRef-Proprietary"
+requires-python = ">=3.13"
+dependencies = [
+  "kubernetes==37.0.1",
+  "httpx==0.28.1",
+]
+
+[project.scripts]
+costlens-agent = "costlens_agent.main:main"
+
+[build-system]
+requires = ["setuptools==84.2.1"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF", "ASYNC", "PL"]
+ignore = ["PLR0913", "PLR0917", "PLR2004", "PLC0415"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]
+
+[tool.pyright]
+include = ["src", "tests"]
+extraPaths = ["src"]
+pythonVersion = "3.13"
+typeCheckingMode = "standard"
+venvPath = "../backend"
+venv = ".venv"

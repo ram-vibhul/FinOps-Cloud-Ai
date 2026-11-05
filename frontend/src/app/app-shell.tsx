@@ -5,7 +5,9 @@ import { NavLink, Outlet } from "react-router";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { DemoBanner } from "./demo-banner";
 import { NAV_ITEMS } from "./nav";
+import { OrgSwitcher, UserMenu } from "./org-switcher";
 
 function Logo() {
   return (
@@ -70,6 +72,7 @@ export function AppShell() {
                 </Button>
               </Dialog.Close>
             </div>
+            <OrgSwitcher />
             <NavLinks onNavigate={() => setOpen(false)} />
           </Dialog.Content>
         </Dialog.Portal>
@@ -82,10 +85,15 @@ export function AppShell() {
           <div className="md:hidden">
             <Logo />
           </div>
+          <div className="hidden md:block">
+            <OrgSwitcher />
+          </div>
           <div className="ml-auto flex items-center gap-1">
             <ThemeToggle />
+            <UserMenu />
           </div>
         </header>
+        <DemoBanner />
         <main id="main" className="mx-auto w-full max-w-7xl flex-1 p-4 md:p-8">
           <Outlet />
         </main>

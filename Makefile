@@ -9,17 +9,21 @@ setup:
 	cd frontend && npm ci
 
 dev-api:
-	cd backend && .venv/bin/costlens migrate && .venv/bin/costlens serve --reload
+	cd backend && .venv/bin/costlens migrate && COSTLENS_LOCAL_LOGIN=true .venv/bin/costlens serve --reload
 
 dev-ui:
 	cd frontend && npm run dev
 
 lint:
 	cd backend && .venv/bin/ruff format --check . && .venv/bin/ruff check . && .venv/bin/pyright
+	cd agent && ../$(PY)/ruff format --check . && ../$(PY)/ruff check . && ../$(PY)/pyright
+	@command -v helm >/dev/null && helm lint deploy/helm/costlens-agent --quiet \
+	  --set costlens.url=https://costlens.example --set costlens.token=ckt_lint_token || true
 	cd frontend && npm run lint && npm run typecheck
 
 test:
 	cd backend && .venv/bin/pytest
+	cd agent && ../$(PY)/pytest
 	cd frontend && npm test
 
 # Backend tests against a throwaway PostgreSQL 17 container (needs Docker).
@@ -46,3 +50,4 @@ notices:
 
 image:
 	docker build -t costlens:dev .
+	docker build -f agent/Dockerfile -t costlens-agent:dev .
