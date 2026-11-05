@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-RESERVED_PREFIXES = ("api/", "healthz", "readyz", "docs", "openapi.json")
+RESERVED_PREFIXES = ("api/", "healthz", "readyz", "metrics", "docs", "openapi.json")
 
 
 def mount_spa(app: FastAPI, dist: Path) -> None:

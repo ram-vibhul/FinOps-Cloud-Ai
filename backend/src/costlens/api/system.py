@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Response, status
+import hmac
+
+from fastapi import APIRouter, Header, HTTPException, Response, status
 from pydantic import BaseModel
 
 from costlens import PRODUCT_NAME, VENDOR, __version__
 from costlens.api.deps import DatabaseDep, SettingsDep
+from costlens.config import DeploymentMode
+from costlens.core.metrics import PROMETHEUS_CONTENT_TYPE, REGISTRY
 
 router = APIRouter(tags=["system"])
 
@@ -50,3 +54,18 @@ def meta(settings: SettingsDep) -> InstanceMeta:
         environment=settings.environment_name,
         ai_enabled=settings.ai_enabled,
     )
+
+
+@router.get("/metrics", include_in_schema=False)
+def metrics(settings: SettingsDep, authorization: str | None = Header(default=None)) -> Response:
+    """Prometheus metrics. Needs ``Authorization: Bearer <COSTLENS_METRICS_TOKEN>``
+    except in local mode with no token configured."""
+    token = settings.metrics_token
+    if token is None:
+        if settings.deployment_mode is not DeploymentMode.LOCAL:
+            raise HTTPException(status_code=404)
+    else:
+        expected = f"Bearer {token.get_secret_value()}"
+        if not hmac.compare_digest((authorization or "").encode(), expected.encode()):
+            raise HTTPException(status_code=401, headers={"WWW-Authenticate": "Bearer"})
+    return Response(REGISTRY.render(), media_type=PROMETHEUS_CONTENT_TYPE)

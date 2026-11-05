@@ -1,5 +1,10 @@
-# Production-style stack: web + worker + PostgreSQL 17.
+# Production-style stack: migrate (one-shot) + web + worker + PostgreSQL 17.
 # Used for self-hosted installs and as the SaaS reference. Copy .env.example to .env first.
+#
+# Two database roles:
+#   costlens      owner; used only by the one-shot `migrate` service
+#   costlens_app  runtime role for web + worker; no superuser/BYPASSRLS, so
+#                 PostgreSQL row-level security isolates organisations
 name: costlens
 
 x-app: &app
@@ -7,13 +12,29 @@ x-app: &app
   build: .
   restart: unless-stopped
   env_file: .env
-  environment:
-    COSTLENS_DATABASE_URL: postgresql://costlens:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/costlens
-  depends_on:
+  environment: &app-env
+    COSTLENS_DATABASE_URL: postgresql://costlens_app:${COSTLENS_DB_APP_PASSWORD:?set COSTLENS_DB_APP_PASSWORD in .env}@db:5432/costlens
+    COSTLENS_SKIP_MIGRATE: "1"
+  depends_on: &app-deps
     db:
       condition: service_healthy
+    migrate:
+      condition: service_completed_successfully
 
 services:
+  migrate:
+    <<: *app
+    command: ["migrate"]
+    restart: "no"
+    environment:
+      <<: *app-env
+      COSTLENS_MIGRATION_DATABASE_URL: postgresql://costlens:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/costlens
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+
   web:
     <<: *app
     command: ["web"]
@@ -23,11 +44,10 @@ services:
   worker:
     <<: *app
     command: ["worker"]
-    depends_on:
-      db:
-        condition: service_healthy
-      web:
-        condition: service_healthy  # web runs migrations first
+    # The image's HTTP healthcheck is for the web process; the worker has no HTTP port.
+    # A worker heartbeat check is tracked in TRACKER.md (0.4).
+    healthcheck:
+      disable: true
 
   db:
     image: postgres:17.11-trixie
@@ -36,8 +56,10 @@ services:
       POSTGRES_USER: costlens
       POSTGRES_DB: costlens
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      COSTLENS_DB_APP_PASSWORD: ${COSTLENS_DB_APP_PASSWORD:?set COSTLENS_DB_APP_PASSWORD in .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./deploy/compose/postgres-init.sh:/docker-entrypoint-initdb.d/10-costlens-app-role.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U costlens -d costlens"]
       interval: 5s

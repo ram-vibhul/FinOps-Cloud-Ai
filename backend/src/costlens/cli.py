@@ -20,12 +20,38 @@ def alembic_config(database_url: str | None = None) -> Config:
     return cfg
 
 
-def migrate(database_url: str | None = None, revision: str = "head") -> None:
-    """Apply Alembic migrations, plus the Procrastinate queue schema on PostgreSQL."""
-    url = database_url or get_settings().database_url
-    command.upgrade(alembic_config(url), revision)
-    if url.startswith(("postgresql", "postgres")):
-        apply_queue_schema(url)
+def _url_user(url: str) -> str | None:
+    from sqlalchemy.engine import make_url
+
+    return make_url(url).username
+
+
+def migrate(
+    database_url: str | None = None, revision: str = "head", *, app_role: str | None = None
+) -> None:
+    """Apply Alembic migrations; on PostgreSQL also the queue schema and app-role grants.
+
+    Without arguments, uses ``COSTLENS_MIGRATION_DATABASE_URL`` (falling back to
+    ``COSTLENS_DATABASE_URL``) and grants data access to the runtime role when the
+    two URLs use different users.
+    """
+    if database_url is None:
+        settings = get_settings()
+        database_url = settings.migration_database_url or settings.database_url
+        runtime_user = _url_user(settings.database_url)
+        if app_role is None and runtime_user and runtime_user != _url_user(database_url):
+            app_role = runtime_user
+    command.upgrade(alembic_config(database_url), revision)
+    if database_url.startswith(("postgresql", "postgres")):
+        apply_queue_schema(database_url)
+        if app_role:
+            from costlens.db.rls import grant_app_role
+            from costlens.db.session import build_engine
+
+            engine = build_engine(database_url)
+            with engine.begin() as conn:
+                grant_app_role(conn, app_role)
+            engine.dispose()
 
 
 def apply_queue_schema(url: str) -> None:
@@ -76,16 +102,19 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def run_worker() -> int:
-    from costlens.jobs.runner import ProcrastinateRunner, build_procrastinate_app
+    import asyncio
+
+    from costlens.core.logging import configure_logging
+    from costlens.jobs.runner import ProcrastinateRunner, build_procrastinate_app, run_worker_async
 
     settings = get_settings()
+    configure_logging(settings.log_level, settings.effective_log_format)
     if settings.run_jobs_in_process:
         print("jobs run in-process with this configuration; no worker needed", file=sys.stderr)
         return 1
     app = build_procrastinate_app(settings.database_url)
     ProcrastinateRunner(app)
-    with app.open():
-        app.run_worker()
+    asyncio.run(run_worker_async(app))
     return 0
 
 

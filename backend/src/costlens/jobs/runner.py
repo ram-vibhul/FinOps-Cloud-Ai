@@ -8,6 +8,7 @@ import logging
 from typing import Any, Protocol
 
 from costlens.config import Settings
+from costlens.core.metrics import JOBS
 from costlens.jobs.registry import JobRegistry, registry
 
 log = logging.getLogger(__name__)
@@ -38,8 +39,10 @@ class InProcessRunner:
         except Exception as exc:
             log.exception("in-process job %s failed", name)
             self.failed.append((name, repr(exc)))
+            JOBS.inc(job=name, outcome="failed")
             return
         self.completed.append(name)
+        JOBS.inc(job=name, outcome="succeeded")
 
 
 async def _await(awaitable: Any) -> Any:
@@ -65,10 +68,21 @@ class ProcrastinateRunner:
 
 
 def build_procrastinate_app(conninfo: str) -> Any:
+    """Procrastinate app on the async psycopg connector.
+
+    The worker needs the async connector; synchronous calls (deferring a job
+    from a web request, applying the schema) transparently use Procrastinate's
+    internal synchronous connector when the app is opened with ``app.open()``.
+    """
     import procrastinate
 
     conninfo = conninfo.replace("postgresql+psycopg://", "postgresql://")
-    return procrastinate.App(connector=procrastinate.SyncPsycopgConnector(conninfo=conninfo))
+    return procrastinate.App(connector=procrastinate.PsycopgConnector(conninfo=conninfo))
+
+
+async def run_worker_async(app: Any, *, wait: bool = True) -> None:
+    async with app.open_async():
+        await app.run_worker_async(wait=wait, install_signal_handlers=wait)
 
 
 def build_runner(settings: Settings) -> JobRunner:

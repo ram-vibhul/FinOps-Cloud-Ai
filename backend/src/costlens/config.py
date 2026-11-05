@@ -9,7 +9,7 @@ from __future__ import annotations
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -38,8 +38,18 @@ class Settings(BaseSettings):
     environment_name: str = "development"
     base_url: str = "http://localhost:8000"
     log_level: str = "INFO"
+    # "json" (one JSON object per line), "text", or "auto" (json unless local mode).
+    log_format: Literal["auto", "json", "text"] = "auto"
+    # Bearer token for /metrics. Without it, /metrics is only served in local mode.
+    metrics_token: SecretStr | None = None
 
     database_url: str = "sqlite:///./data/costlens.db"
+    # PostgreSQL: owner/admin connection used only by `costlens migrate`. The runtime
+    # `database_url` should be a separate role without superuser/BYPASSRLS so that
+    # row-level security applies; migrate grants it data access.
+    migration_database_url: str | None = None
+    # Escape hatch for setups that cannot create a separate role (not recommended).
+    allow_privileged_db_role: bool = False
     database_echo: bool = False
 
     # Signs sessions and CSRF tokens. Required outside local mode.
@@ -52,6 +62,13 @@ class Settings(BaseSettings):
 
     # Run background jobs inside the web process. Defaults to True on SQLite.
     jobs_in_process: bool | None = None
+
+    # Sign in with Google (OIDC). Create an OAuth client of type "Web application";
+    # redirect URI: <base_url>/api/v1/auth/callback/google
+    google_client_id: str | None = None
+    google_client_secret: SecretStr | None = None
+    # Only these email domains may sign in (empty = any). Useful for self-hosted.
+    allowed_email_domains: list[str] = Field(default_factory=list)
 
     # Optional AI summaries.
     anthropic_api_key: SecretStr | None = None
@@ -68,10 +85,20 @@ class Settings(BaseSettings):
         return self.database_url.startswith(("postgresql", "postgres"))
 
     @property
+    def secure_cookies(self) -> bool:
+        return self.base_url.startswith("https://")
+
+    @property
     def run_jobs_in_process(self) -> bool:
         if self.jobs_in_process is not None:
             return self.jobs_in_process
         return self.is_sqlite
+
+    @property
+    def effective_log_format(self) -> str:
+        if self.log_format != "auto":
+            return self.log_format
+        return "text" if self.deployment_mode is DeploymentMode.LOCAL else "json"
 
     @property
     def ai_enabled(self) -> bool:

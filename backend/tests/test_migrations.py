@@ -10,8 +10,8 @@ from costlens.cli import alembic_config, migrate
 from costlens.db import Base, Database
 
 
-def test_upgrade_and_downgrade(database_url: str) -> None:
-    url = database_url
+def test_upgrade_and_downgrade(admin_database_url: str) -> None:
+    url = admin_database_url
     migrate(url)
     db = Database(url)
     assert inspect(db.engine).has_table("instance_settings")
@@ -20,9 +20,9 @@ def test_upgrade_and_downgrade(database_url: str) -> None:
     db.dispose()
 
 
-def test_models_match_migrations(database_url: str) -> None:
+def test_models_match_migrations(admin_database_url: str) -> None:
     """Fails when a model changes without a migration."""
-    url = database_url
+    url = admin_database_url
     migrate(url)
     db = Database(url)
     with db.engine.connect() as conn:

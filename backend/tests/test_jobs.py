@@ -5,6 +5,7 @@ import pytest
 from procrastinate.testing import InMemoryConnector
 
 from costlens.jobs import InProcessRunner, JobRegistry, ProcrastinateRunner, job
+from tests.conftest import POSTGRES_URL
 
 
 def make_registry() -> tuple[JobRegistry, list[int]]:
@@ -66,3 +67,30 @@ def test_procrastinate_runner_defers_jobs() -> None:
         assert jobs[0]["task_name"] == "add"
         assert jobs[0]["args"] == {"x": 5}
     assert calls == []  # deferred, not run inline
+
+
+@pytest.mark.skipif(not POSTGRES_URL, reason="needs COSTLENS_TEST_DATABASE_URL (PostgreSQL)")
+def test_procrastinate_worker_runs_deferred_job_on_postgres(
+    admin_database_url: str, database_url: str
+) -> None:
+    """End to end on PostgreSQL: migrate (incl. queue schema), defer, run the worker."""
+    import asyncio
+
+    from costlens.jobs.runner import build_procrastinate_app, run_worker_async
+    from tests.conftest import migrate_for_tests
+
+    migrate_for_tests(admin_database_url)  # worker below runs as the app role
+    reg = JobRegistry()
+    calls: list[int] = []
+
+    @job("pg_add", into=reg)
+    def pg_add(x: int) -> None:
+        calls.append(x)
+
+    app = build_procrastinate_app(database_url)
+    runner = ProcrastinateRunner(app, reg)
+    with app.open():
+        runner.enqueue("pg_add", x=7)
+    assert calls == []
+    asyncio.run(run_worker_async(app, wait=False))
+    assert calls == [7]
