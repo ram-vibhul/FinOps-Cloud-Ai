@@ -1,0 +1,48 @@
+# Production-style stack: web + worker + PostgreSQL 17.
+# Used for self-hosted installs and as the SaaS reference. Copy .env.example to .env first.
+name: costlens
+
+x-app: &app
+  image: ${COSTLENS_IMAGE:-ghcr.io/yugiverse/costlens:latest}
+  build: .
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    COSTLENS_DATABASE_URL: postgresql://costlens:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/costlens
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  web:
+    <<: *app
+    command: ["web"]
+    ports:
+      - "${COSTLENS_HTTP_PORT:-8000}:8000"
+
+  worker:
+    <<: *app
+    command: ["worker"]
+    depends_on:
+      db:
+        condition: service_healthy
+      web:
+        condition: service_healthy  # web runs migrations first
+
+  db:
+    image: postgres:17.11-trixie
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: costlens
+      POSTGRES_DB: costlens
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U costlens -d costlens"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:

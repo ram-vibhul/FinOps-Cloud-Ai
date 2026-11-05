@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (${{ matrix.database }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, postgres]
+    services:
+      postgres:
+        image: postgres:17.11-trixie
+        env:
+          POSTGRES_USER: costlens
+          POSTGRES_PASSWORD: costlens
+          POSTGRES_DB: costlens_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U costlens" --health-interval 5s
+          --health-timeout 3s --health-retries 20
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      COSTLENS_TEST_DATABASE_URL: ${{ matrix.database == 'postgres' && 'postgresql://costlens:costlens@localhost:5432/costlens_test' || '' }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.1.0
+        with:
+          python-version: "3.14.10"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - run: python -m pip install -e '.[dev]'
+      - run: ruff format --check .
+      - run: ruff check .
+      - run: pyright
+      - run: pytest
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "26.13.0"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  licences:
+    name: Third-party licences
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.1.0
+        with:
+          python-version: "3.14.10"
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "26.13.0"
+      - run: python -m pip install ./backend
+      - run: npm ci --no-audit --no-fund --omit=dev
+        working-directory: frontend
+      - run: python tools/third_party_notices.py --check
+
+  image:
+    name: Docker image
+    runs-on: ubuntu-24.04
+    needs: [backend, frontend, licences]
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: docker/setup-buildx-action@v4.4.1
+      - uses: docker/build-push-action@v7.4.0
+        with:
+          context: .
+          load: true
+          tags: costlens:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke test
+        run: |
+          docker run -d --name k -p 8000:8000 costlens:ci
+          for i in $(seq 1 30); do curl -fs localhost:8000/readyz && break; sleep 1; done
+          curl -fs localhost:8000/api/v1/meta
+          curl -fs localhost:8000/ | grep -q '<div id="root">'
+          docker logs k
