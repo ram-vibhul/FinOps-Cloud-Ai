@@ -12,7 +12,7 @@ from sqlalchemy import select
 
 from costlens.accounts import service as acc
 from costlens.accounts.roles import Permission, Role
-from costlens.api.deps import CurrentAuth, SessionDep, require
+from costlens.api.deps import CurrentAuth, SessionDep, SettingsDep, require
 from costlens.auth.web import AuthContext
 from costlens.core.errors import AppError, NotFoundError, PermissionDeniedError
 from costlens.models import Membership, Organization, User
@@ -76,9 +76,14 @@ def _current_org(db: SessionDep, auth: AuthContext) -> Organization:
 
 
 @router.post("/api/v1/organizations", response_model=OrgOut, status_code=201)
-def create_organization(body: OrgIn, auth: CurrentAuth, db: SessionDep) -> OrgOut:
+def create_organization(
+    body: OrgIn, auth: CurrentAuth, db: SessionDep, settings: SettingsDep
+) -> OrgOut:
     """Create an organisation (you become its owner) and switch to it."""
+    from costlens.accounts.trial import start_trial
+
     org = acc.create_organization(db, name=body.name, owner=auth.user)
+    start_trial(db, org, settings)
     acc.switch_organization(db, auth.session, org.id)
     return _org_out(org)
 
@@ -175,3 +180,11 @@ def transfer_ownership(body: TransferIn, auth: Owner, db: SessionDep) -> Respons
 
 
 __all__ = ["PermissionDeniedError", "router"]
+
+
+@router.get("/api/v1/org/trial")
+def trial(auth: Reader, db: SessionDep) -> dict[str, object]:
+    """Days left in the free trial (status "none" when the organisation has no trial)."""
+    from costlens.accounts.trial import trial_status
+
+    return trial_status(_current_org(db, auth))

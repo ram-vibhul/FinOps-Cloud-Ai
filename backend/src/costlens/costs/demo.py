@@ -234,6 +234,19 @@ SERVICES = [
 EC2_PROD_INSTANCES = 6
 
 
+# Bill lines that carry a resource id, so the inventory's checks can price them.
+RESOURCE_IDS = {
+    (
+        "222222222222",
+        "AWS Lambda",
+    ): "arn:aws:lambda:ap-south-1:222222222222:function:payment-webhooks",
+    ("222222222222", "Amazon Elastic Kubernetes Service"): (
+        "arn:aws:eks:ap-south-1:222222222222:cluster/shared"
+    ),
+    ("444444444444", "Amazon Simple Storage Service"): "acme-data-lake",
+}
+
+
 def _money(value: float) -> Decimal:
     return Decimal(str(round(value, 4)))
 
@@ -310,6 +323,7 @@ def _lines(ctx: DemoContext, month: date) -> Iterator[CostLine]:
                 service_name=service,
                 service_category=category,
                 region=None if region == "global" else region,
+                resource_id=RESOURCE_IDS.get((account, service)),
                 usage_type=usage,
                 billed_cost=_money(cost),
                 effective_cost=_money(cost),

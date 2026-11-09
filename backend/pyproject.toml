@@ -14,17 +14,21 @@ dependencies = [
   "procrastinate==3.10.0",
   "httpx==0.28.1",
   "boto3==1.43.124",
-  "kubernetes==37.0.1",
   "anthropic==2.5.0",
   "pyjwt==2.15.1",
   "cryptography==50.0.2",
   "psycopg[binary]==3.3.8",
   "pyarrow==26.0.1",
   "reportlab==5.1.0",
+  "pyyaml==6.0.3",
+  "sentry-sdk==2.74.0",  # MIT; error tracking, off unless COSTLENS_ERROR_TRACKING_DSN (D.9)
 ]
 
 [project.optional-dependencies]
 dev = [
+  # Only the in-cluster agent (its own image) uses the Kubernetes client; the backend
+  # tests exercise the agent's code, so it is needed here but not in the platform image.
+  "kubernetes==37.0.1",
   "pytest==9.2.0",
   "ruff==0.17.3",
   "pyright==1.1.414",
@@ -41,7 +45,7 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-costlens = ["py.typed", "migrations/script.py.mako"]
+costlens = ["py.typed", "migrations/script.py.mako", "billing/plans.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -60,11 +64,47 @@ ignore = ["PLR0913", "PLR0917", "PLR2004", "PLC0415"]  # lazy imports keep CLI a
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S105", "S106", "PLR2004", "PLR0911"]
+# Fake vendor answers mirror the real JSON and read better on one line.
+"tests/test_connectors.py" = ["E501"]
+"tests/test_ai_insights.py" = ["E501"]
+"tests/test_bedrock_logs.py" = ["E501"]
+"tests/test_scim.py" = ["E501"]
+"tests/test_elevation.py" = ["E501"]
+"tests/test_partners.py" = ["E501"]
+"tests/test_fixes.py" = ["E501"]
+"tests/test_mcp.py" = ["E501"]
+"tests/test_custom_roles.py" = ["E501"]
+"tests/test_domain_policy.py" = ["E501"]
+"tests/test_partner_signup.py" = ["E501"]
+"tests/test_setup.py" = ["E501"]
 "migrations/**" = ["E501"]
+# Detector modules are mostly customer-facing prose (titles, steps, commands).
+"src/costlens/findings/**" = ["E501"]
+"src/costlens/aws_audit/**" = ["E501"]
+"src/costlens/reports/**" = ["E501"]
+# Vendor API connectors: SQL text and request shapes read better unwrapped.
+"src/costlens/connectors/**" = ["E501"]
+"src/costlens/clouds/setup_help.py" = ["E501"]
+"src/costlens/accounts/domains.py" = ["E501"]
+"src/costlens/api/scim.py" = ["E501"]  # SCIM schema literals
+"src/costlens/accounts/elevation.py" = ["E501"]
+"src/costlens/api/elevation.py" = ["E501"]
+"src/costlens/api/partners.py" = ["E501"]
+"src/costlens/accounts/partners.py" = ["E501"]
+"src/costlens/clouds/aws/fixes.py" = ["E501"]
+"src/costlens/api/fixes.py" = ["E501"]
+"src/costlens/jobs/findings.py" = ["E501"]
+"src/costlens/api/mcp.py" = ["E501"]
+"src/costlens/api/custom_roles.py" = ["E501"]
+"src/costlens/accounts/custom_roles.py" = ["E501"]
+"src/costlens/accounts/domain_policy.py" = ["E501"]
+"src/costlens/api/teams.py" = ["E501"]
+"src/costlens/core/images.py" = ["E501"]  # allow-lists
+"src/costlens/api/setup.py" = ["E501"]  # copyable commands and role descriptions
 
 [tool.pyright]
 include = ["src", "tests"]
-extraPaths = ["../agent/src"]  # end-to-end test drives the real agent code
+extraPaths = ["../agent/src", "../sdk/python/src"]  # end-to-end tests drive the real agent and SDK
 pythonVersion = "3.13"
 typeCheckingMode = "standard"
 venvPath = "."

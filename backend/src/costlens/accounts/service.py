@@ -161,7 +161,12 @@ def user_organizations(db: Session, user_id: uuid.UUID) -> list[tuple[Organizati
         .where(Membership.user_id == user_id, Organization.deletion_requested_at.is_(None))
         .order_by(Organization.name)
     ).all()
-    return [(org, role) for org, role in rows]
+    from costlens.accounts.partners import client_orgs_for
+
+    own = [(org, role) for org, role in rows]
+    seen = {o.id for o, _ in own}
+    extra = [(o, r) for o, r in client_orgs_for(db, user_id) if o.id not in seen]
+    return own + sorted(extra, key=lambda x: x[0].name)
 
 
 def get_membership(db: Session, org_id: uuid.UUID, user_id: uuid.UUID) -> Membership | None:
@@ -306,7 +311,11 @@ def resolve_session(db: Session, token: str, *, now: datetime | None = None) -> 
 
 def switch_organization(db: Session, record: UserSession, org_id: uuid.UUID) -> None:
     if get_membership(db, org_id, record.user_id) is None:
-        raise NotFoundError("Organisation not found.")
+        from costlens.accounts.partners import access_role
+
+        org = db.get(Organization, org_id)
+        if org is None or access_role(db, org, record.user_id) is None:
+            raise NotFoundError("Organisation not found.")
     record.active_org_id = org_id
     db.flush()
 

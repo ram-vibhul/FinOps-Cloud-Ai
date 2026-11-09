@@ -1,0 +1,19 @@
+# expected top-ranked cause: config
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  labels: {costlens-lab: "bad-config"}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: lab}}
+  template:
+    metadata: {labels: {app: lab}}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.37
+          command: ["sleep", "3600"]
+          env:
+            - name: MODE
+              valueFrom: {configMapKeyRef: {name: app-settings, key: mode}}

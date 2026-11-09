@@ -135,4 +135,222 @@ def seed_inventory(db: Session, ctx: DemoContext) -> None:
             attributes={"size_gb": 800},
         ),
     ]
-    upsert(db, ctx.org_id, PROD, items, seen_at=datetime.combine(ctx.today, time(6), UTC))
+    items += _compute(ago)
+    seen = datetime.combine(ctx.today, time(6), UTC)
+    upsert(db, ctx.org_id, PROD, items + _storage(ago), seen_at=seen)
+    upsert(db, ctx.org_id, "444444444444", [_data_lake(ago)], seen_at=seen)
+
+
+def _data_lake(ago) -> Found:
+    return Found(
+        "Amazon Simple Storage Service",
+        "s3_bucket",
+        "acme-data-lake",
+        "ap-south-1",
+        name="acme-data-lake",
+        state="active",
+        created_at=ago(1100),
+        tags={"team": "data", "project": "lake"},
+        attributes={
+            "versioning": "Enabled",
+            "lifecycle_rules": 0,
+            "transitions": [],
+            "expires_noncurrent": False,
+            "aborts_multipart": False,
+            "expires_objects": False,
+            "intelligent_tiering_configs": 0,
+        },
+    )
+
+
+def _storage(ago) -> list[Found]:
+    region, acct = "ap-south-1", PROD
+    return [
+        Found(
+            "Amazon Elastic File System",
+            "efs_file_system",
+            f"arn:aws:elasticfilesystem:{region}:{acct}:file-system/fs-0shared",
+            region,
+            name="shared-home",
+            state="available",
+            created_at=ago(600),
+            tags={"team": "platform"},
+            attributes={
+                "file_system_id": "fs-0shared",
+                "bytes_total": 800e9,
+                "bytes_standard": 800e9,
+                "throughput_mode": "elastic",
+                "transition_to_ia": None,
+            },
+        ),
+        Found(
+            "Amazon Elastic Compute Cloud",
+            "ebs_volume",
+            "vol-0io2database01",
+            region,
+            name="ledger-db-data",
+            state="in-use",
+            created_at=ago(300),
+            tags={"team": "payments"},
+            attributes={
+                "size_gb": 500,
+                "volume_type": "io2",
+                "iops": 20000,
+                "attached_to": ["i-0x"],
+            },
+        ),
+        Found(
+            "AWS Backup",
+            "backup_plan",
+            f"arn:aws:backup:{region}:{acct}:backup-plan:daily",
+            region,
+            name="daily-everything",
+            state="active",
+            created_at=ago(700),
+            attributes={
+                "rules": [
+                    {"name": "daily", "delete_after_days": 35, "cold_after_days": None},
+                    {"name": "monthly", "delete_after_days": None, "cold_after_days": None},
+                ]
+            },
+        ),
+    ]
+
+
+def _compute(ago) -> list[Found]:
+    """Compute and container resources for the AWS audit's compute checks."""
+    region, acct = "ap-south-1", PROD
+    return [
+        Found(
+            "AWS Lambda",
+            "lambda_function",
+            f"arn:aws:lambda:{region}:{acct}:function:payment-webhooks",
+            region,
+            name="payment-webhooks",
+            state="Active",
+            tags={"team": "payments"},
+            attributes={
+                "memory_mb": 1024,
+                "runtime": "python3.12",
+                "architectures": ["x86_64"],
+                "package_type": "Zip",
+            },
+        ),
+        Found(
+            "Amazon Elastic Kubernetes Service",
+            "eks_cluster",
+            f"arn:aws:eks:{region}:{acct}:cluster/shared",
+            region,
+            name="shared",
+            state="active",
+            created_at=ago(800),
+            tags={"team": "platform"},
+            attributes={"version": "1.29", "support_type": "EXTENDED"},
+        ),
+        Found(
+            "Amazon Elastic Kubernetes Service",
+            "eks_nodegroup",
+            f"arn:aws:eks:{region}:{acct}:nodegroup/shared/general/1",
+            region,
+            name="general",
+            state="active",
+            attributes={
+                "cluster": "shared",
+                "capacity_type": "ON_DEMAND",
+                "instance_types": ["m6i.xlarge"],
+                "min": 3,
+                "max": 10,
+                "desired": 4,
+            },
+        ),
+        Found(
+            "Amazon Elastic Container Service",
+            "ecs_service",
+            f"arn:aws:ecs:{region}:{acct}:service/staging/search-api",
+            region,
+            name="search-api",
+            state="active",
+            tags={"env": "staging", "team": "search"},
+            attributes={
+                "cluster": "staging",
+                "launch_type": "FARGATE",
+                "capacity_providers": [],
+                "desired": 2,
+                "running": 2,
+            },
+        ),
+        Found(
+            "AWS Batch",
+            "batch_compute_environment",
+            f"arn:aws:batch:{region}:{acct}:compute-environment/nightly-reports",
+            region,
+            name="nightly-reports",
+            state="enabled",
+            attributes={
+                "managed": True,
+                "compute_type": "EC2",
+                "min_vcpus": 16,
+                "max_vcpus": 256,
+            },
+        ),
+        Found(
+            "Amazon EC2 Container Registry (ECR)",
+            "ecr_repository",
+            f"arn:aws:ecr:{region}:{acct}:repository/checkout-web",
+            region,
+            name="checkout-web",
+            state="active",
+            created_at=ago(900),
+            attributes={
+                "lifecycle_policy": False,
+                "image_count": 2140,
+                "total_bytes": 620 * 2**30,
+                "untagged_bytes": 310 * 2**30,
+                "stale_bytes": 240 * 2**30,
+            },
+        ),
+    ]
+
+
+@demo_seeder("inventory.metrics", order=23)
+def seed_metrics(db: Session, ctx: DemoContext) -> None:
+    """14 days of CloudWatch-style usage: checkout-web-1 is over-sized, the rest are busy."""
+    from sqlalchemy import select
+
+    from costlens.models import CloudResource, ResourceMetric
+
+    peaks = {"checkout-web-1": 24.0}  # everything else peaks around 70%
+    for r in db.scalars(
+        select(CloudResource).where(
+            CloudResource.org_id == ctx.org_id,
+            CloudResource.state.in_(("running", "available")),
+            CloudResource.resource_type.in_(("ec2_instance", "rds_instance")),
+        )
+    ):
+        if r.resource_type == "ec2_instance":
+            peak = peaks.get(r.name or "", 68.0 + ctx.rng.random() * 8)
+            series = {"cpu_pct": (peak * 0.45, peak, peak * 0.1)}
+        else:  # checkout-db: quiet, lots of free memory
+            series = {
+                "cpu_pct": (9.0, 18.0, 2.0),
+                "connections": (35.0, 80.0, 12.0),
+                "free_memory_bytes": (48 * 2**30, 52 * 2**30, 44 * 2**30),
+            }
+        for d in range(1, 15):
+            day = ctx.today - timedelta(days=d)
+            for metric, (avg, mx, mn) in series.items():
+                wobble = 0.9 + ctx.rng.random() * 0.1
+                db.add(
+                    ResourceMetric(
+                        org_id=ctx.org_id,
+                        resource_id=r.resource_id,
+                        metric=metric,
+                        day=day,
+                        avg=avg * wobble,
+                        max=mx * wobble,
+                        min=mn,
+                        p95=mx * 0.9 * wobble,
+                        samples=24,
+                    )
+                )
+    db.flush()

@@ -2,8 +2,8 @@
 
 Fixed one-minute windows per (rule, identity). Identities: the session cookie
 (hashed, no database lookup) for signed-in users, otherwise the client IP (set
-from X-Forwarded-For by Uvicorn only for trusted proxies). API keys (8.1) will
-add their own identity.
+from X-Forwarded-For by Uvicorn only for trusted proxies), and each organisation API key
+(8.1) on its own.
 
 Backends: in memory (SQLite / single process) or a PostgreSQL table shared by
 every web worker and container (one upsert per counted request).
@@ -146,6 +146,9 @@ class RateLimitMiddleware:
         rules: list[tuple[Rule, str]] = []
         if path.startswith("/api/v1/auth/login") or path.startswith("/api/v1/auth/callback"):
             rules.append((self.policy.auth, f"ip:{ip}"))
+        bearer = headers.get("authorization", "")
+        if not session and bearer.startswith("Bearer clk_"):
+            session = bearer  # an API key counts like a session, under its own identity
         if session:
             who = "s:" + hashlib.sha256(session.encode()).hexdigest()[:32]
             rules.append((self.policy.user, who))

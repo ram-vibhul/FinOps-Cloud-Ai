@@ -186,6 +186,11 @@ def test_api_list_update_and_settings(client: TestClient, db: Database) -> None:
         "sensitivity": "high",
         "min_impact": 25.0,
         "ai_explanations": False,
+        "forecast_warnings": True,
+        "forecast_over_pct": 10.0,
+        "same_day_warnings": True,
+        "same_day_over_pct": 30.0,
+        "weekly_digest_email": False,
     }
     assert c.get("/api/v1/org/alert-settings").json() == saved
     trail = c.get("/api/v1/org/audit-events", params={"action": "cost_anomaly"}).json()["items"]

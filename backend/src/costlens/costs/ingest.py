@@ -92,6 +92,22 @@ def replace_billing_period(
     """Replace all rows of (source, billing period) with ``lines`` and refresh rollups."""
     set_tenant(db, org_id=org_id, bypass=False)
     billing_period = month_start(billing_period)
+    from costlens.models import MonthClose
+
+    if db.scalar(select(MonthClose.id).where(MonthClose.month == billing_period)) is not None:
+        # A closed month is locked: keep its numbers; reopen it to re-import.
+        skipped = CostImportRun(
+            org_id=org_id,
+            source_kind=source_kind,
+            source_key=source_key,
+            billing_period=billing_period,
+            status="skipped_closed",
+            started_at=utcnow(),
+            finished_at=utcnow(),
+        )
+        db.add(skipped)
+        db.flush()
+        return skipped
     run = CostImportRun(
         org_id=org_id,
         source_kind=source_kind,

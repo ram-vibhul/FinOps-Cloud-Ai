@@ -50,6 +50,18 @@ def get_current_auth(
             secure = "; Secure" if settings.secure_cookies else ""
             headers = {"Set-Cookie": f"{name}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax{secure}"}
         raise HTTPException(status_code=401, detail="Sign in to continue.", headers=headers)
+    if auth.api_key_id is not None:
+        from costlens.accounts.api_keys import BLOCKED
+
+        if BLOCKED.match(request.url.path):
+            raise PermissionDeniedError("API keys cannot do this; sign in instead.")
+    if auth.scope:
+        from costlens.accounts.custom_roles import SCOPED_PATHS
+
+        if not SCOPED_PATHS.match(request.url.path):
+            raise PermissionDeniedError(
+                "Your role is limited to some accounts or teams and cannot open this view."
+            )
     return auth
 
 
@@ -63,7 +75,12 @@ def require(permission: Permission):  # type: ignore[no-untyped-def]
     def dependency(auth: CurrentAuth) -> AuthContext:
         if auth.org_id is None or auth.role is None:
             raise AppError("Choose an organisation first.", status=409, code="no_organization")
-        if not has_permission(auth.role, permission):
+        allowed = (
+            permission.value in auth.permissions
+            if auth.permissions is not None
+            else has_permission(auth.role, permission)
+        )
+        if not allowed:
             raise PermissionDeniedError("Your role does not allow this.")
         if permission is not Permission.READ and auth.org_is_demo:
             raise AppError(
@@ -72,5 +89,22 @@ def require(permission: Permission):  # type: ignore[no-untyped-def]
                 code="demo_read_only",
             )
         return auth
+
+    return Depends(dependency)
+
+
+def plan_feature(feature: str):  # type: ignore[no-untyped-def]
+    """Dependency: the organisation's plan includes ``feature`` (B.1). Used on the routes
+    that switch a feature on or add to it; what exists already keeps working."""
+
+    def dependency(auth: CurrentAuth, db: SessionDep, settings: SettingsDep) -> None:
+        from costlens.billing.plans import require_feature
+        from costlens.models import Organization
+
+        if auth.org_id is None:
+            return
+        org = db.get(Organization, auth.org_id)
+        if org is not None:
+            require_feature(org, settings, feature)
 
     return Depends(dependency)

@@ -62,9 +62,13 @@ def seeders() -> list[str]:
 # automatic "unused import" clean-ups can never silently drop them.
 SEEDER_MODULES = (
     "costlens.costs.demo",
+    "costlens.costs.network_demo",
     "costlens.inventory.demo",
     "costlens.changes.demo",
     "costlens.costs.anomaly_demo",
+    "costlens.k8s.demo",
+    "costlens.findings.demo",
+    "costlens.aws_audit.demo",
 )
 
 
@@ -93,6 +97,13 @@ def ensure_demo(db: Session, *, today: date | None = None) -> Organization:
         db.add(org)
         db.flush()
         _run_seeders(db, org.id, today)
+    else:
+        from costlens.models import CostDaily
+
+        # A demo left empty (for example by an older version or an interrupted seed) is
+        # filled again, so people never see an empty sample organisation.
+        if db.scalar(select(CostDaily.org_id).where(CostDaily.org_id == org.id).limit(1)) is None:
+            return reset_demo(db, today=today)
     return org
 
 

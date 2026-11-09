@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Security · CostLens</title>
+  <meta name="description" content="How CostLens protects your data and your cloud accounts.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header>
+    <a class="logo" href="index.html">CostLens</a>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="index.html">Product</a></li>
+        <li><a href="pricing.html">Pricing</a></li>
+        <li><a href="getting-started.html">Getting started</a></li>
+        <li><a href="security.html" aria-current="page">Security</a></li>
+        <li><a href="support.html">Support</a></li>
+      </ul>
+    </nav>
+  </header>
+  <main id="main">
+    <h1>Security</h1>
+    <p class="lead">How CostLens protects your data and your cloud accounts.</p>
+    <h2>Access to your clouds</h2>
+    <ul>
+      <li>Read-only roles that you create and can inspect; CostLens publishes the exact permissions it asks for.</li>
+      <li>AWS access uses a role with an external id unique to your connection; no long-lived access keys.</li>
+      <li>Automatic fixes are off by default. They need a separate role that you create, owner approval for each change, and a set of safety checks before anything runs.</li>
+    </ul>
+    <h2>Your data</h2>
+    <ul>
+      <li>Each organisation's data is isolated in the database with row-level security, not only in application code.</li>
+      <li>Secrets you give CostLens (service principal secrets, webhook addresses, keys) are encrypted at rest, and keys can be rotated.</li>
+      <li>You choose how long data is kept; older data is deleted automatically. You can export your data or delete your organisation at any time.</li>
+    </ul>
+    <h2>Accounts and sign-in</h2>
+    <ul>
+      <li>Single sign-on with OpenID Connect, enforced for your verified domains if you wish, and user provisioning with SCIM.</li>
+      <li>Roles, custom roles scoped to teams or accounts, temporary elevated access with a reason and an expiry.</li>
+      <li>An audit log of who changed what, which you can export.</li>
+    </ul>
+    <h2>How we build it</h2>
+    <ul>
+      <li>Release images are signed, with a software bill of materials and build provenance.</li>
+      <li>Open-source components are checked for licences that allow commercial use.</li>
+    </ul>
+    <p class="note">To report a security problem, see <a href="support.html">Support</a>. Contact addresses are being set up.</p>
+  </main>
+  <footer>
+    <p>CostLens is made by Yugiverse. <a href="security.html">Security</a> · <a href="support.html">Support</a> · <a href="changelog.html">What's new</a></p>
+  </footer>
+</body>
+</html>

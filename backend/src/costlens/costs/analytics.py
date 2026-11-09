@@ -25,8 +25,11 @@ from costlens.costs.fx import converted
 from costlens.models import CostDaily
 
 Metric = Literal["effective", "billed"]
-Dimension = Literal["service", "account", "region", "charge_category", "pricing_category", "none"]
+Dimension = Literal[
+    "provider", "service", "account", "region", "charge_category", "pricing_category", "none"
+]
 DIMENSIONS: dict[str, Any] = {
+    "provider": CostDaily.provider,
     "service": CostDaily.service_name,
     "account": CostDaily.sub_account_id,
     "region": CostDaily.region,
@@ -220,6 +223,86 @@ def summary(
         },
         # Spend we could not convert yet (no exchange rate for that currency/day).
         "other_currencies": currencies(db, org_id, prev_first, through, metric, currency),
+    }
+
+
+PROVIDER_NAMES = {
+    "aws": "AWS",
+    "azure": "Microsoft Azure",
+    "gcp": "Google Cloud",
+    "kubernetes": "Kubernetes",
+    "snowflake": "Snowflake",
+    "databricks": "Databricks",
+    "datadog": "Datadog",
+    "mongodb_atlas": "MongoDB Atlas",
+    "openai": "OpenAI",
+    "anthropic": "Anthropic",
+    "other": "Other (uploaded files)",
+}
+
+
+def provider_name(provider: str) -> str:
+    return PROVIDER_NAMES.get(provider, provider.replace("_", " ").title())
+
+
+def by_provider(
+    db: Session, org_id: uuid.UUID, currency: str, metric: Metric, today: date
+) -> dict[str, Any]:
+    """This month, last month (same days and full) and connection health per provider,
+    all in ``currency`` (2.16)."""
+    from costlens.models import CloudConnection
+
+    through = latest_date(db, org_id) or today
+    first = through.replace(day=1)
+    prev_last = first - timedelta(days=1)
+    prev_first = prev_last.replace(day=1)
+    same_day_prev = prev_first.replace(day=min(through.day, prev_last.day))
+
+    def totals(start: date, end: date) -> dict[str, float]:
+        rows = db.execute(
+            select(CostDaily.provider, func.sum(_amount(metric, currency)))
+            .where(*_base(org_id, currency, start, end))
+            .group_by(CostDaily.provider)
+        ).all()
+        return {p: _f(v) for p, v in rows}
+
+    mtd, prev_mtd = totals(first, through), totals(prev_first, same_day_prev)
+    last_month = totals(prev_first, prev_last)
+    latest = dict(
+        db.execute(
+            select(CostDaily.provider, func.max(CostDaily.charge_date))
+            .where(CostDaily.org_id == org_id)
+            .group_by(CostDaily.provider)
+        ).all()
+    )
+    sources: dict[str, list[dict[str, Any]]] = {}
+    for c in db.scalars(select(CloudConnection).order_by(CloudConnection.name)):
+        sources.setdefault(c.provider, []).append(
+            {"id": str(c.id), "name": c.name, "status": c.status, "error": c.last_error}
+        )
+    total = sum(mtd.values())
+    rows = []
+    for p in sorted(set(mtd) | set(last_month) | set(sources), key=lambda k: -mtd.get(k, 0.0)):
+        rows.append(
+            {
+                "provider": p,
+                "name": provider_name(p),
+                "month_to_date": round(mtd.get(p, 0.0), 2),
+                "previous_month_to_date": round(prev_mtd.get(p, 0.0), 2),
+                "change_pct": _pct(mtd.get(p, 0.0), prev_mtd.get(p, 0.0)),
+                "last_month": round(last_month.get(p, 0.0), 2),
+                "share_pct": round(mtd.get(p, 0.0) / total * 100, 1) if total else 0.0,
+                "data_through": latest[p].isoformat() if latest.get(p) else None,
+                "connections": sources.get(p, []),
+            }
+        )
+    return {
+        "currency": currency,
+        "metric": metric,
+        "data_through": through.isoformat(),
+        "month_to_date": round(total, 2),
+        "providers": rows,
+        "other_currencies": currencies(db, org_id, first, through, metric, currency),
     }
 
 

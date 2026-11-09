@@ -11,3 +11,7 @@ backend/data
 .git
 .github
 docs
+tools/licence-issuer
+*.key
+*.licence
+legal

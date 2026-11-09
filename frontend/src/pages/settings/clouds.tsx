@@ -11,8 +11,19 @@ import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { api, type AwsSetup, type CloudConnection, errorMessage, type PermissionReport } from "@/lib/api";
 import { activeOrg, atLeast, useMe } from "@/lib/session";
 import { useLoad } from "@/lib/use-load";
+import { AddAzureDialog } from "./azure";
+import { BedrockLogsDialog } from "./bedrock-logs";
 import { FilesSection } from "./files";
+import { FixesDialog } from "./fixes-dialog";
+import { AddGcpDialog } from "./gcp";
+import { AddSaasDialog } from "./saas";
+import { SetupHelpDialog } from "./setup-help";
+import { FlowLogsDialog } from "./flow-logs";
 import { GithubWebhooks } from "./webhooks";
+
+function hasExport(c: CloudConnection): boolean {
+  return (c.provider === "aws" && !!c.cur_bucket) || (c.provider === "azure" && !!c.azure?.storage_account);
+}
 
 function statusBadge(c: CloudConnection) {
   if (c.status === "active") return <Badge>connected</Badge>;
@@ -46,6 +57,16 @@ export function CloudsTab() {
     }
   }
 
+  async function checkExport(c: CloudConnection) {
+    try {
+      const result = await api.checkExport(c.id);
+      (result.ok ? toast.success : toast.error)(result.message);
+      await list.reload();
+    } catch (error) {
+      toast.error(errorMessage(error));
+    }
+  }
+
   async function remove(c: CloudConnection) {
     if (!window.confirm(`Disconnect ${c.name}? Imported cost data is kept.`)) return;
     try {
@@ -65,11 +86,18 @@ export function CloudsTab() {
             CostLens reads cost and resource information through a read-only role you create. It never changes anything.
           </p>
         </div>
-        {canManage && <AddAwsDialog onCreated={(c) => { void list.reload(); setSetupFor(c); }} />}
+        {canManage && (
+          <div className="flex flex-wrap gap-2">
+            <AddSaasDialog onCreated={() => void list.reload()} />
+            <AddGcpDialog onCreated={() => void list.reload()} />
+            <AddAzureDialog onCreated={() => void list.reload()} />
+            <AddAwsDialog onCreated={(c) => { void list.reload(); setSetupFor(c); }} />
+          </div>
+        )}
       </div>
       {rows.length === 0 && !list.loading ? (
         <EmptyState icon={Cloud} title="No cloud accounts connected">
-          Connect an AWS account to see your real costs. Until then, explore the demo organisation.
+          Connect AWS, Azure or Google Cloud to see your real costs. Until then, explore the demo organisation.
         </EmptyState>
       ) : (
         <Table>
@@ -84,7 +112,8 @@ export function CloudsTab() {
                   <div className="text-xs text-muted-foreground">{c.provider.toUpperCase()}</div>
                 </TD>
                 <TD className="font-mono text-xs">
-                  {c.account_id ?? "—"}
+                  {c.provider === "azure" ? (c.azure?.scope ?? "—") : c.provider === "gcp" ? (c.gcp?.table ?? "—")
+                    : c.saas ? (c.saas.account ?? c.saas.host ?? c.saas.site ?? c.saas.org_id ?? "—") : (c.account_id ?? "—")}
                   {c.last_checked_at && (
                     <div className="font-sans text-muted-foreground">
                       checked {new Date(c.last_checked_at).toLocaleString()}
@@ -94,6 +123,11 @@ export function CloudsTab() {
                 <TD>
                   {statusBadge(c)}
                   {c.last_error && <div className="mt-1 max-w-xs text-xs text-destructive">{c.last_error}</div>}
+                  {c.export_check && (
+                    <div className={`mt-1 max-w-xs text-xs ${c.export_check.ok ? "text-muted-foreground" : "text-destructive"}`}>
+                      Billing export: {c.export_check.message}
+                    </div>
+                  )}
                 </TD>
                 <TD className="text-right">
                   {canManage && (
@@ -101,7 +135,17 @@ export function CloudsTab() {
                       {c.status !== "active" && (
                         <Button variant="ghost" size="sm" onClick={() => setSetupFor(c)}>Finish setup</Button>
                       )}
-                      {c.status === "active" && <PermissionsDialog connection={c} />}
+                      {c.status === "active" && c.provider === "aws" && <PermissionsDialog connection={c} />}
+                      {c.status === "active" && c.provider === "aws" && <FlowLogsDialog connection={c} />}
+                      {(c.provider === "azure" || c.provider === "gcp") && <SetupHelpDialog connection={c} />}
+                      {c.status === "active" && c.provider === "aws" && <FixesDialog connection={c} isOwner={me.role === "owner"} />}
+                      {c.status === "active" && c.provider === "aws" && <BedrockLogsDialog connection={c} onSaved={() => void list.reload()} />}
+                      {c.status === "active" && hasExport(c) && (
+                        <Button variant="ghost" size="sm" title="Lists the export location; downloads nothing"
+                          onClick={() => void checkExport(c)}>
+                          Check export
+                        </Button>
+                      )}
                       {c.status === "active" && (
                         <Button variant="ghost" size="sm" title="AWS charges about $0.01 per Cost Explorer request"
                           onClick={() => void collect(c)}>

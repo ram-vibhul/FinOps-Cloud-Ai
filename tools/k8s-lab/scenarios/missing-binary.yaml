@@ -1,0 +1,16 @@
+# expected top-ranked cause: crash_loop
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  labels: {costlens-lab: "missing-binary"}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: lab}}
+  template:
+    metadata: {labels: {app: lab}}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.37
+          command: ["/opt/app/server"]

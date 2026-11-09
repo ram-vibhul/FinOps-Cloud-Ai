@@ -1,0 +1,13 @@
+{
+  "name": "@costlens/ai",
+  "version": "0.1.0",
+  "description": "Report AI/LLM token usage to CostLens: counts and salted fingerprints only, never prompt text.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "src/index.ts",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "typecheck": "../../frontend/node_modules/.bin/tsc -p tsconfig.json"
+  }
+}

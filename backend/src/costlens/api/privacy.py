@@ -173,10 +173,22 @@ def get_retention(auth: Reader, db: SessionDep) -> list[RetentionOut]:
 
 
 @router.patch("/api/v1/org/retention", response_model=list[RetentionOut])
-def update_retention(body: dict[str, int], auth: Admin, db: SessionDep) -> list[RetentionOut]:
+def update_retention(
+    body: dict[str, int], auth: Admin, db: SessionDep, settings: SettingsDep
+) -> list[RetentionOut]:
     """Set days to keep per kind of data, e.g. {"audit_log": 730}."""
+    from costlens.billing.plans import plan_for
+
     org = db.get(Organization, auth.org_id)
     assert org is not None  # noqa: S101
+    plan = plan_for(org, settings)
+    longest = plan.limit("retention_days")
+    if longest is not None and any(days > longest for days in body.values()):
+        raise AppError(
+            f"The {plan.name} plan keeps data for at most {longest:,} days.",
+            status=402,
+            code="plan_limit",
+        )
     retention.set_retention(org, body)
     db.flush()
     return get_retention(auth, db)

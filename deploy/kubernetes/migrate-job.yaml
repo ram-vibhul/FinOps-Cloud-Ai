@@ -1,0 +1,44 @@
+# Runs migrations with the owner role (COSTLENS_MIGRATION_DATABASE_URL). Re-run it for
+# every upgrade before rolling web and worker: kubectl delete job costlens-migrate,
+# then kubectl apply -k again.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: costlens-migrate
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: costlens
+        app.kubernetes.io/component: migrate
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          image: ghcr.io/yugiverse/costlens
+          args: ["migrate"]
+          envFrom:
+            - secretRef:
+                name: costlens-env
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 512Mi }
+      volumes:
+        - { name: tmp, emptyDir: {} }

@@ -20,7 +20,10 @@ Reader = Annotated[AuthContext, require(Permission.READ)]
 CurrencyQ = Annotated[str | None, Query(pattern=r"^[A-Z]{3}$")]
 MetricQ = Annotated[Literal["effective", "billed"], Query()]
 DimensionQ = Annotated[
-    Literal["service", "account", "region", "charge_category", "pricing_category", "none"], Query()
+    Literal[
+        "provider", "service", "account", "region", "charge_category", "pricing_category", "none"
+    ],
+    Query(),
 ]
 
 
@@ -116,3 +119,35 @@ def movers(
         limit,
         include_purchases,
     )
+
+
+@router.get("/early-warnings")
+def early_warnings(auth: Reader, db: SessionDep) -> list[dict[str, Any]]:
+    """Spend running hot: month-end forecast vs last month, and today vs the usual."""
+    from costlens.costs.early_warnings import current
+
+    assert auth.org_id is not None  # noqa: S101
+    return current(db, auth.org_id)
+
+
+@router.get("/network")
+def network(
+    auth: Reader,
+    db: SessionDep,
+    days: Annotated[int, Query(ge=7, le=90)] = 30,
+    currency: Annotated[str | None, Query(pattern=r"^[A-Z]{3}$")] = None,
+) -> dict[str, Any]:
+    """Data-transfer costs by kind (between zones, regions, to the internet, NAT...)."""
+    from costlens.costs.network import network_costs
+
+    assert auth.org_id is not None  # noqa: S101
+    return network_costs(db, auth.org_id, days=days, currency=currency)
+
+
+@router.get("/providers")
+def providers(
+    auth: Reader, db: SessionDep, currency: CurrencyQ = None, metric: MetricQ = "effective"
+) -> dict[str, Any]:
+    """Every cloud and SaaS source side by side in one currency (2.16)."""
+    assert auth.org_id is not None  # noqa: S101
+    return analytics.by_provider(db, auth.org_id, _currency(db, auth, currency), metric, _today())

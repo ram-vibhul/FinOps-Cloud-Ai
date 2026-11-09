@@ -42,6 +42,14 @@ class AlertSettings(BaseModel):
     min_impact: float = Field(default=50.0, ge=0, le=1_000_000)  # in the org's currency
     # Reword explanations with AI (sends the summary, never raw billing data, to Anthropic).
     ai_explanations: bool = False
+    # Early warnings (5.8): month-end forecast well above last month; today's spend so far
+    # well above the same hours on recent days (needs hourly data from the billing export).
+    forecast_warnings: bool = True
+    forecast_over_pct: float = Field(default=10.0, ge=1, le=500)
+    same_day_warnings: bool = True
+    same_day_over_pct: float = Field(default=30.0, ge=5, le=1000)
+    # Weekly digest (6.1): also email it to owners and admins (channels subscribe per event).
+    weekly_digest_email: bool = False
 
 
 def alert_settings(org: Organization) -> AlertSettings:

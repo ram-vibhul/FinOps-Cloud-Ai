@@ -1,5 +1,6 @@
 import { ArrowDownRight, ArrowUpRight, ReceiptText } from "lucide-react";
 import { Link } from "react-router";
+import { Term } from "@/components/term";
 import { useState } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
@@ -14,11 +15,13 @@ import { CURRENCIES, useDisplayCurrency } from "@/lib/currency";
 import { useLoad } from "@/lib/use-load";
 import { AnomaliesCard } from "./anomalies";
 import { HourlyCard } from "./hourly";
+import { ProvidersCard } from "./providers";
 import { StackedSpendChart } from "./charts";
 import { SummaryTiles } from "./summary-tiles";
 import { TimelineCard } from "./timeline";
 
 const DIMENSIONS: { value: CostDimension; label: string }[] = [
+  { value: "provider", label: "Cloud or service" },
   { value: "service", label: "Service" },
   { value: "account", label: "Account" },
   { value: "region", label: "Region" },
@@ -52,7 +55,9 @@ export function CostsPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Costs</h1>
           <p className="text-sm text-muted-foreground">
             {s?.data_through ? `Data through ${shortDate(s.data_through)}.` : "Where your cloud money goes."}{" "}
-            {metric === "effective" ? "Amortised: discounts and commitments spread over the period." : "Billed: as the invoice shows."}{" "}
+            {metric === "effective"
+              ? <><Term id="amortised">Amortised</Term>: discounts and commitments spread over the period.</>
+              : <><Term id="billed">Billed</Term>: as the invoice shows.</>}{" "}
             Other currencies are converted with daily European Central Bank reference rates.
           </p>
         </div>
@@ -68,6 +73,15 @@ export function CostsPage() {
           </Button>
           <Button asChild variant="ghost">
             <Link to="/costs/virtual-tags">Virtual tags</Link>
+          </Button>
+          <Button asChild variant="ghost">
+            <Link to="/kubernetes">Kubernetes</Link>
+          </Button>
+          <Button asChild variant="ghost">
+            <Link to="/costs/network">Network</Link>
+          </Button>
+          <Button asChild variant="ghost">
+            <Link to="/costs/ai">AI spend</Link>
           </Button>
           <div className="grid gap-1">
             <Label htmlFor="cost-metric">Show</Label>
@@ -117,6 +131,7 @@ export function CostsPage() {
             </p>
           )}
           {s && <SummaryTiles summary={s} />}
+          <ProvidersCard metric={metric} currency={currency} org={org} />
           <AnomaliesCard />
           <Card>
             <CardHeader>

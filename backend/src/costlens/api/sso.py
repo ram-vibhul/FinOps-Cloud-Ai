@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from costlens.accounts.roles import Permission
-from costlens.api.deps import SessionDep, require
+from costlens.api.deps import SessionDep, plan_feature, require
 from costlens.audit.recorder import record
 from costlens.auth.oidc import OIDCClient, OIDCError
 from costlens.auth.providers import ProviderSpec, config_from_spec
@@ -77,7 +77,7 @@ def list_providers(auth: Admin, db: SessionDep) -> list[ProviderOut]:
     return [_out(r) for r in rows]
 
 
-@router.post("", response_model=ProviderOut, status_code=201)
+@router.post("", response_model=ProviderOut, status_code=201, dependencies=[plan_feature("sso")])
 def create_provider(spec: ProviderSpec, auth: Admin, db: SessionDep) -> ProviderOut:
     if spec.kind not in ("entra", "okta", "oidc"):
         raise AppError("Unsupported provider kind.", code="invalid_kind")
@@ -96,7 +96,7 @@ def create_provider(spec: ProviderSpec, auth: Admin, db: SessionDep) -> Provider
     return _out(row)
 
 
-@router.patch("/{provider_id}", response_model=ProviderOut)
+@router.patch("/{provider_id}", response_model=ProviderOut, dependencies=[plan_feature("sso")])
 def update_provider(
     provider_id: uuid.UUID, patch: ProviderPatch, auth: Admin, db: SessionDep
 ) -> ProviderOut:

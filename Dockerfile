@@ -31,11 +31,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     COSTLENS_UI_DIST_DIR=/app/ui \
     COSTLENS_DATABASE_URL=sqlite:////data/costlens.db
+# PostgreSQL 17 client tools for `costlens backup` / `costlens restore` (D.8).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends postgresql-client-17 \
+ && rm -rf /var/lib/apt/lists/*
 RUN groupadd --system --gid 10001 costlens \
  && useradd --system --uid 10001 --gid costlens --home-dir /app --shell /usr/sbin/nologin costlens \
  && mkdir -p /data /app && chown costlens:costlens /data
-COPY --from=wheels /wheels /wheels
-RUN pip install --no-index --find-links=/wheels costlens && rm -rf /wheels
+# Install from the wheels stage without copying the wheels into a layer of their own
+# (a later `rm` would not shrink the image).
+RUN --mount=type=bind,from=wheels,source=/wheels,target=/wheels \
+    pip install --no-index --find-links=/wheels costlens
 COPY --from=ui /ui/dist /app/ui
 COPY LICENSE THIRD_PARTY_NOTICES.md /app/
 WORKDIR /app

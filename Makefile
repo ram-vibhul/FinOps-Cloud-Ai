@@ -17,6 +17,8 @@ dev-ui:
 lint:
 	cd backend && .venv/bin/ruff format --check . && .venv/bin/ruff check . && .venv/bin/pyright
 	cd agent && ../$(PY)/ruff format --check . && ../$(PY)/ruff check . && ../$(PY)/pyright
+	cd sdk/python && ../../$(PY)/ruff format --check . && ../../$(PY)/ruff check . && ../../$(PY)/pyright
+	cd sdk/typescript && ../../frontend/node_modules/.bin/tsc -p tsconfig.json
 	@command -v helm >/dev/null && helm lint deploy/helm/costlens-agent --quiet \
 	  --set costlens.url=https://costlens.example --set costlens.token=ckt_lint_token || true
 	cd frontend && npm run lint && npm run typecheck
@@ -24,6 +26,8 @@ lint:
 test:
 	cd backend && .venv/bin/pytest
 	cd agent && ../$(PY)/pytest
+	cd sdk/python && ../../$(PY)/pytest -q -p no:cacheprovider
+	cd sdk/typescript && node --test test/*.test.ts
 	cd frontend && npm test
 
 # Backend tests against a throwaway PostgreSQL 17 container (needs Docker).
@@ -44,6 +48,9 @@ build:
 
 check: lint test build
 	$(PY)/python tools/third_party_notices.py --check
+	$(PY)/python tools/website_plans.py --check
+	$(PY)/python tools/config_reference.py --check
+	$(PY)/python tools/changelog.py --check
 
 notices:
 	$(PY)/python tools/third_party_notices.py

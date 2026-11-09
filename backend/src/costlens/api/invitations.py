@@ -8,7 +8,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 from costlens.accounts import invitations as inv_svc
 from costlens.accounts import service as acc
@@ -16,7 +17,7 @@ from costlens.accounts.roles import Permission, Role
 from costlens.api.deps import CurrentAuth, SessionDep, SettingsDep, require
 from costlens.auth.web import AuthContext
 from costlens.core.errors import NotFoundError
-from costlens.models import Invitation, Organization
+from costlens.models import Invitation, Organization, User
 
 router = APIRouter(tags=["invitations"])
 Manager = Annotated[AuthContext, require(Permission.MANAGE_MEMBERS)]
@@ -61,11 +62,34 @@ def _out(inv: Invitation) -> InvitationOut:
     )
 
 
+def _tell_existing_user(db: Session, org: Organization, email: str, inviter: User) -> None:
+    """Someone who already uses CostLens also sees the invitation in their inbox (9.4).
+    The link itself is only in the email: the inbox never holds the secret token."""
+    from costlens.core.inbox import deliver
+    from costlens.core.notify import Message
+
+    user = db.scalar(select(User).where(func.lower(User.email) == email.strip().lower()))
+    if user is None:
+        return
+    who = inviter.name or inviter.email
+    message = Message(
+        title=f"{who} invited you to {org.name}",
+        text="Open the link in the invitation email we sent you to join.",
+        severity="info",
+    )
+    deliver(db, "invitation", [message], user_ids=[user.id])
+
+
 @router.post("/api/v1/org/invitations", response_model=CreatedInvitation, status_code=201)
 def invite(
     body: InviteIn, auth: Manager, db: SessionDep, settings: SettingsDep, request: Request
 ) -> CreatedInvitation:
     assert auth.org_id is not None  # noqa: S101 - guaranteed by require()
+    from costlens.billing.usage import enforce
+
+    current = db.get(Organization, auth.org_id)
+    assert current is not None  # noqa: S101
+    enforce(db, current, settings, "members")
     token, inv = inv_svc.create_invitation(
         db, org_id=auth.org_id, actor_id=auth.user.id, email=body.email, role=body.role
     )
@@ -74,6 +98,7 @@ def invite(
     assert org is not None  # noqa: S101
     message = inv_svc.invitation_email(inv=inv, org=org, inviter=auth.user, url=url)
     request.app.state.jobs.enqueue("email.send", message=message.to_dict())
+    _tell_existing_user(db, org, inv.email, auth.user)
     return CreatedInvitation(**_out(inv).model_dump(), invite_url=url)
 
 

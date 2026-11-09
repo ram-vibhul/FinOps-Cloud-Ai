@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import logging
-from typing import Protocol
+from typing import Any, Protocol
 
 from costlens.config import Settings
 
@@ -17,7 +18,13 @@ SYSTEM = (
 
 
 class TextWriter(Protocol):
-    def rewrite(self, facts: str) -> str | None: ...
+    def rewrite(self, facts: str, system: str | None = None) -> str | None: ...
+
+
+class StructuredWriter(Protocol):
+    def structured(
+        self, prompt: str, system: str, schema: dict[str, Any]
+    ) -> dict[str, Any] | None: ...
 
 
 class AnthropicWriter:
@@ -31,13 +38,13 @@ class AnthropicWriter:
             api_key=settings.anthropic_api_key.get_secret_value(), timeout=30.0, max_retries=1
         )
 
-    def rewrite(self, facts: str) -> str | None:
+    def rewrite(self, facts: str, system: str | None = None) -> str | None:
         a = self._anthropic
         try:
             response = self._client.beta.messages.create(
                 model=self._model,
                 max_tokens=1024,
-                system=SYSTEM,
+                system=system or SYSTEM,
                 output_config={"effort": "low"},
                 betas=["server-side-fallback-2026-07-01"],
                 fallbacks="default",
@@ -50,6 +57,34 @@ class AnthropicWriter:
             return None
         text = "".join(b.text for b in response.content if b.type == "text").strip()
         return text or None
+
+    def structured(self, prompt: str, system: str, schema: dict[str, Any]) -> dict[str, Any] | None:
+        """One JSON object matching ``schema`` (structured output), or None."""
+        a = self._anthropic
+        try:
+            response = self._client.beta.messages.create(
+                model=self._model,
+                max_tokens=2048,
+                system=system,
+                output_config={
+                    "effort": "low",
+                    "format": {"type": "json_schema", "schema": schema},
+                },
+                betas=["server-side-fallback-2026-07-01"],
+                fallbacks="default",
+                messages=[{"role": "user", "content": prompt}],
+            )
+        except (a.APIStatusError, a.APIConnectionError) as error:
+            log.warning("AI query failed: %s", type(error).__name__)
+            return None
+        if response.stop_reason in ("refusal", "max_tokens"):
+            return None
+        text = "".join(b.text for b in response.content if b.type == "text").strip()
+        try:
+            out = json.loads(text)
+        except ValueError:
+            return None
+        return out if isinstance(out, dict) else None
 
 
 def build_writer(settings: Settings) -> TextWriter | None:

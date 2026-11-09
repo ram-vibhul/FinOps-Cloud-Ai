@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from datetime import timedelta
 
 from fastapi.testclient import TestClient
@@ -49,7 +50,9 @@ def test_create_returns_token_once_and_install_command(client: TestClient, db: D
     with db.session() as s:
         set_tenant(s, org_id=org_id)
         cluster = s.scalars(select(K8sCluster)).one()
-        assert created["token"].split("_")[2] not in cluster.token_hash  # only a digest kept
+        # Only a digest is kept (the secret may contain "_": take all after the prefix).
+        secret = created["token"].split("_", 2)[2]
+        assert len(secret) > 20 and secret not in cluster.token_hash
 
 
 def test_agent_hello_snapshot_and_deletions(client: TestClient, db: Database) -> None:
@@ -307,3 +310,106 @@ def test_real_agent_end_to_end(client: TestClient, db: Database) -> None:
     with db.session() as s:
         set_tenant(s, org_id=org_id)
         assert "hunter2" not in str([o.data for o in s.scalars(select(K8sObject))])
+
+
+def test_watched_namespaces_reach_the_agent(client: TestClient, db: Database) -> None:
+    org_id, owner, c, created = connect(client, db)
+    a = agent(client, created["token"])
+    a.post(
+        "snapshot",
+        {
+            "kind": "Namespace",
+            "snapshot_id": "snap-0001",
+            "objects": [
+                {"uid": f"ns-{n}", "name": n, "data": {}}
+                for n in ("shop", "billing", "kube-system")
+            ],
+        },
+    )
+    c = sign_in_client(client, db, owner, org_id)
+    cid = created["id"]
+    listed = c.get("/api/v1/clusters").json()[0]
+    assert listed["namespaces"] == ["billing", "kube-system", "shop"]
+    assert sorted(listed["exclude_namespaces"]) == ["kube-node-lease", "kube-public", "kube-system"]
+    assert (
+        c.patch(f"/api/v1/clusters/{cid}", json={"include_namespaces": ["Shop!"]}).status_code
+        == 422
+    )
+    r = c.patch(
+        f"/api/v1/clusters/{cid}", json={"include_namespaces": ["shop", "shop", "billing"]}
+    ).json()
+    assert r["include_namespaces"] == ["billing", "shop"]
+    config = agent(client, created["token"]).post("hello", {"agent_version": "0.1.0"}).json()
+    assert config["include_namespaces"] == ["billing", "shop"]
+    c = sign_in_client(client, db, owner, org_id)
+    assert c.patch(f"/api/v1/clusters/{cid}", json={"name": "prod-eu"}).status_code == 200
+
+
+def test_revoke_then_new_token(client: TestClient, db: Database) -> None:
+    org_id, owner, c, created = connect(client, db)
+    assert (
+        agent(client, created["token"]).post("hello", {"agent_version": "0.1.0"}).status_code == 200
+    )
+    c = sign_in_client(client, db, owner, org_id)
+    revoked = c.post(f"/api/v1/clusters/{created['id']}/revoke").json()
+    assert revoked["health"] == "revoked" and revoked["status"] == "revoked"
+    assert (
+        agent(client, created["token"]).post("hello", {"agent_version": "0.1.0"}).status_code == 401
+    )
+    c = sign_in_client(client, db, owner, org_id)
+    fresh = c.post(f"/api/v1/clusters/{created['id']}/rotate-token").json()
+    assert fresh["status"] == "waiting"
+    assert (
+        agent(client, fresh["token"]).post("hello", {"agent_version": "0.1.0"}).status_code == 200
+    )
+
+
+def test_silent_agent_warned_once_and_back(db: Database) -> None:
+    import json as _json
+
+    import httpx
+
+    from costlens.core import notify
+    from costlens.k8s.health import check_agents
+    from costlens.models import NotificationChannel
+    from tests.conftest import public_resolver
+
+    sent: list[dict] = []
+    notify.configure(
+        httpx.Client(
+            transport=httpx.MockTransport(
+                lambda r: sent.append(_json.loads(r.content)) or httpx.Response(200)
+            )
+        ),
+        public_resolver,
+    )
+    org_id, _ = make_org(db, "Acme", "owner@acme.com")
+    with db.session() as s:
+        set_tenant(s, org_id=org_id)
+        s.add(
+            NotificationChannel(
+                org_id=org_id,
+                kind="slack",
+                name="ops",
+                events=["k8s_incident"],
+                url="https://hooks.slack.com/services/T/B/X",
+            )
+        )
+        cl = K8sCluster(
+            id=uuid.uuid4(),
+            org_id=org_id,
+            name="prod",
+            token_hash="x" * 64,
+            token_hint="x",
+            last_seen_at=utcnow() - timedelta(hours=1),
+        )
+        s.add(cl)
+        s.flush()
+        assert check_agents(s, utcnow(), "https://x") == {"silent": 1, "back": 0}
+        assert check_agents(s, utcnow(), "https://x") == {"silent": 0, "back": 0}  # once
+        cl.last_seen_at = utcnow()
+        assert check_agents(s, utcnow(), "https://x") == {"silent": 0, "back": 1}
+    assert [m["blocks"][0]["text"]["text"] for m in sent] == [
+        "CostLens agent in prod stopped reporting",
+        "CostLens agent in prod is reporting again",
+    ]

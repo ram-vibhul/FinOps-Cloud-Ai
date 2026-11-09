@@ -1,0 +1,15 @@
+# expected top-ranked cause: image_pull
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  labels: {costlens-lab: "image-pull"}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: lab}}
+  template:
+    metadata: {labels: {app: lab}}
+    spec:
+      containers:
+        - name: app
+          image: busybox:9.99.999-does-not-exist

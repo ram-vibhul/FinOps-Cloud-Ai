@@ -13,3 +13,8 @@ backend/data/
 .env.*
 !.env.example
 .DS_Store
+
+# Licence signing keys and issued licences never go into the repository (B.7)
+*.key
+*.licence
+deploy/kubernetes/costlens.env

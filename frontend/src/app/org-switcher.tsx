@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown, Compass, LogOut, Plus } from "lucide-react";
+import { BookOpen, Check, ChevronsUpDown, Compass, ListChecks, LogOut, Plus } from "lucide-react";
 import { DropdownMenu as Menu } from "radix-ui";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -81,6 +81,13 @@ export function UserMenu() {
           <p className="truncate text-sm font-medium">{me.user.name}</p>
           <p className="truncate text-xs text-muted-foreground">{me.user.email}</p>
         </div>
+        <Menu.Separator className="my-1 h-px bg-border" />
+        <Menu.Item className={item} onSelect={() => navigate("/setup")}>
+          <ListChecks /> Guided setup
+        </Menu.Item>
+        <Menu.Item className={item} onSelect={() => navigate("/glossary")}>
+          <BookOpen /> Glossary
+        </Menu.Item>
         <Menu.Separator className="my-1 h-px bg-border" />
         <Menu.Item
           className={item}

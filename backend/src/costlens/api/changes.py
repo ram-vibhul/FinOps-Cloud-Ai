@@ -6,22 +6,24 @@ import json
 import secrets
 import uuid
 from datetime import UTC, date, datetime, timedelta
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Header, Query, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 from costlens.accounts.roles import Permission
 from costlens.api.deps import SessionDep, SettingsDep, require
 from costlens.auth.web import AuthContext
 from costlens.changes import github
 from costlens.changes.service import ChangeIn, cost_effect, record, related_events
+from costlens.config import Settings
 from costlens.core.errors import AppError, NotFoundError
 from costlens.costs.analytics import latest_date
 from costlens.db.base import utcnow
 from costlens.db.tenant import set_tenant
-from costlens.models import ChangeEvent, CostAnomaly, CostDaily, InboundWebhook
+from costlens.models import ChangeEvent, CostAnomaly, CostDaily, InboundWebhook, K8sCluster
 
 router = APIRouter(tags=["changes"])
 Reader = Annotated[AuthContext, require(Permission.READ)]
@@ -174,6 +176,115 @@ def list_webhooks(auth: Admin, db: SessionDep, settings: SettingsDep) -> list[We
         )
         for h in db.scalars(select(InboundWebhook).order_by(InboundWebhook.created_at))
     ]
+
+
+class AlertReceiverIn(BaseModel):
+    kind: Literal["alertmanager", "pagerduty", "opsgenie"]
+    name: str = Field(min_length=1, max_length=120)
+    cluster_id: uuid.UUID
+
+
+def _setup(kind: str, url: str, secret: str) -> str:
+    if kind == "alertmanager":
+        return (
+            "receivers:\n  - name: costlens\n    webhook_configs:\n"
+            f"      - url: {url}\n        send_resolved: true\n        http_config:\n"
+            f"          authorization:\n            credentials: {secret}\n"
+        )
+    if kind == "pagerduty":
+        return (
+            f"PagerDuty -> Integrations -> Generic Webhooks (v3) -> New webhook: URL {url}, "
+            "events incident.triggered and incident.resolved. PagerDuty then shows a signing "
+            "secret: paste it into CostLens (Settings -> Webhooks -> Set signing secret)."
+        )
+    return (
+        f"Opsgenie -> Settings -> Integrations -> Webhook: URL {url}, turn on 'Add Alert "
+        f"Description/Details', custom header Authorization: Bearer {secret}. Put namespace and "
+        "deployment (or pod) in the alert details or tags (key:value)."
+    )
+
+
+@router.post("/api/v1/org/webhooks/alerts", status_code=201)
+def create_alert_receiver(
+    body: AlertReceiverIn, auth: Admin, db: SessionDep, settings: SettingsDep
+) -> dict[str, Any]:
+    if db.get(K8sCluster, body.cluster_id) is None:
+        raise NotFoundError("Cluster not found.")
+    secret = secrets.token_urlsafe(32)
+    hook = InboundWebhook(
+        org_id=auth.org_id,
+        kind=body.kind,
+        name=body.name,
+        secret=secret,
+        cluster_id=body.cluster_id,
+    )
+    db.add(hook)
+    db.flush()
+    url = f"{settings.base_url.rstrip('/')}/api/v1/hooks/{hook.kind}/{hook.id}"
+    out = WebhookOut(
+        id=hook.id, kind=hook.kind, name=hook.name, url=url, last_received_at=None, secret=secret
+    )
+    return {**out.model_dump(mode="json"), "setup": _setup(body.kind, url, secret)}
+
+
+async def _alert_delivery(
+    kind: str, hook_id: uuid.UUID, request: Request, db: Session, settings: Settings
+) -> dict[str, Any]:
+    from costlens.k8s import alerts
+
+    body = await request.body()
+    if len(body) > 5 * 1024 * 1024:
+        raise AppError("Payload too large.", status=413, code="too_large")
+    set_tenant(db, bypass=True)
+    hook = db.get(InboundWebhook, hook_id)
+    headers = {k.lower(): v for k, v in request.headers.items()}
+    if hook is None or hook.kind != kind or not alerts.verify(kind, hook.secret, body, headers):
+        raise AppError("Unknown receiver or bad credentials.", status=401, code="bad_signature")
+    set_tenant(db, org_id=hook.org_id)
+    cluster = db.get(K8sCluster, hook.cluster_id) if hook.cluster_id else None
+    if cluster is None:
+        raise AppError("This receiver's cluster no longer exists.", status=410, code="no_cluster")
+    try:
+        payload = json.loads(body or b"{}")
+    except json.JSONDecodeError as exc:
+        raise AppError("Body is not JSON.", code="bad_payload") from exc
+    found = alerts.parse(kind, payload if isinstance(payload, dict) else {})
+    return {"status": "accepted", **alerts.handle(db, hook, cluster, found, settings.base_url)}
+
+
+def _register_alert_route(kind: str) -> None:
+    async def receive(
+        hook_id: uuid.UUID, request: Request, db: SessionDep, settings: SettingsDep
+    ) -> dict[str, Any]:
+        return await _alert_delivery(kind, hook_id, request, db, settings)
+
+    router.add_api_route(
+        f"/api/v1/hooks/{kind}/{{hook_id}}",
+        receive,
+        methods=["POST"],
+        status_code=202,
+        include_in_schema=False,
+        name=f"{kind}_webhook",
+    )
+
+
+for _kind in ("alertmanager", "pagerduty", "opsgenie"):
+    _register_alert_route(_kind)
+
+
+class SecretIn(BaseModel):
+    secret: str = Field(min_length=8, max_length=500)
+
+
+@router.put("/api/v1/org/webhooks/{hook_id}/secret", status_code=204)
+def set_webhook_secret(hook_id: uuid.UUID, body: SecretIn, auth: Admin, db: SessionDep) -> Response:
+    """Use a signing secret the other service generated (PagerDuty v3 creates its own)."""
+    hook = db.get(InboundWebhook, hook_id)
+    if hook is None:
+        raise NotFoundError("Webhook not found.")
+    hook.secret = body.secret
+    db.flush()
+    return Response(status_code=204)
 
 
 @router.delete("/api/v1/org/webhooks/{hook_id}", status_code=204)

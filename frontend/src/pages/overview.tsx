@@ -7,7 +7,9 @@ import { api } from "@/lib/api";
 import { useMe } from "@/lib/session";
 import { useLoad } from "@/lib/use-load";
 import { AnomaliesCard } from "./costs/anomalies";
+import { EarlyWarnings } from "./costs/early-warnings";
 import { SummaryTiles } from "./costs/summary-tiles";
+import { SetupCard } from "./setup";
 
 export function OverviewPage() {
   const me = useMe();
@@ -21,8 +23,10 @@ export function OverviewPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
         <p className="text-sm text-muted-foreground">Headline spend, trends and what needs your attention.</p>
       </div>
+      <SetupCard />
       {s?.data_through ? (
         <>
+          <EarlyWarnings currency={s.currency} reloadKey={s} />
           <SummaryTiles summary={s} />
           <AnomaliesCard compact />
           <Button asChild variant="outline" className="self-start">

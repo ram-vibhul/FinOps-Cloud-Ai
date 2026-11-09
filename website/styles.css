@@ -1,0 +1,44 @@
+/* CostLens public website (B.9). No framework, no tracking, no third-party requests. */
+:root {
+  --bg: #ffffff; --fg: #14181f; --muted: #556070; --card: #f5f7f9; --line: #dde3e9;
+  --brand: #0f766e; --brand-fg: #ffffff; --warn-bg: #fff7e0; --warn-fg: #5c4400;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1216; --fg: #e8ecf0; --muted: #a3adb8; --card: #171c22; --line: #2a323b;
+    --brand: #2dd4bf; --brand-fg: #06201d; --warn-bg: #3a2f10; --warn-fg: #f6e3a8;
+  }
+}
+* { box-sizing: border-box; }
+html { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.6; }
+body { margin: 0; background: var(--bg); color: var(--fg); }
+a { color: var(--brand); }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+.skip { position: absolute; left: -999px; }
+.skip:focus { left: 1rem; top: 1rem; background: var(--bg); padding: .5rem; z-index: 10; }
+header, main, footer { max-width: 68rem; margin: 0 auto; padding: 0 1rem; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; padding-top: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
+header .logo { font-weight: 700; font-size: 1.2rem; color: var(--fg); text-decoration: none; margin-right: auto; }
+nav ul { display: flex; flex-wrap: wrap; gap: 1rem; list-style: none; margin: 0; padding: 0; }
+nav a { color: var(--fg); text-decoration: none; }
+nav a[aria-current="page"] { color: var(--brand); font-weight: 600; }
+main { padding-top: 2rem; padding-bottom: 3rem; }
+h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1.2; margin: 0 0 1rem; }
+h2 { margin-top: 2.5rem; }
+.lead { font-size: 1.15rem; color: var(--muted); max-width: 44rem; }
+.button { display: inline-block; background: var(--brand); color: var(--brand-fg); padding: .6rem 1.1rem; border-radius: .5rem; text-decoration: none; font-weight: 600; }
+.button.secondary { background: transparent; color: var(--brand); border: 1px solid var(--brand); }
+.actions { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1.5rem 0; }
+.grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: .75rem; padding: 1.25rem; }
+.card h3 { margin-top: 0; }
+.note { background: var(--warn-bg); color: var(--warn-fg); border-radius: .5rem; padding: .75rem 1rem; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: .5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+thead th { position: sticky; top: 0; background: var(--bg); }
+.table-wrap { overflow-x: auto; }
+ol.steps li { margin-bottom: .75rem; }
+code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+pre { background: var(--card); border: 1px solid var(--line); border-radius: .5rem; padding: 1rem; overflow-x: auto; }
+footer { border-top: 1px solid var(--line); padding-top: 1.5rem; padding-bottom: 2rem; color: var(--muted); font-size: .9rem; }

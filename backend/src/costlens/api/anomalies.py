@@ -109,7 +109,9 @@ def explain_anomaly(
                 for d in result["drivers"]
             )
         )
-        worded = writer.rewrite(facts)
+        from costlens.billing.metering import use_ai
+
+        worded = writer.rewrite(facts) if use_ai(db, request.app.state.settings) else None
         if worded:
             result.update(text=worded, template_text=result["text"], worded_by="ai")
     return result

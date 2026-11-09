@@ -27,6 +27,7 @@ from costlens.db.base import Base
 from costlens.models import Organization
 
 ROLLUP_DIMENSIONS = {
+    "provider": "provider",
     "service": "service_name",
     "account": "sub_account_id",
     "region": "region",

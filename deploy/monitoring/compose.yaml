@@ -1,0 +1,20 @@
+# Uptime checks, alerts and the public status page for the hosted service (D.9, B.13).
+# Uptime Kuma (MIT), self-hosted. Run it OUTSIDE the CostLens hosting (another server,
+# region or provider) so it can still alert when CostLens is down. Where it runs and
+# what that costs is tracker Q7.
+#   docker compose -f deploy/monitoring/compose.yaml up -d
+# then open http://<host>:3001, create the admin account, and add the checks listed in
+# docs/monitoring.md. Put TLS in front before exposing the status page.
+name: costlens-monitoring
+
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:2.5.9
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - kuma-data:/app/data
+
+volumes:
+  kuma-data:

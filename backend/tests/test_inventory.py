@@ -13,6 +13,7 @@ from costlens.db import Database
 from costlens.db.tenant import set_tenant
 from costlens.inventory import aws as collectors
 from costlens.inventory import ce_fallback
+from costlens.inventory.aws import Found
 from costlens.inventory.service import collect_aws
 from costlens.models import CloudConnection, CloudResource, CostHourly
 from tests.fakes.aws import FakeAws
@@ -178,7 +179,10 @@ def env(client: TestClient, db: Database):
             ],
         )
     ec2 = FakeEC2()
-    aws = FakeAws(clients={"ec2": ec2, "elbv2": FakeELB(), "rds": DeniedRDS()})
+    # us-east-1 is always visited (global services); this account has nothing there.
+    aws = FakeAws(
+        clients={"ec2": ec2, "elbv2": FakeELB(), "rds": DeniedRDS()}, denied_regions={"us-east-1"}
+    )
     aws.allow(ROLE, "ext")
     return {
         "c": client,
@@ -220,13 +224,38 @@ def test_vanished_resources_marked_deleted_only_on_complete_runs(env) -> None:
     env["ec2"].volumes = env["ec2"].volumes[1:]
     with env["db"].session() as s:
         collect_aws(s, env["aws"], env["conn"])
-    assert resources(env)["vol-1"].state == "available"  # RDS failed: run incomplete, keep
+    # EC2 was collected in full: the vanished volume is gone even though RDS failed.
+    assert resources(env)["vol-1"].state == "deleted"
+
+
+def test_failed_collector_keeps_its_resources(env) -> None:
+    from costlens.inventory.service import upsert
+
+    with env["db"].session() as s:
+        set_tenant(s, org_id=env["org"])
+        upsert(
+            s,
+            env["org"],
+            "222222222222",
+            [
+                Found(
+                    "Amazon Relational Database Service",
+                    "rds_instance",
+                    "arn:db",
+                    "ap-south-1",
+                    state="available",
+                ),
+            ],
+        )
+    with env["db"].session() as s:
+        collect_aws(s, env["aws"], env["conn"])  # the fake RDS refuses: keep the database
+    assert resources(env)["arn:db"].state == "available"
     env["aws"].clients["rds"] = type(
         "OkRDS", (), {"describe_db_instances": lambda self, **kw: {"DBInstances": []}}
     )()
     with env["db"].session() as s:
         collect_aws(s, env["aws"], env["conn"])
-    assert resources(env)["vol-1"].state == "deleted"
+    assert resources(env)["arn:db"].state == "deleted"
 
 
 def test_inventory_api_with_costs(env) -> None:

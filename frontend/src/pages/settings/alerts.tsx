@@ -59,12 +59,34 @@ function AlertForm({ initial, canEdit }: { initial: AlertSettings; canEdit: bool
             <input type="checkbox" className="mt-1" checked={form.ai_explanations ?? false} disabled={!canEdit}
               onChange={(e) => setForm({ ...form, ai_explanations: e.target.checked })} />
             <span>
-              Word anomaly explanations with AI
+              Use AI for anomaly explanations, Kubernetes investigations and plain-words questions in the report builder
               <span className="block text-xs text-muted-foreground">
-                Sends the short summary (names and amounts, never billing files) to Anthropic. Needs an AI key on this installation; otherwise the standard wording is used.
+                Sends short summaries (names, amounts and findings, with secrets and personal data removed; never billing files or logs) to Anthropic. Report-builder questions send the question plus dimension, tag, service and region names, never amounts. Needs an AI key on this installation; otherwise the standard wording is used.
               </span>
             </span>
           </label>
+          <fieldset className="grid gap-2 text-sm" disabled={!canEdit}>
+            <legend className="font-medium">Early warnings</legend>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={form.forecast_warnings ?? true} onChange={(e) => setForm({ ...form, forecast_warnings: e.target.checked })} />
+              Warn when the month-end forecast is more than
+              <Input aria-label="Forecast over last month (%)" type="number" min={1} max={500} className="h-7 w-20" value={form.forecast_over_pct ?? 10}
+                onChange={(e) => setForm({ ...form, forecast_over_pct: Number(e.target.value) })} />
+              % above last month
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={form.same_day_warnings ?? true} onChange={(e) => setForm({ ...form, same_day_warnings: e.target.checked })} />
+              Warn when today's spend runs more than
+              <Input aria-label="Today over usual (%)" type="number" min={5} max={1000} className="h-7 w-20" value={form.same_day_over_pct ?? 30}
+                onChange={(e) => setForm({ ...form, same_day_over_pct: Number(e.target.value) })} />
+              % above the usual (needs hourly data from the billing export)
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={form.weekly_digest_email ?? false} disabled={!canEdit}
+                onChange={(e) => setForm({ ...form, weekly_digest_email: e.target.checked })} />
+              Email a weekly digest to owners and admins on Monday mornings (Slack and Teams channels choose it under Notifications)
+            </label>
+          </fieldset>
           {canEdit && <Button type="submit" className="justify-self-start">Save alerts</Button>}
         </form>
       </CardContent>

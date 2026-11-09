@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import inspect
 import logging
 from typing import Any, Protocol
@@ -49,6 +50,27 @@ async def _await(awaitable: Any) -> Any:
     return await awaitable
 
 
+def periodic_safe(func: Any) -> Any:
+    """Procrastinate calls periodic jobs with a ``timestamp`` keyword (the scheduled
+    time). Our job functions do not take it; without this wrapper every scheduled job
+    failed with a TypeError in the PostgreSQL worker."""
+    if inspect.iscoroutinefunction(func):
+
+        @functools.wraps(func)
+        async def run_async(*args: Any, timestamp: Any = None, **kwargs: Any) -> Any:
+            del timestamp
+            return await func(*args, **kwargs)
+
+        return run_async
+
+    @functools.wraps(func)
+    def run(*args: Any, timestamp: Any = None, **kwargs: Any) -> Any:
+        del timestamp
+        return func(*args, **kwargs)
+
+    return run
+
+
 class ProcrastinateRunner:
     """Defers jobs to the PostgreSQL-backed Procrastinate queue."""
 
@@ -57,7 +79,8 @@ class ProcrastinateRunner:
         self.jobs = jobs or registry
         self._tasks: dict[str, Any] = {}
         for spec in self.jobs.jobs.values():
-            task = app.task(name=spec.name, queue=spec.queue, retry=spec.retry)(spec.func)
+            func = periodic_safe(spec.func) if spec.cron else spec.func
+            task = app.task(name=spec.name, queue=spec.queue, retry=spec.retry)(func)
             if spec.cron:
                 app.periodic(cron=spec.cron, periodic_id=spec.name)(task)
             self._tasks[spec.name] = task

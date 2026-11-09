@@ -12,6 +12,9 @@ x-app: &app
   build: .
   restart: unless-stopped
   env_file: .env
+  # Shared by web and worker: uploaded cost files and generated reports live here.
+  volumes:
+    - appdata:/data
   environment: &app-env
     COSTLENS_DATABASE_URL: postgresql://costlens_app:${COSTLENS_DB_APP_PASSWORD:?set COSTLENS_DB_APP_PASSWORD in .env}@db:5432/costlens
     COSTLENS_SKIP_MIGRATE: "1"
@@ -44,10 +47,14 @@ services:
   worker:
     <<: *app
     command: ["worker"]
-    # The image's HTTP healthcheck is for the web process; the worker has no HTTP port.
-    # A worker heartbeat check is tracked in TRACKER.md (0.4).
+    # The worker has no HTTP port: its heartbeat job (every 5 minutes) records the time,
+    # and this check fails when it has not run for 15 minutes.
     healthcheck:
-      disable: true
+      test: ["CMD", "costlens", "worker-health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 10m
 
   db:
     image: postgres:17.11-trixie
@@ -68,3 +75,4 @@ services:
 
 volumes:
   pgdata:
+  appdata:

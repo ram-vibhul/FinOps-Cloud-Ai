@@ -1,5 +1,6 @@
 import { Boxes, Copy, KeyRound, Plus, Trash2 } from "lucide-react";
 import { type FormEvent, useState } from "react";
+import { Link } from "react-router";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -10,12 +11,17 @@ import { Label } from "@/components/ui/label";
 import { api, errorMessage, type K8sCluster, type K8sClusterWithToken } from "@/lib/api";
 import { activeOrg, atLeast, useMe } from "@/lib/session";
 import { useLoad } from "@/lib/use-load";
+import { AlertReceivers } from "./alert-receivers";
+import { MetricsPanel } from "./metrics";
+import { NamespacesPanel } from "./namespaces";
+import { PricesPanel } from "./prices";
 
 const HEALTH: Record<K8sCluster["health"], { label: string; variant: "default" | "secondary" | "warning" | "destructive" }> = {
   waiting: { label: "Waiting for agent", variant: "secondary" },
   ok: { label: "Connected", variant: "default" },
   silent: { label: "Agent silent", variant: "destructive" },
   outdated: { label: "Agent outdated", variant: "warning" },
+  revoked: { label: "Revoked", variant: "secondary" },
 };
 
 function copy(text: string) {
@@ -36,12 +42,26 @@ export function ClustersTab() {
   const list = useLoad(() => api.clusters(), [me.active_organization_id]);
   const [name, setName] = useState("");
   const [issued, setIssued] = useState<K8sClusterWithToken | null>(null);
+  const [openNs, setOpenNs] = useState<string | null>(null);
+  const [openMetrics, setOpenMetrics] = useState<string | null>(null);
+  const [openPrices, setOpenPrices] = useState<string | null>(null);
 
   async function add(event: FormEvent) {
     event.preventDefault();
     try {
       setIssued(await api.createCluster(name.trim()));
       setName("");
+      await list.reload();
+    } catch (error) {
+      toast.error(errorMessage(error));
+    }
+  }
+
+  async function revoke(c: K8sCluster) {
+    if (!window.confirm(`Revoke the agent token for ${c.name}? The agent stops reporting immediately.`)) return;
+    try {
+      await api.revokeCluster(c.id);
+      toast.success("Token revoked.");
       await list.reload();
     } catch (error) {
       toast.error(errorMessage(error));
@@ -76,6 +96,19 @@ export function ClustersTab() {
             A small read-only agent runs in each cluster and reports nodes, workloads, pods and events. It cannot change
             anything, never reads Secrets or ConfigMaps, and drops container environment variables and commands.
           </CardDescription>
+          <details className="text-sm text-muted-foreground">
+            <summary className="cursor-pointer">Usage metrics: metrics-server, Prometheus or OpenTelemetry</summary>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>metrics-server is used automatically when the cluster has it.</li>
+              <li>Prometheus: install the chart with <code>--set prometheus.url=http://prometheus.monitoring:9090</code>.</li>
+              <li>
+                OpenTelemetry Collector: add an <code>otlphttp</code> exporter with endpoint{" "}
+                <code>{window.location.origin}/api/v1/agent/otlp</code>, <code>encoding: json</code> and the header{" "}
+                <code>Authorization: Bearer &lt;cluster token&gt;</code>; the <code>kubeletstats</code> receiver provides
+                container CPU and memory.
+              </li>
+            </ul>
+          </details>
         </CardHeader>
         <CardContent className="grid gap-4">
           {canEdit && (
@@ -116,11 +149,46 @@ export function ClustersTab() {
                         `last report ${seen(c.last_seen_at)}`].filter(Boolean).join(" · ")}
                     </p>
                   </div>
+                  {c.first_scan && (
+                    <div className="basis-full rounded-md bg-muted/50 p-3 text-sm">
+                      <p className="font-medium">
+                        First scan: {c.first_scan.workloads} workloads, {c.first_scan.pods} pods on {c.first_scan.nodes} nodes —{" "}
+                        {c.first_scan.failing + c.first_scan.warnings === 0
+                          ? "everything looks healthy."
+                          : `${c.first_scan.failing} failing, ${c.first_scan.warnings} with warnings.`}
+                      </p>
+                      <ul className="mt-1 grid gap-1">
+                        {c.first_scan.findings.map((f) => (
+                          <li key={`${f.namespace}/${f.kind}/${f.name}`}>
+                            <span className="font-medium">{f.kind} {f.namespace}/{f.name}</span>: {f.cause ?? f.summary}
+                            {f.first_fix && <span className="text-muted-foreground"> Try: {f.first_fix}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                      {c.first_scan.findings.length > 0 && (
+                        <Link to="/kubernetes/investigate" className="mt-1 inline-block underline underline-offset-4">Investigate</Link>
+                      )}
+                    </div>
+                  )}
                   {canEdit && (
                     <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" aria-expanded={openNs === c.id}
+                        onClick={() => setOpenNs(openNs === c.id ? null : c.id)}>Namespaces</Button>
+                      <Button variant="ghost" size="sm" aria-expanded={openPrices === c.id}
+                        onClick={() => setOpenPrices(openPrices === c.id ? null : c.id)}>Prices</Button>
+                      <Button variant="ghost" size="sm" aria-expanded={openMetrics === c.id}
+                        onClick={() => setOpenMetrics(openMetrics === c.id ? null : c.id)}>Metrics</Button>
                       <Button variant="ghost" size="sm" onClick={() => void rotate(c)}><KeyRound /> New token</Button>
+                      {c.status !== "revoked" && <Button variant="ghost" size="sm" onClick={() => void revoke(c)}>Revoke</Button>}
                       <Button variant="ghost" size="sm" onClick={() => void remove(c)}><Trash2 /> Disconnect</Button>
                     </div>
+                  )}
+                  {canEdit && openMetrics === c.id && <MetricsPanel cluster={c} />}
+                  {canEdit && openPrices === c.id && (
+                    <PricesPanel cluster={c} onSaved={() => { setOpenPrices(null); void list.reload(); }} />
+                  )}
+                  {canEdit && openNs === c.id && (
+                    <NamespacesPanel cluster={c} onSaved={() => { setOpenNs(null); void list.reload(); }} />
                   )}
                 </li>
               ))}
@@ -128,6 +196,7 @@ export function ClustersTab() {
           )}
         </CardContent>
       </Card>
+      {canEdit && <AlertReceivers clusters={list.data ?? []} />}
     </div>
   );
 }

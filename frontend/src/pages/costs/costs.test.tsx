@@ -158,4 +158,27 @@ describe("display currency", () => {
     });
     expect(localStorage.getItem("costlens-display-currency")).toBe("INR");
   });
+
+  it("puts every cloud and service side by side", async () => {
+    mockApi(routes({
+      "GET /api/v1/costs/providers": {
+        currency: "USD", metric: "effective", data_through: "2026-11-14", month_to_date: 1625,
+        other_currencies: {},
+        providers: [
+          { provider: "aws", name: "AWS", month_to_date: 1000, previous_month_to_date: 900, change_pct: 11.1, last_month: 2900,
+            share_pct: 61.5, data_through: "2026-11-14", connections: [{ id: "c1", name: "Prod", status: "active", error: null }] },
+          { provider: "snowflake", name: "Snowflake", month_to_date: 625, previous_month_to_date: 600, change_pct: 4.2, last_month: 1800,
+            share_pct: 38.5, data_through: "2026-11-13", connections: [] },
+          { provider: "gcp", name: "Google Cloud", month_to_date: 0, previous_month_to_date: 0, change_pct: null, last_month: 0,
+            share_pct: 0, data_through: null, connections: [{ id: "c2", name: "GCP", status: "error", error: "denied" }] },
+        ],
+      },
+    }));
+    renderRoute("/costs");
+    expect(await screen.findByText("All clouds and services")).toBeInTheDocument();
+    expect(screen.getByLabelText("AWS: 61.5% of spend")).toHaveAttribute("value", "61.5");
+    expect(screen.getByText("Snowflake")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Connection problem/ })).toHaveAttribute("href", "/settings?tab=clouds");
+    expect(screen.getByRole("option", { name: "Cloud or service" })).toBeInTheDocument();
+  });
 });

@@ -15,6 +15,7 @@ import { money, percent } from "@/lib/format";
 import { activeOrg, atLeast, useMe } from "@/lib/session";
 import { useDisplayCurrency } from "@/lib/currency";
 import { useLoad } from "@/lib/use-load";
+import { AskBox } from "./ask";
 import { StackedSpendChart } from "./charts";
 
 const BASE_DIMENSIONS: { value: string; label: string }[] = [
@@ -55,8 +56,9 @@ export function ExplorerPage() {
     ...(tags.data ?? []).filter((t) => !aliased.has(t.key)).map((t) => ({ value: `tag:${t.key}`, label: `Tag: ${t.key}` })),
   ];
   const result = useLoad<ExploreResult>(() => {
-    const { days, ...rest } = query;
-    return api.explore({ ...rest, metric, ...(currency ? { currency } : {}), ...isoDaysBefore(days ?? 30) });
+    const { days, chart: _chart, start, end, ...rest } = query;
+    const range = days === 0 && start && end ? { start, end } : isoDaysBefore(days || 30);
+    return api.explore({ ...rest, metric, ...(currency ? { currency } : {}), ...range });
   }, [me.active_organization_id, JSON.stringify(query), metric, currency]);
   const [primary, secondary] = query.group_by;
   const labelOf = (d: string) => dims.find((x) => x.value === d)?.label ?? d;
@@ -102,6 +104,11 @@ export function ExplorerPage() {
         </div>
       </div>
 
+      <AskBox labelOf={labelOf} onApply={(a) => {
+        setQuery({ ...a.query, days: 0, chart: a.chart });
+        setMetric(a.query.metric);
+      }} />
+
       <Card>
         <CardContent className="flex flex-col gap-4 pt-1">
           <div className="flex flex-wrap items-end gap-3">
@@ -120,8 +127,33 @@ export function ExplorerPage() {
             </div>
             <div className="grid gap-1">
               <Label htmlFor="ex-range">Range</Label>
-              <NativeSelect id="ex-range" value={query.days ?? 30} onChange={(e) => setQuery({ ...query, days: Number(e.target.value) })}>
+              <NativeSelect id="ex-range" value={query.days ?? 30} onChange={(e) => {
+                const days = Number(e.target.value);
+                const custom = days === 0 ? isoDaysBefore(30) : {};
+                setQuery({ ...query, days, ...custom });
+              }}>
                 {[7, 30, 90, 180, 365].map((d) => <option key={d} value={d}>Last {d} days</option>)}
+                <option value={0}>Custom dates</option>
+              </NativeSelect>
+            </div>
+            {query.days === 0 && (
+              <>
+                <div className="grid gap-1">
+                  <Label htmlFor="ex-start">From</Label>
+                  <Input id="ex-start" type="date" value={query.start ?? ""} onChange={(e) => setQuery({ ...query, start: e.target.value })} />
+                </div>
+                <div className="grid gap-1">
+                  <Label htmlFor="ex-end">To</Label>
+                  <Input id="ex-end" type="date" value={query.end ?? ""} onChange={(e) => setQuery({ ...query, end: e.target.value })} />
+                </div>
+              </>
+            )}
+            <div className="grid gap-1">
+              <Label htmlFor="ex-chart">Chart</Label>
+              <NativeSelect id="ex-chart" value={query.chart ?? "bar"} onChange={(e) => setQuery({ ...query, chart: e.target.value as ExploreQuery["chart"] })}>
+                <option value="bar">Stacked bars</option>
+                <option value="line">Lines</option>
+                <option value="table">Table only</option>
               </NativeSelect>
             </div>
             <div className="grid gap-1">
@@ -161,13 +193,13 @@ export function ExplorerPage() {
       {result.error && <p role="alert" className="text-sm text-destructive">{result.error}</p>}
       {r && (
         <>
-          {query.granularity !== "total" && r.series.length > 0 && (
+          {query.granularity !== "total" && query.chart !== "table" && r.series.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle>{query.group_by.map(labelOf).join(" · ")}</CardTitle>
                 <CardDescription>Total {money(r.total, r.currency)} across {r.group_count} groups.</CardDescription>
               </CardHeader>
-              <CardContent><StackedSpendChart data={r} monthly={query.granularity === "month"} /></CardContent>
+              <CardContent><StackedSpendChart data={r} monthly={query.granularity === "month"} kind={query.chart === "line" ? "line" : "bar"} /></CardContent>
             </Card>
           )}
           <Card>

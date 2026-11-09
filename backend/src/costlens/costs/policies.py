@@ -62,3 +62,17 @@ register(
         max_days=31,
     )
 )
+
+
+register(
+    RetentionPolicy(
+        kind="resource_metrics",
+        label="Resource usage (CloudWatch)",
+        description="Daily CPU, memory and connection summaries used for right-sizing.",
+        table="resource_metrics",
+        time_column="day",
+        default_days=90,
+        min_days=14,
+        max_days=400,
+    )
+)

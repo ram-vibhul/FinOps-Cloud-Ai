@@ -6,9 +6,25 @@ import { Label } from "@/components/ui/label";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { api, type AuditEvent, errorMessage } from "@/lib/api";
 
+// Bookkeeping fields every row has; they tell a reader nothing (9.3 polish).
+const HIDDEN_FIELDS = new Set(["id", "org_id", "created_at", "updated_at"]);
+const UUID = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
+
+function show(value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  const text = typeof value === "string" ? value : JSON.stringify(value);
+  return UUID.test(text) ? `${text.slice(0, 8)}…` : text;
+}
+
 function describeChanges(changes: AuditEvent["changes"]): string {
   return Object.entries(changes)
-    .map(([field, [before, after]]) => `${field}: ${before ?? "—"} → ${after ?? "—"}`)
+    .filter(([field]) => !HIDDEN_FIELDS.has(field))
+    .map(([field, [before, after]]) => {
+      const label = field.replaceAll("_", " ");
+      return before === null || before === undefined
+        ? `${label}: ${show(after)}`
+        : `${label}: ${show(before)} → ${show(after)}`;
+    })
     .join("; ");
 }
 

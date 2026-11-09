@@ -27,8 +27,8 @@ function trimLeading(data: CostSeries): CostSeries {
   return { ...data, periods: data.periods.slice(first), series: data.series.map((s) => ({ ...s, values: s.values.slice(first) })) };
 }
 
-export function StackedSpendChart({ data: raw, monthly = false, forecastRemainder }: {
-  data: CostSeries; monthly?: boolean; forecastRemainder?: number;
+export function StackedSpendChart({ data: raw, monthly = false, forecastRemainder, kind = "bar" }: {
+  data: CostSeries; monthly?: boolean; forecastRemainder?: number; kind?: "bar" | "line";
 }) {
   const [asTable, setAsTable] = useState(false);
   const data = useMemo(() => (monthly ? trimLeading(raw) : raw), [raw, monthly]);
@@ -39,15 +39,25 @@ export function StackedSpendChart({ data: raw, monthly = false, forecastRemainde
   );
   const build = useCallback(
     (colors: ChartColors): EChartsCoreOption => {
-      const bars = data.series.map((s, i) => ({
-        name: s.label,
-        type: "bar",
-        stack: "spend",
-        data: s.values,
-        barMaxWidth: 28,
-        itemStyle: { color: seriesColor(colors, s.key, i), borderColor: colors.surface, borderWidth: 1 },
-        emphasis: { focus: "series" },
-      }));
+      const bars = data.series.map((s, i) => (kind === "line"
+        ? {
+            name: s.label,
+            type: "line",
+            data: s.values,
+            showSymbol: false,
+            lineStyle: { width: 2 },
+            itemStyle: { color: seriesColor(colors, s.key, i) },
+            emphasis: { focus: "series" },
+          }
+        : {
+            name: s.label,
+            type: "bar",
+            stack: "spend",
+            data: s.values,
+            barMaxWidth: 28,
+            itemStyle: { color: seriesColor(colors, s.key, i), borderColor: colors.surface, borderWidth: 1 },
+            emphasis: { focus: "series" },
+          })) as Record<string, unknown>[];
       if (forecastRemainder && forecastRemainder > 0) {
         bars.push({
           name: "Forecast (rest of month)",
@@ -75,7 +85,7 @@ export function StackedSpendChart({ data: raw, monthly = false, forecastRemainde
         series: bars,
       };
     },
-    [data, labels, c, forecastRemainder],
+    [data, labels, c, forecastRemainder, kind],
   );
   const title = monthly ? "Monthly spend" : "Daily spend";
   return (

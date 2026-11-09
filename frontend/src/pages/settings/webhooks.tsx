@@ -43,8 +43,9 @@ export function GithubWebhooks() {
         <div>
           <h3 className="font-medium">Deployments from GitHub</h3>
           <p className="text-sm text-muted-foreground">
-            Show deployments and releases next to costs. In GitHub: Settings → Webhooks → Add webhook, content type
-            application/json, events "Deployment statuses" and "Releases".
+            Show deployments next to costs and Kubernetes incidents. In GitHub: Settings → Webhooks → Add webhook, content
+            type application/json, events "Deployment statuses", "Releases" and "Workflow runs" (GitHub Actions workflows
+            whose name mentions deploy, release, rollout, CD, production and similar).
           </p>
         </div>
         <Button variant="outline" onClick={() => void create()}><GitBranch /> Add GitHub webhook</Button>
@@ -65,7 +66,7 @@ export function GithubWebhooks() {
         </output>
       )}
       <ul className="flex flex-col gap-1 text-sm">
-        {(list.data ?? []).map((h) => (
+        {(list.data ?? []).filter((h) => h.kind === "github").map((h) => (
           <li key={h.id} className="flex flex-wrap items-center justify-between gap-2">
             <span className="truncate">{h.name} — {h.last_received_at ? `last event ${new Date(h.last_received_at).toLocaleString()}` : "no events yet"}</span>
             <Button variant="ghost" size="sm" onClick={() => void remove(h.id)}>Remove</Button>

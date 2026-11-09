@@ -1,0 +1,21 @@
+# expected top-ranked cause: probes
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  labels: {costlens-lab: "liveness-probe"}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: lab}}
+  template:
+    metadata: {labels: {app: lab}}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.37
+          command: ["sleep", "3600"]
+          livenessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 2
+            periodSeconds: 3
+            failureThreshold: 2

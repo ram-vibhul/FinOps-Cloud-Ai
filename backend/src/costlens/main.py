@@ -17,24 +17,59 @@ from costlens.api import (
     agent as agent_api,
 )
 from costlens.api import (
+    ai_usage,
+    allocation,
     anomalies,
+    api_keys,
     audit,
     auth,
+    aws_audit,
+    budgets,
     changes,
     clusters,
+    commitments,
     connections,
     costs,
+    custom_roles,
     demo,
+    elevation,
+    estimates,
     explorer,
     files,
+    findings,
+    fixes,
+    flow_logs,
+    governance,
+    inbox,
     inventory,
     invitations,
+    k8s_costs,
+    k8s_investigations,
+    k8s_metrics,
+    k8s_tasks,
+    k8s_usage,
+    mcp,
+    notifications,
     organizations,
+    partners,
+    payment_webhooks,
+    plans,
     privacy,
     quality,
+    reliability,
+    reports,
+    roi,
+    scim,
+    setup,
     sso,
+    statements,
+    subscriptions,
     system,
+    teams,
+    unit_metrics,
     vtags,
+    webhooks_out,
+    work,
 )
 from costlens.api import (
     fx as fx_api,
@@ -55,6 +90,7 @@ from costlens.core.logging import configure_logging
 from costlens.core.metrics import BUILD_INFO
 from costlens.core.middleware import RequestContextMiddleware
 from costlens.core.netguard import Resolver, system_resolver
+from costlens.core.notify import configure as configure_notify
 from costlens.core.ratelimit import (
     MemoryLimiter,
     Policy,
@@ -147,12 +183,17 @@ def create_app(
     use_gateway(app.state.aws)  # jobs run in this process share it
     use_http(app.state.http)
     app.state.resolver = resolver or system_resolver  # DNS for SSRF checks; faked in tests
+    configure_notify(app.state.http, app.state.resolver)
+    from costlens.core.error_tracking import configure as configure_error_tracking
+
+    configure_error_tracking(settings)
     if settings.secret_key is not None:
         app.state.signing_key = settings.secret_key.get_secret_value()
     else:  # local mode only (validated in Settings)
         app.state.signing_key = local_dev_signing_key(Path(settings.data_dir))
 
     install_error_handlers(app)
+    app.add_exception_handler(scim.ScimError, scim.scim_error_response)
     if settings.rate_limit_enabled:
         app.state.rate_limiter = (
             PostgresLimiter(database.engine) if settings.is_postgres else MemoryLimiter()
@@ -205,11 +246,85 @@ def create_app(
         quality,
         inventory,
         vtags,
+        work,
+        estimates,
+        webhooks_out,
+        ai_usage,
+        api_keys,
+        teams,
+        scim,
+        elevation,
+        partners,
+        fixes,
+        mcp,
+        custom_roles,
+        setup,
+        inbox,
+        plans,
+        subscriptions,
+        payment_webhooks,
         fx_api,
         clusters,
         agent_api,
+        k8s_costs,
+        k8s_usage,
+        k8s_investigations,
+        k8s_metrics,
+        findings,
+        commitments,
+        reliability,
+        aws_audit,
+        flow_logs,
+        roi,
+        budgets,
+        governance,
+        allocation,
+        statements,
+        reports,
+        unit_metrics,
+        notifications,
+        k8s_tasks,
     ):
         app.include_router(module.router)
     if settings.ui_dist_dir:
         mount_spa(app, settings.ui_dist_dir)
+    _document_api(app)
     return app
+
+
+API_GUIDE = """
+Every endpoint under `/api/v1` that the web app uses is also available to scripts.
+
+**Authentication.** Create an API key under *Settings → API keys* and send it as
+`Authorization: Bearer clk_…`. A key acts for the organisation it was created in, with
+the lower of its scope (`read`, `write`, `admin`) and its creator's current role, and stops
+working when revoked, expired, or when its creator leaves the organisation. Keys cannot
+sign in, manage members, SSO, exports or other keys.
+
+**Limits.** Each key has its own per-minute limits (HTTP 429 with `Retry-After`).
+
+**Errors** are RFC 9457 problem documents with a stable `code`.
+"""
+
+
+def _document_api(app: FastAPI) -> None:
+    from fastapi.openapi.utils import get_openapi
+
+    def openapi() -> dict:
+        if app.openapi_schema:
+            return app.openapi_schema
+        schema = get_openapi(
+            title=app.title, version=app.version, description=API_GUIDE, routes=app.routes
+        )
+        schema.setdefault("components", {})["securitySchemes"] = {
+            "apiKey": {
+                "type": "http",
+                "scheme": "bearer",
+                "description": "An organisation API key (clk_…).",
+            }
+        }
+        schema["security"] = [{"apiKey": []}]
+        app.openapi_schema = schema
+        return schema
+
+    app.openapi = openapi  # type: ignore[method-assign]

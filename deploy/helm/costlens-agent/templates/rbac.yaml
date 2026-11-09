@@ -1,4 +1,4 @@
-# Read-only: get/list/watch only. No Secrets, no ConfigMaps, no exec, no logs (yet).
+# Read-only: get/list/watch only. No Secrets, no ConfigMaps, no exec. Logs only if allowed.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -16,6 +16,11 @@ rules:
   - apiGroups: [""]
     resources: [namespaces, nodes, pods, services, persistentvolumeclaims, events]
     verbs: [get, list, watch]
+  {{- if .Values.costlens.allowLogs }}
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]
+  {{- end }}
   - apiGroups: [apps]
     resources: [deployments, replicasets, statefulsets, daemonsets]
     verbs: [get, list, watch]

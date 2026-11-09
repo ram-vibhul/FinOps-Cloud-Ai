@@ -1,0 +1,16 @@
+# expected top-ranked cause: crash_loop
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  labels: {costlens-lab: "crash-loop"}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: lab}}
+  template:
+    metadata: {labels: {app: lab}}
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.37
+          command: ["sh", "-c", "echo 'unknown flag --frobnicate'; exit 2"]

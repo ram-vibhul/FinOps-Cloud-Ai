@@ -1,0 +1,12 @@
+# Uploaded cost files and generated reports, shared by web and worker pods. It needs
+# ReadWriteMany (e.g. EFS, Azure Files, Filestore, NFS); set storageClassName for your
+# cluster. Database data is not here: it lives in PostgreSQL.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: costlens-data
+spec:
+  accessModes: ["ReadWriteMany"]
+  resources:
+    requests:
+      storage: 20Gi

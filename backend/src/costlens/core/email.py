@@ -28,6 +28,8 @@ class Email:
     html: str | None = None
     reply_to: str | None = None
     tags: dict[str, str] = field(default_factory=dict)
+    # [{"filename", "content_type", "data" (base64)}]: kept JSON-safe for the job queue
+    attachments: list[dict[str, str]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -85,6 +87,16 @@ class SmtpSender:
         mime.set_content(message.text)
         if message.html:
             mime.add_alternative(message.html, subtype="html")
+        for a in message.attachments:
+            import base64
+
+            maintype, _, subtype = a.get("content_type", "application/octet-stream").partition("/")
+            mime.add_attachment(
+                base64.b64decode(a["data"]),
+                maintype=maintype,
+                subtype=subtype,
+                filename=a["filename"],
+            )
         return mime
 
     def send(self, message: Email) -> None:

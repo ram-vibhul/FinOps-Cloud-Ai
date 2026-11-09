@@ -13,9 +13,10 @@ from typing import Any
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from costlens.core.redact import redact
 from costlens.db.base import utcnow
 from costlens.db.tenant import set_tenant
-from costlens.models import K8sCluster, K8sEvent, K8sObject
+from costlens.models import K8sCluster, K8sEvent, K8sMetricQuery, K8sObject
 
 PREFIX = "ckt"
 KINDS = frozenset(
@@ -68,7 +69,7 @@ def authenticate(db: Session, token: str | None) -> K8sCluster | None:
     return cluster
 
 
-def agent_config(cluster: K8sCluster) -> dict[str, Any]:
+def agent_config(cluster: K8sCluster, db: Session | None = None) -> dict[str, Any]:
     settings = cluster.settings or {}
     return {
         "cluster_id": str(cluster.id),
@@ -76,7 +77,21 @@ def agent_config(cluster: K8sCluster) -> dict[str, Any]:
         "exclude_namespaces": settings.get("exclude_namespaces", list(SYSTEM_NAMESPACES)),
         "snapshot_interval_seconds": settings.get("snapshot_interval_seconds", 300),
         "events_interval_seconds": settings.get("events_interval_seconds", 60),
+        "usage_interval_seconds": settings.get("usage_interval_seconds", 60),
+        "tasks_interval_seconds": settings.get("tasks_interval_seconds", 10),
+        "metric_interval_seconds": settings.get("metric_interval_seconds", 300),
         "latest_agent_version": LATEST_AGENT,
+        "metric_queries": []
+        if db is None
+        else [
+            {"id": str(q.id), "promql": q.promql}
+            for q in db.scalars(
+                select(K8sMetricQuery)
+                .where(K8sMetricQuery.cluster_id == cluster.id, K8sMetricQuery.enabled.is_(True))
+                .order_by(K8sMetricQuery.created_at)
+                .limit(10)
+            )
+        ],
     }
 
 
@@ -176,7 +191,9 @@ def ingest_events(db: Session, cluster: K8sCluster, events: Iterable[dict[str, A
             e.get("object_name"),
         )
         row.type, row.reason = e.get("type") or "Normal", (e.get("reason") or "")[:128]
-        row.message, row.count = (e.get("message") or "")[:2000], int(e.get("count") or 1)
+        # Agents redact already; redact again here for older agents or custom senders.
+        row.message = redact(e.get("message") or "")[:2000]
+        row.count = int(e.get("count") or 1)
         row.first_at, row.last_at = e["first_at"], e["last_at"]
     _seen(cluster, utcnow())
     db.flush()

@@ -44,6 +44,8 @@ class OrganizationOut(BaseModel):
     slug: str
     role: Role
     is_demo: bool
+    is_partner: bool = False
+    partner_id: uuid.UUID | None = None
 
 
 class UserOut(BaseModel):
@@ -51,6 +53,7 @@ class UserOut(BaseModel):
     email: str
     name: str
     avatar_url: str | None
+    is_platform_admin: bool = False  # manages this installation (licence, partners)
 
 
 class MeOut(BaseModel):
@@ -59,6 +62,8 @@ class MeOut(BaseModel):
     active_organization_id: uuid.UUID | None
     role: Role | None
     csrf_token: str
+    permissions: list[str] | None = None  # set when a custom role applies (8.8)
+    scope: dict[str, list[str]] | None = None
 
 
 def _client(request: Request, db: Session, provider_id: str) -> OIDCClient:
@@ -114,6 +119,12 @@ def local_login(
     """Development/trial sign-in without an identity provider (local mode + opt-in only)."""
     if not local_login_allowed(settings):
         raise HTTPException(status_code=404)
+    from costlens.accounts import domain_policy
+
+    if not domain_policy.sign_in_allowed(db, body.email, "local")[0]:
+        raise AppError(
+            "Your organisation requires its own sign-in.", status=403, code="sso_required"
+        )
     user = acc.sign_in_with_identity(
         db,
         provider="local",
@@ -122,6 +133,7 @@ def local_login(
         email_verified=True,
         name=body.name,
     )
+    domain_policy.auto_join(db, user, settings)
     token, _ = acc.create_session(
         db,
         user,
@@ -229,6 +241,11 @@ def callback(  # noqa: PLR0911 - each early return is a distinct sign-in failure
     allowed = [d.lower() for d in settings.allowed_email_domains]
     if allowed and domain not in allowed:
         return _fail("domain_not_allowed")
+    from costlens.accounts import domain_policy
+
+    allowed_here, _ = domain_policy.sign_in_allowed(db, claims.email, provider_id)
+    if not allowed_here:
+        return _fail("sso_required")
     try:
         user = acc.sign_in_with_identity(
             db,
@@ -241,6 +258,7 @@ def callback(  # noqa: PLR0911 - each early return is a distinct sign-in failure
         )
     except AppError as exc:
         return _fail(exc.code)
+    domain_policy.auto_join(db, user, settings)
     token, _ = acc.create_session(
         db,
         user,
@@ -260,12 +278,22 @@ def me(auth: CurrentAuth, db: SessionDep) -> MeOut:
     return MeOut(
         user=UserOut.model_validate(auth.user, from_attributes=True),
         organizations=[
-            OrganizationOut(id=o.id, name=o.name, slug=o.slug, role=r, is_demo=o.is_demo)
+            OrganizationOut(
+                id=o.id,
+                name=o.name,
+                slug=o.slug,
+                role=r,
+                is_demo=o.is_demo,
+                is_partner=o.is_partner,
+                partner_id=o.partner_id,
+            )
             for o, r in orgs
         ],
         active_organization_id=auth.org_id,
         role=auth.role,
         csrf_token=auth.csrf_token,
+        permissions=sorted(auth.permissions) if auth.permissions is not None else None,
+        scope=auth.scope,
     )
 
 

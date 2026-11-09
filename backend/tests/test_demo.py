@@ -101,6 +101,8 @@ def test_join_demo_api(client: TestClient, db: Database) -> None:
             "slug": "demo",
             "role": "viewer",
             "is_demo": True,
+            "is_partner": False,
+            "partner_id": None,
         }
     ]
 
@@ -150,3 +152,24 @@ def test_all_feature_seeders_register() -> None:
     assert {"costs.aws", "inventory.aws", "changes.events", "costs.anomalies"} <= set(
         demo.seeders()
     )
+
+
+def test_an_empty_demo_is_seeded_again(db: Database) -> None:
+    from sqlalchemy import delete, func, select
+
+    from costlens.demo.seed import ensure_demo, load_all_seeders
+    from costlens.models import CostDaily
+
+    load_all_seeders()
+    with db.session() as s:
+        org_id = ensure_demo(s).id
+    with db.session() as s:
+        set_tenant(s, bypass=True)
+        s.execute(delete(CostDaily).where(CostDaily.org_id == org_id))
+    with db.session() as s:
+        assert ensure_demo(s).id == org_id
+        set_tenant(s, bypass=True)
+        assert (
+            s.scalar(select(func.count()).select_from(CostDaily).where(CostDaily.org_id == org_id))
+            or 0
+        ) > 0

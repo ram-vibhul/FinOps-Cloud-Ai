@@ -79,7 +79,7 @@ def apply_queue_schema(url: str) -> None:
         app.schema_manager.apply_schema()
 
 
-def main(argv: list[str] | None = None) -> int:
+def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="costlens")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("migrate", help="apply database migrations")
@@ -93,52 +93,269 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser(
         "rotate-keys", help="re-encrypt stored secrets with the first COSTLENS_ENCRYPTION_KEYS key"
     )
-    args = parser.parse_args(argv)
+    lab = sub.add_parser("lab", help="score the Kubernetes diagnosis engine on recorded failures")
+    lab.add_argument("action", choices=["run"])
+    lab.add_argument("--record", metavar="FILE", help="append the score to this JSON-lines file")
+    lab.add_argument(
+        "--min", type=float, default=0.0, help="exit with an error below this accuracy"
+    )
+    est = sub.add_parser(
+        "estimate", help="estimate the monthly cost change of a Terraform plan or K8s manifests"
+    )
+    est.add_argument("kind", choices=["terraform", "kubernetes"])
+    est.add_argument("file", help="terraform show -json output, or manifests (YAML/JSON)")
+    est.add_argument("--before", metavar="FILE", help="kubernetes: the current manifests")
+    est.add_argument(
+        "--prices", metavar="FILE", help="prices from GET /api/v1/estimates/prices (your bill)"
+    )
+    est.add_argument("--format", choices=["markdown", "json"], default="markdown")
+    est.add_argument(
+        "--fail-above",
+        type=float,
+        metavar="AMOUNT",
+        help="exit with code 2 when the monthly increase is above this amount",
+    )
+    wh = sub.add_parser("worker-health", help="exit 0 if this worker ran its heartbeat lately")
+    wh.add_argument("--max-age", type=int, default=900, help="seconds (default 900)")
+    bak = sub.add_parser("backup", help="back up the database and files, or verify a backup")
+    bak.add_argument("action", choices=["create", "verify"])
+    bak.add_argument("file", nargs="?", help="create: where to write it; verify: the backup")
+    res = sub.add_parser("restore", help="replace the database and files with a backup")
+    res.add_argument("file")
+    res.add_argument("--yes", action="store_true", help="confirm: current data is replaced")
+    lic = sub.add_parser("licence", help="show, install or remove the self-hosted licence")
+    lic.add_argument("action", choices=["status", "install", "remove"])
+    lic.add_argument("file", nargs="?", help="install: a file holding the licence key")
+    adm = sub.add_parser(
+        "platform-admin", help="let someone manage this installation (licence, partners)"
+    )
+    adm.add_argument("action", choices=["add", "remove", "list"])
+    adm.add_argument("email", nargs="?")
+    return parser
 
-    if args.command == "migrate":
-        migrate()
-        return 0
-    if args.command == "serve":
-        import uvicorn
 
-        uvicorn.run(
-            "costlens.asgi:app",
-            host=args.host,
-            port=args.port,
-            reload=args.reload,
-            proxy_headers=True,
+def _worker_health(args: argparse.Namespace) -> int:
+    from costlens.jobs.system import worker_healthy
+
+    ok = worker_healthy(args.max_age)
+    print("worker healthy" if ok else "no recent heartbeat", file=sys.stdout if ok else sys.stderr)
+    return 0 if ok else 1
+
+
+def _backup(args: argparse.Namespace) -> int:
+    from datetime import UTC, datetime
+    from pathlib import Path
+
+    from costlens import backup
+
+    settings = get_settings()
+    try:
+        if args.action == "verify":
+            if not args.file:
+                print("give the backup file to verify", file=sys.stderr)
+                return 2
+            manifest = backup.verify(Path(args.file))
+            print(
+                f"backup is readable: {manifest['database']}, "
+                f"CostLens {manifest['costlens_version']}, made {manifest['created_at']}, "
+                f"{manifest['files']} files"
+            )
+            return 0
+        stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+        out = Path(args.file or f"costlens-backup-{stamp}.tar.gz")
+        manifest = backup.create(settings, out)
+    except (backup.BackupError, OSError) as exc:
+        print(f"backup failed: {exc}", file=sys.stderr)
+        return 1
+    print(f"backup written to {out} ({manifest['database']}, {manifest['files']} files)")
+    print(backup.KEY_REMINDER, file=sys.stderr)
+    return 0
+
+
+def _restore(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from costlens import backup
+
+    if not args.yes:
+        print(
+            "restore replaces this installation's database and files with the backup's. "
+            "Stop the web and worker processes, then run again with --yes.",
+            file=sys.stderr,
         )
-        return 0
-    if args.command == "worker":
-        return run_worker()
-    if args.command == "demo":
-        from costlens.core.crypto import configure_encryption
-        from costlens.db import Database
-        from costlens.demo.seed import ensure_demo, reset_demo
-        from costlens.main import build_secret_box
+        return 2
+    try:
+        manifest = backup.restore(get_settings(), Path(args.file))
+    except (backup.BackupError, OSError) as exc:
+        print(f"restore failed: {exc}", file=sys.stderr)
+        return 1
+    print(f"restored the backup made {manifest['created_at']}; start CostLens again")
+    return 0
 
-        settings = get_settings()
-        configure_encryption(build_secret_box(settings))
-        db = Database(settings.migration_database_url or settings.database_url)
+
+def _licence(args: argparse.Namespace) -> int:
+    import json
+    from pathlib import Path
+
+    from costlens.billing import licence
+    from costlens.db import Database
+
+    settings = get_settings()
+    db = Database(settings.migration_database_url or settings.database_url)
+    try:
         with db.session() as session:
-            org = ensure_demo(session) if args.action == "seed" else reset_demo(session)
-            print(f"demo organisation ready: {org.id}")
+            if args.action == "install":
+                if not args.file:
+                    print("give the file that holds the licence key", file=sys.stderr)
+                    return 2
+                try:
+                    licence.install(session, Path(args.file).read_text(encoding="utf-8"))
+                except licence.LicenceError as exc:
+                    print(f"not installed: {exc}", file=sys.stderr)
+                    return 1
+            elif args.action == "remove":
+                licence.remove(session)
+            print(json.dumps(licence.status(session, settings), indent=2))
+    finally:
         db.dispose()
-        return 0
-    if args.command == "rotate-keys":
-        from costlens.db import Database
-        from costlens.db.keys import rotate_encryption_keys
-        from costlens.main import build_secret_box
+    return 0
 
-        settings = get_settings()
-        box = build_secret_box(settings)
-        db = Database(settings.migration_database_url or settings.database_url)
-        counts = rotate_encryption_keys(db, box)
+
+def _platform_admin(args: argparse.Namespace) -> int:
+    from sqlalchemy import func, select
+
+    from costlens.db import Database
+    from costlens.db.tenant import set_tenant
+    from costlens.models import User
+
+    settings = get_settings()
+    db = Database(settings.migration_database_url or settings.database_url)
+    try:
+        with db.session() as session:
+            set_tenant(session, bypass=True)
+            if args.action == "list":
+                for email in session.scalars(
+                    select(User.email).where(User.is_platform_admin.is_(True))
+                ):
+                    print(email)
+                return 0
+            if not args.email:
+                print("give the person's email address", file=sys.stderr)
+                return 2
+            user = session.scalar(
+                select(User).where(func.lower(User.email) == args.email.strip().lower())
+            )
+            if user is None:
+                print("no such user: they must sign in once first", file=sys.stderr)
+                return 1
+            user.is_platform_admin = args.action == "add"
+            print(f"{user.email}: platform admin = {user.is_platform_admin}")
+    finally:
         db.dispose()
-        for name, n in counts.items():
-            print(f"{name}: {n} re-encrypted")
-        return 0
-    return 2
+    return 0
+
+
+def _estimate(args: argparse.Namespace) -> int:
+    import json
+    from pathlib import Path
+
+    from costlens import estimate
+
+    text = Path(args.file).read_text(encoding="utf-8")
+    prices: dict = {"currency": "USD", "prices": {}}
+    if args.prices:
+        prices = json.loads(Path(args.prices).read_text(encoding="utf-8"))
+    if args.kind == "terraform":
+        result = estimate.terraform(json.loads(text), prices.get("prices"), prices["currency"])
+    else:
+        before = Path(args.before).read_text(encoding="utf-8") if args.before else ""
+        result = estimate.kubernetes(text, before)
+    out = (
+        json.dumps(result.to_dict(), indent=2)
+        if args.format == "json"
+        else estimate.markdown(result)
+    )
+    print(out)
+    if args.fail_above is not None and result.change > args.fail_above:
+        return 2
+    return 0
+
+
+def _migrate(args: argparse.Namespace) -> int:
+    migrate()
+    return 0
+
+
+def _serve(args: argparse.Namespace) -> int:
+    import uvicorn
+
+    uvicorn.run(
+        "costlens.asgi:app", host=args.host, port=args.port, reload=args.reload, proxy_headers=True
+    )
+    return 0
+
+
+def _demo(args: argparse.Namespace) -> int:
+    from costlens.core.crypto import configure_encryption
+    from costlens.db import Database
+    from costlens.demo.seed import ensure_demo, reset_demo
+    from costlens.main import build_secret_box
+
+    settings = get_settings()
+    configure_encryption(build_secret_box(settings))
+    db = Database(settings.migration_database_url or settings.database_url)
+    with db.session() as session:
+        org = ensure_demo(session) if args.action == "seed" else reset_demo(session)
+        print(f"demo organisation ready: {org.id}")
+    db.dispose()
+    return 0
+
+
+def _rotate_keys(args: argparse.Namespace) -> int:
+    from costlens.db import Database
+    from costlens.db.keys import rotate_encryption_keys
+    from costlens.main import build_secret_box
+
+    settings = get_settings()
+    box = build_secret_box(settings)
+    db = Database(settings.migration_database_url or settings.database_url)
+    counts = rotate_encryption_keys(db, box)
+    db.dispose()
+    for name, n in counts.items():
+        print(f"{name}: {n} re-encrypted")
+    return 0
+
+
+def _lab(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from costlens import __version__
+    from costlens.k8s import lab as k8s_lab
+
+    report = k8s_lab.run()
+    k8s_lab.table(report)
+    if args.record:
+        k8s_lab.record(report, Path(args.record), __version__)
+    return 0 if (report["accuracy"] or 0) >= args.min else 1
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    handlers = {
+        "migrate": _migrate,
+        "serve": _serve,
+        "worker": lambda _: run_worker(),
+        "demo": _demo,
+        "rotate-keys": _rotate_keys,
+        "lab": _lab,
+        "estimate": _estimate,
+        "licence": _licence,
+        "backup": _backup,
+        "worker-health": _worker_health,
+        "restore": _restore,
+        "platform-admin": _platform_admin,
+    }
+    return handlers[args.command](args)
 
 
 def run_worker() -> int:
@@ -162,6 +379,9 @@ def run_worker() -> int:
 
     configure_encryption(build_secret_box(settings))
     configure_email(build_sender(settings))
+    from costlens.core.error_tracking import configure as configure_error_tracking
+
+    configure_error_tracking(settings)
     configure_jobs(
         JobContext(
             settings=settings,

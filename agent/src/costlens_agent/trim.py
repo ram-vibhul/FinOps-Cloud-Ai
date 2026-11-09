@@ -3,9 +3,13 @@ needs. Anything not listed here is dropped, so new fields never leak by default.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
+from costlens_agent.redact import redact
+
 Obj = dict[str, Any]
+REDACT_IPS = os.environ.get("COSTLENS_REDACT_IPS") == "true"
 
 
 def _pick(src: Obj | None, *keys: str) -> Obj:
@@ -61,6 +65,10 @@ def pod(obj: Obj) -> Obj:
         "containers": _containers(spec),
         "init_containers": _containers(spec, "initContainers"),
         **_pick(status, "phase", "qosClass", "startTime", "reason"),
+        # Pod IPs map VPC Flow Log traffic to workloads (network cost attribution);
+        # COSTLENS_REDACT_IPS=true keeps them in the cluster.
+        **({} if REDACT_IPS else _pick(status, "podIP")),
+        **_pick(spec, "hostNetwork"),
         "conditions": _conditions(status),
         "container_statuses": [
             {
@@ -207,7 +215,8 @@ def event(obj: Obj) -> Obj | None:
         "object_name": involved.get("name"),
         "type": "Warning" if obj.get("type") == "Warning" else "Normal",
         "reason": (obj.get("reason") or "")[:128],
-        "message": (obj.get("message") or obj.get("note") or "")[:4000],
+        # Secrets and personal data never leave the cluster (IPs too when configured).
+        "message": redact((obj.get("message") or obj.get("note") or "")[:4000], ips=REDACT_IPS),
         "count": int(obj.get("count") or 1),
         "first_at": first,
         "last_at": last,

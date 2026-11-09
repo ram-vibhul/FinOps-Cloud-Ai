@@ -177,6 +177,10 @@ def rds_instances(rds: Any, region: str) -> Iterator[Found]:
                     "engine_version": d.get("EngineVersion"),
                     "multi_az": d.get("MultiAZ"),
                     "storage_gb": d.get("AllocatedStorage"),
+                    "storage_type": d.get("StorageType"),
+                    "iops": d.get("Iops"),
+                    "license_model": d.get("LicenseModel"),
+                    "cluster": d.get("DBClusterIdentifier"),
                 },
             )
 
@@ -190,3 +194,56 @@ COLLECTORS: list[tuple[str, Callable[[Any, str], Iterator[Found]]]] = [
     ("elbv2", load_balancers),
     ("rds", rds_instances),
 ]
+
+
+def _compute() -> None:
+    from costlens.inventory.aws_analytics import ANALYTICS_COLLECTORS
+    from costlens.inventory.aws_compute import COMPUTE_COLLECTORS
+    from costlens.inventory.aws_databases import DATABASE_COLLECTORS
+    from costlens.inventory.aws_platform import PLATFORM_COLLECTORS
+    from costlens.inventory.aws_storage import STORAGE_COLLECTORS
+
+    COLLECTORS.extend(
+        COMPUTE_COLLECTORS
+        + STORAGE_COLLECTORS
+        + DATABASE_COLLECTORS
+        + ANALYTICS_COLLECTORS
+        + PLATFORM_COLLECTORS
+    )
+
+
+_compute()
+
+# Resource types each collector produces (a failed collector keeps its types untouched).
+COLLECTOR_TYPES: dict[str, tuple[str, ...]] = {
+    "ec2_instances": ("ec2_instance",),
+    "ebs_volumes": ("ebs_volume",),
+    "elastic_ips": ("elastic_ip",),
+    "nat_gateways": ("nat_gateway",),
+    "snapshots": ("ebs_snapshot",),
+    "load_balancers": ("load_balancer",),
+    "rds_instances": ("rds_instance",),
+    "lambda_functions": ("lambda_function",),
+    "autoscaling_groups": ("autoscaling_group",),
+    "ecs_services": ("ecs_service",),
+    "batch_environments": ("batch_compute_environment",),
+    "ecr_repositories": ("ecr_repository",),
+    "eks_clusters": ("eks_cluster", "eks_nodegroup"),
+    "s3_buckets": ("s3_bucket",),
+    "efs_file_systems": ("efs_file_system",),
+    "fsx_file_systems": ("fsx_file_system",),
+    "backup_plans": ("backup_plan",),
+}
+
+
+def _database_types() -> None:
+    from costlens.inventory.aws_analytics import ANALYTICS_TYPES
+    from costlens.inventory.aws_databases import DATABASE_TYPES
+    from costlens.inventory.aws_platform import PLATFORM_TYPES
+
+    COLLECTOR_TYPES.update(DATABASE_TYPES)
+    COLLECTOR_TYPES.update(ANALYTICS_TYPES)
+    COLLECTOR_TYPES.update(PLATFORM_TYPES)
+
+
+_database_types()

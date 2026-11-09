@@ -112,3 +112,43 @@ def apply_retention(db: Session, *, now: datetime | None = None) -> dict[str, in
 
 def org_id_of(org: Organization) -> uuid.UUID:
     return org.id
+
+
+register(
+    RetentionPolicy(
+        kind="notifications",
+        label="Notifications",
+        description="Everyone's in-app notifications, read or not.",
+        table="inbox_items",
+        time_column="created_at",
+        default_days=90,
+        min_days=7,
+        max_days=365,
+    )
+)
+
+
+register(
+    RetentionPolicy(
+        kind="usage",
+        label="Usage history",
+        description="Daily usage counts and snapshots (people, connections, API calls, AI).",
+        table="usage_snapshots",
+        time_column="created_at",
+        default_days=400,
+        min_days=90,
+        max_days=1095,
+    )
+)
+register(
+    RetentionPolicy(
+        kind="usage_counters",
+        label="Usage counters",
+        description="Running daily counts of API calls and AI summaries.",
+        table="usage_counters",
+        time_column="created_at",
+        default_days=400,
+        min_days=90,
+        max_days=1095,
+    )
+)

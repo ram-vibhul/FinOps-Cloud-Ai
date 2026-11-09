@@ -12,7 +12,18 @@ __all__ = [
 ]
 
 
-JOB_MODULES = ("costs", "demo", "email", "fx", "privacy", "system")
+JOB_MODULES = (
+    "audits",
+    "costs",
+    "demo",
+    "email",
+    "findings",
+    "fx",
+    "k8s",
+    "onboarding",
+    "privacy",
+    "system",
+)
 
 
 def load_all_jobs() -> None:

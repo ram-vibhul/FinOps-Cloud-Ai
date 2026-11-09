@@ -17,6 +17,20 @@ describe("app shell", () => {
     expect(await screen.findByText(/CostLens 0.1.0 · self-hosted · test/)).toBeInTheDocument();
   });
 
+  it("shows a banner on every page while CostLens can change resources", async () => {
+    const { calls } = mockApi({
+      "GET /api/v1/auth/me": makeMe({ role: "admin" }), "GET /api/v1/meta": META, "GET /api/v1/costs/summary": EMPTY_SUMMARY, "GET /api/v1/costs/anomalies": [],
+      "GET /api/v1/org/write-access": [{ connection_id: "c1", name: "Prod", account_id: "111111111111", enabled_by: "o@acme.com",
+        enabled_at: "2026-11-01T00:00:00Z", expires_at: "2026-12-01T00:00:00Z", auto_request: false }],
+      "DELETE /api/v1/connections/c1/fixes": null,
+    });
+    renderRoute("/");
+    const banner = await screen.findByLabelText("Write access");
+    expect(banner).toHaveTextContent("CostLens can change resources in Prod (111111111111): turned on by o@acme.com");
+    await userEvent.click(screen.getByRole("button", { name: "Turn off" }));
+    await waitFor(() => expect(calls.some((c) => c.method === "DELETE" && c.path === "/api/v1/connections/c1/fixes")).toBe(true));
+  });
+
   it("sends anonymous visitors to sign-in with a return path", async () => {
     mockApi({ "GET /api/v1/auth/me": ANONYMOUS, "GET /api/v1/auth/providers": [] });
     const { router } = renderRoute("/costs?range=30d");
@@ -41,8 +55,8 @@ describe("app shell", () => {
     mockApi({ "GET /api/v1/auth/me": makeMe(), "GET /api/v1/meta": META, "GET /api/v1/costs/summary": EMPTY_SUMMARY, "GET /api/v1/costs/anomalies": [] });
     renderRoute("/");
     const nav = (await screen.findAllByRole("navigation", { name: "Main" }))[0]!;
-    await userEvent.click(nav.querySelector('a[href="/savings"]')!);
-    expect(screen.getByRole("heading", { level: 1, name: "Savings" })).toBeInTheDocument();
+    await userEvent.click(nav.querySelector('a[href="/governance"]')!);
+    expect(await screen.findByRole("heading", { level: 1, name: "Governance" })).toBeInTheDocument();
   });
 
   it("shows not found for unknown paths", async () => {

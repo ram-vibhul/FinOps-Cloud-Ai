@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { makeMe, mockApi, renderRoute } from "@/test/render";
+import { makeMe, mockApi, renderRoute, Reply } from "@/test/render";
 
 vi.mock("@/components/chart/echart", () => ({
   EChart: ({ label }: { label: string }) => <figure aria-label={label} />,
@@ -73,5 +73,60 @@ describe("cost explorer", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(calls.find((c) => c.method === "POST" && c.path === "/api/v1/views")?.body).toMatchObject({
       name: "Mine", shared: false, query: { group_by: ["tag:team"], days: 90 } }));
+  });
+
+  it("draws lines, custom dates and keeps them in a saved report", async () => {
+    const { calls } = mockApi(routes());
+    renderRoute("/costs/explore");
+    expect(await screen.findByRole("figure", { name: /Daily spend/ })).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText("Range"), "0");
+    await userEvent.clear(screen.getByLabelText("From"));
+    await userEvent.type(screen.getByLabelText("From"), "2026-09-01");
+    await userEvent.clear(screen.getByLabelText("To"));
+    await userEvent.type(screen.getByLabelText("To"), "2026-09-30");
+    await waitFor(() => expect(bodies(calls).at(-1)).toMatchObject({ start: "2026-09-01", end: "2026-09-30" }));
+    expect(bodies(calls).at(-1)).not.toHaveProperty("chart");
+    await userEvent.selectOptions(screen.getByLabelText("Chart"), "table");
+    expect(screen.queryByRole("figure", { name: /Daily spend/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Save view/ }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText("Name"), "September");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(calls.find((c) => c.method === "POST" && c.path === "/api/v1/views")?.body).toMatchObject({
+      query: { days: 0, start: "2026-09-01", end: "2026-09-30", chart: "table" } }));
+  });
+
+  it("turns a sentence into a report that runs only when applied", async () => {
+    const { calls } = mockApi(routes({
+      "POST /api/v1/costs/ask": {
+        query: { start: "2026-08-01", end: "2026-10-31", metric: "billed", group_by: ["region"],
+          filters: { service: ["EC2"] }, granularity: "month" },
+        chart: "line", explanation: "EC2 cost by region, month by month.",
+      },
+    }));
+    renderRoute("/costs/explore");
+    await screen.findByRole("figure", { name: /Daily spend/ });
+    await userEvent.type(screen.getByLabelText("Ask in plain words"), "EC2 cost by region for 3 months");
+    await userEvent.click(screen.getByRole("button", { name: /Suggest a report/ }));
+    const card = await screen.findByRole("region", { name: "Suggested report" });
+    expect(within(card).getByText("EC2 cost by region, month by month.")).toBeInTheDocument();
+    expect(within(card).getByText("Service: EC2")).toBeInTheDocument();
+    expect(calls.find((c) => c.path === "/api/v1/costs/ask")?.body).toEqual({ question: "EC2 cost by region for 3 months" });
+    const before = bodies(calls).length;
+    expect(bodies(calls).at(-1)).not.toMatchObject({ group_by: ["region"] }); // not run yet
+    await userEvent.click(within(card).getByRole("button", { name: "Use this report" }));
+    await waitFor(() => expect(bodies(calls).length).toBeGreaterThan(before));
+    expect(bodies(calls).at(-1)).toMatchObject({
+      start: "2026-08-01", end: "2026-10-31", metric: "billed", group_by: ["region"], filters: { service: ["EC2"] }, granularity: "month" });
+    expect(screen.getByLabelText("Chart")).toHaveValue("line");
+  });
+
+  it("shows why the AI could not help", async () => {
+    mockApi(routes({ "POST /api/v1/costs/ask": new Reply(409, { title: "Conflict", status: 409, code: "ai_off", detail: "AI is turned off for this organisation." }) }));
+    renderRoute("/costs/explore");
+    await screen.findByRole("figure", { name: /Daily spend/ });
+    await userEvent.type(screen.getByLabelText("Ask in plain words"), "EC2 by region");
+    await userEvent.click(screen.getByRole("button", { name: /Suggest a report/ }));
+    expect(await screen.findByText(/AI is turned off/)).toBeInTheDocument();
   });
 });

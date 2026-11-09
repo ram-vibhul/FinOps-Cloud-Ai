@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Index, String, UniqueConstraint, Uuid
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from costlens.core.crypto import EncryptedString
@@ -45,8 +45,13 @@ class InboundWebhook(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
     __tablename__ = "inbound_webhooks"
     __audited__ = True
     __audit_redact__ = ("secret",)
+    __audit_ignore__ = frozenset({"last_received_at"})
 
-    kind: Mapped[str] = mapped_column(String(30))  # github
+    kind: Mapped[str] = mapped_column(String(30))  # github | alertmanager | pagerduty | opsgenie
     name: Mapped[str] = mapped_column(String(120))
     secret: Mapped[str] = mapped_column(EncryptedString(1000))
     last_received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Alert receivers start investigations on this cluster.
+    cluster_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("k8s_clusters.id", ondelete="CASCADE")
+    )

@@ -78,6 +78,11 @@ class Organization(UUIDPrimaryKey, Timestamps, Base):
     retention_days: Mapped[dict] = mapped_column(JSON, default=dict)
     # Set when deletion is requested; data is purged after the grace period (1.14).
     deletion_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Partner mode (8.5): a partner manages client organisations (partner_id = the partner).
+    is_partner: Mapped[bool] = mapped_column(Boolean, default=False)
+    partner_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("organizations.id", ondelete="SET NULL"), index=True
+    )
 
     memberships: Mapped[list[Membership]] = relationship(
         back_populates="organization", cascade="all, delete-orphan", passive_deletes=True
@@ -87,6 +92,7 @@ class Organization(UUIDPrimaryKey, Timestamps, Base):
 class Membership(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
     __tablename__ = "memberships"
     __audited__ = True
+    __audit_ignore__ = frozenset({"notification_prefs"})  # personal choices
     __tenant_user_column__ = "user_id"  # users may read their own memberships everywhere
     __table_args__ = (UniqueConstraint("org_id", "user_id", name="uq_memberships_org_user"),)
 
@@ -104,6 +110,13 @@ class Membership(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
         ),
         default=Role.VIEWER,
     )
+    # A custom role (8.8) replaces the built-in role's permissions when set.
+    custom_role_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("custom_roles.id", ondelete="SET NULL")
+    )
+    # Personal notification choices in this organisation (9.4):
+    # {"inbox_off": [event, ...], "email": [event, ...]}
+    notification_prefs: Mapped[dict] = mapped_column(JSON, default=dict)
 
     user: Mapped[User] = relationship(back_populates="memberships")
     organization: Mapped[Organization] = relationship(back_populates="memberships")

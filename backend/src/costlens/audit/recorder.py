@@ -62,6 +62,8 @@ def singular(table: str) -> str:
     """Table name -> action noun: ``cost_anomalies`` -> ``cost_anomaly``."""
     if table.endswith("ies"):
         return table[:-3] + "y"
+    if table.endswith("ss"):  # elevated_access
+        return table
     return table.removesuffix("s")
 
 

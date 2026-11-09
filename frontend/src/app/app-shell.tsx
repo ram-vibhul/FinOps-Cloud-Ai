@@ -4,16 +4,32 @@ import { useState } from "react";
 import { NavLink, Outlet } from "react-router";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api";
+import { useMe } from "@/lib/session";
+import { useLoad } from "@/lib/use-load";
 import { cn } from "@/lib/utils";
 import { DemoBanner } from "./demo-banner";
+import { NotificationBell } from "./notification-bell";
+import { LicenceBanner } from "./licence-banner";
+import { TrialBanner } from "./trial-banner";
+import { WriteAccessBanner } from "./write-access-banner";
 import { NAV_ITEMS } from "./nav";
 import { OrgSwitcher, UserMenu } from "./org-switcher";
 
 function Logo() {
+  const me = useMe();
+  // A partner's branding replaces the product name for its clients (8.5).
+  const brand = useLoad(() => api.branding(), [me.active_organization_id]).data;
   return (
     <div className="flex items-center gap-2 font-semibold tracking-tight">
-      <img src="/favicon.svg" alt="" className="size-7" />
-      <span>CostLens</span>
+      {brand?.logo ? (
+        <img src={brand.logo} alt="" className="size-7 rounded-md object-contain" />
+      ) : brand ? (
+        <span aria-hidden className="size-7 rounded-md" style={{ background: brand.primary_color }} />
+      ) : (
+        <img src="/favicon.svg" alt="" className="size-7" />
+      )}
+      <span>{brand?.display_name ?? "CostLens"}</span>
     </div>
   );
 }
@@ -52,7 +68,7 @@ export function AppShell() {
       >
         Skip to content
       </a>
-      <aside className="hidden w-60 shrink-0 flex-col gap-6 border-r bg-sidebar p-4 md:flex">
+      <aside className="hidden w-60 shrink-0 print:hidden flex-col gap-6 border-r bg-sidebar p-4 md:flex">
         <Logo />
         <NavLinks />
       </aside>
@@ -78,7 +94,7 @@ export function AppShell() {
         </Dialog.Portal>
       </Dialog.Root>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur">
+        <header className="sticky top-0 z-30 flex print:hidden h-14 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur">
           <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation" onClick={() => setOpen(true)}>
             <Menu />
           </Button>
@@ -90,11 +106,12 @@ export function AppShell() {
           </div>
           <div className="ml-auto flex items-center gap-1">
             <ThemeToggle />
+            <NotificationBell />
             <UserMenu />
           </div>
         </header>
-        <DemoBanner />
-        <main id="main" className="mx-auto w-full max-w-7xl flex-1 p-4 md:p-8">
+        <div className="print:hidden"><DemoBanner /><TrialBanner /><LicenceBanner /><WriteAccessBanner /></div>
+        <main id="main" className="mx-auto w-full max-w-7xl flex-1 p-4 md:p-8 print:max-w-none print:p-0">
           <Outlet />
         </main>
       </div>

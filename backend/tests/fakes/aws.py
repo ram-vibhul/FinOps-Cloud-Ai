@@ -22,6 +22,7 @@ class FakeAws:
     calls: list[tuple[str, Any]] = field(default_factory=list)
     identity_override: str | None = None
     clients: dict[str, Any] = field(default_factory=dict)  # service -> fake client
+    denied_regions: set[str] = field(default_factory=set)  # every call there fails
 
     def allow(self, role_arn: str, external_id: str) -> None:
         self.trusted[role_arn] = external_id
@@ -41,6 +42,8 @@ class FakeAws:
 
     def client(self, session: FakeSession, service: str, region: str | None = None) -> Any:
         self.calls.append(("client", (service, region)))
+        if region in self.denied_regions:
+            raise AwsAccessError("access_denied", f"{region} is disabled")
         return self.clients[service]
 
 

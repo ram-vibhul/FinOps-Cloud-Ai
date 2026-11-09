@@ -71,7 +71,7 @@ class FakeWriter:
     def __init__(self) -> None:
         self.calls: list[str] = []
 
-    def rewrite(self, facts: str) -> str | None:
+    def rewrite(self, facts: str, system: str | None = None) -> str | None:
         self.calls.append(facts)
         return "Redshift jumped because of a new RA3 cluster."
 
@@ -96,7 +96,7 @@ def test_api_template_by_default_ai_only_when_org_opts_in(client: TestClient, db
 
 def test_ai_failure_falls_back_to_template(client: TestClient, db: Database) -> None:
     class Broken:
-        def rewrite(self, facts: str) -> str | None:
+        def rewrite(self, facts: str, system: str | None = None) -> str | None:
             return None
 
     client.app.state.ai = Broken()  # type: ignore[attr-defined]
@@ -163,6 +163,15 @@ def test_anthropic_writer_with_fake_client(settings) -> None:
 
     outcome = fail
     assert writer.rewrite("facts") is None
+    assert writer.structured("q", "sys", {"type": "object"}) is None
+
+    outcome = lambda: reply("end_turn", '{"a": ', "1}")  # noqa: E731
+    assert writer.structured("q", "sys", {"type": "object"}) == {"a": 1}
+    assert sent["output_config"]["format"] == {"type": "json_schema", "schema": {"type": "object"}}
+    outcome = lambda: reply("end_turn", "not json")  # noqa: E731
+    assert writer.structured("q", "sys", {}) is None
+    outcome = lambda: reply("max_tokens", '{"a"')  # noqa: E731
+    assert writer.structured("q", "sys", {}) is None
 
 
 def test_demo_redshift_spike_is_explained(db: Database) -> None:

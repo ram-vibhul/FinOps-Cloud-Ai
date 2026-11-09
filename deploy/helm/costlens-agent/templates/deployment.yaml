@@ -41,6 +41,22 @@ spec:
               value: {{ .Values.costlens.clusterName | quote }}
             - name: COSTLENS_TOKEN_FILE
               value: /var/run/costlens/token
+            {{- with .Values.prometheus.url }}
+            - name: COSTLENS_PROMETHEUS_URL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- if .Values.prometheus.tokenSecret }}
+            - name: COSTLENS_PROMETHEUS_TOKEN_FILE
+              value: /var/run/prometheus/token
+            {{- end }}
+            {{- if not .Values.costlens.allowLogs }}
+            - name: COSTLENS_ALLOW_LOGS
+              value: "false"
+            {{- end }}
+            {{- if .Values.costlens.redactIps }}
+            - name: COSTLENS_REDACT_IPS
+              value: "true"
+            {{- end }}
             {{- if .Values.costlens.allowHttp }}
             - name: COSTLENS_ALLOW_HTTP
               value: "true"
@@ -49,6 +65,11 @@ spec:
             - name: token
               mountPath: /var/run/costlens
               readOnly: true
+            {{- if .Values.prometheus.tokenSecret }}
+            - name: prometheus-token
+              mountPath: /var/run/prometheus
+              readOnly: true
+            {{- end }}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -62,6 +83,14 @@ spec:
             items:
               - key: token
                 path: token
+        {{- if .Values.prometheus.tokenSecret }}
+        - name: prometheus-token
+          secret:
+            secretName: {{ .Values.prometheus.tokenSecret }}
+            items:
+              - key: token
+                path: token
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector: {{- toYaml . | nindent 8 }}
       {{- end }}

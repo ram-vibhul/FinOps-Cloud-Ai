@@ -37,8 +37,8 @@ jobs:
     env:
       COSTLENS_TEST_DATABASE_URL: ${{ matrix.database == 'postgres' && 'postgresql://costlens:costlens@localhost:5432/costlens_test' || '' }}
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-python@v7.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14.10"
           cache: pip
@@ -69,8 +69,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-node@v7.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "26.13.0"
           cache: npm
@@ -85,26 +85,29 @@ jobs:
     name: Third-party licences
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-python@v7.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14.10"
-      - uses: actions/setup-node@v7.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "26.13.0"
       - run: python -m pip install ./backend
       - run: npm ci --no-audit --no-fund --omit=dev
         working-directory: frontend
       - run: python tools/third_party_notices.py --check
+      - run: python tools/website_plans.py --check
+      - run: python tools/config_reference.py --check
+      - run: python tools/changelog.py --check
 
   image:
     name: Docker image
     runs-on: ubuntu-24.04
     needs: [backend, frontend, licences]
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: docker/setup-buildx-action@v4.4.1
-      - uses: docker/build-push-action@v7.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           load: true
@@ -118,3 +121,25 @@ jobs:
           curl -fs localhost:8000/api/v1/meta
           curl -fs localhost:8000/ | grep -q '<div id="root">'
           docker logs k
+      - name: Compose smoke test (web, worker, PostgreSQL, backup)
+        run: |
+          docker rm -f k
+          cat > .env <<ENV
+          COSTLENS_IMAGE=costlens:ci
+          COSTLENS_DEPLOYMENT_MODE=self_hosted
+          COSTLENS_BASE_URL=http://localhost:8000
+          COSTLENS_SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(48))")
+          COSTLENS_ENCRYPTION_KEYS=$(python3 -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())")
+          POSTGRES_PASSWORD=$(python3 -c "import secrets; print(secrets.token_hex(16))")
+          COSTLENS_DB_APP_PASSWORD=$(python3 -c "import secrets; print(secrets.token_hex(16))")
+          ENV
+          sed -i 's/^ *//' .env
+          docker compose up -d --no-build
+          for i in $(seq 1 60); do curl -fs localhost:8000/readyz && break; sleep 2; done
+          curl -fs localhost:8000/readyz
+          test "$(docker compose ps worker --format '{{.State}}')" = running
+          docker compose run --rm -T migrate costlens backup create /data/smoke.tar.gz
+          docker compose run --rm -T migrate costlens backup verify /data/smoke.tar.gz
+          ! docker compose logs worker | grep -q 'ended with status: Error'
+          docker compose logs --tail 50
+          docker compose down -v

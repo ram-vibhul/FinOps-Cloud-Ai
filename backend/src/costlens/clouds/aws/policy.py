@@ -52,6 +52,8 @@ READ_ACTIONS: list[str] = sorted(
         "es:ListDomainNames",
         "es:ListTags",
         "redshift:Describe*",
+        "dms:DescribeReplicationInstances",
+        "dms:DescribeReplicationTasks",
         "dynamodb:DescribeTable",
         "dynamodb:ListTables",
         "dynamodb:ListTagsOfResource",
@@ -59,6 +61,7 @@ READ_ACTIONS: list[str] = sorted(
         "eks:List*",
         "ecs:Describe*",
         "ecs:List*",
+        "batch:DescribeComputeEnvironments",
         "ecr:DescribeRepositories",
         "ecr:DescribeImages",
         "ecr:GetLifecyclePolicy",
@@ -77,6 +80,7 @@ READ_ACTIONS: list[str] = sorted(
         "fsx:Describe*",
         "backup:List*",
         "backup:Describe*",
+        "backup:GetBackupPlan",
         "cloudwatch:GetMetricData",
         "cloudwatch:GetMetricStatistics",
         "cloudwatch:ListMetrics",
@@ -91,6 +95,28 @@ READ_ACTIONS: list[str] = sorted(
         "sagemaker:Describe*",
         "bedrock:List*",
         "bedrock:Get*",
+        "athena:ListWorkGroups",
+        "athena:GetWorkGroup",
+        "glue:GetJobs",
+        "glue:GetCrawlers",
+        "elasticmapreduce:ListClusters",
+        "elasticmapreduce:DescribeCluster",
+        "sqs:ListQueues",
+        "sqs:GetQueueAttributes",
+        "states:ListStateMachines",
+        "kinesis:ListStreams",
+        "kinesis:DescribeStreamSummary",
+        "kafka:ListClustersV2",
+        "mq:ListBrokers",
+        "invoicing:ListInvoiceSummaries",
+        "directconnect:DescribeConnections",
+        "cloudwatch:ListDashboards",
+        "kms:DescribeKey",
+        "wafv2:ListWebACLs",
+        "wafv2:ListResourcesForWebACL",
+        "cloudtrail:DescribeTrails",
+        "workspaces:DescribeWorkspaces",
+        "workspaces:DescribeWorkspacesConnectionStatus",
         "tag:GetResources",
         "tag:GetTagKeys",
         "tag:GetTagValues",
@@ -131,7 +157,12 @@ FORBIDDEN_VERB_PREFIXES = (
 )
 
 
-def policy_document(cur_bucket: str | None = None, cur_prefix: str | None = None) -> dict[str, Any]:
+def policy_document(
+    cur_bucket: str | None = None,
+    cur_prefix: str | None = None,
+    bedrock_bucket: str | None = None,
+    bedrock_prefix: str | None = None,
+) -> dict[str, Any]:
     statements: list[dict[str, Any]] = [
         {"Sid": "CostLensReadOnly", "Effect": "Allow", "Action": READ_ACTIONS, "Resource": "*"},
         {
@@ -161,6 +192,17 @@ def policy_document(cur_bucket: str | None = None, cur_prefix: str | None = None
                 "Resource": [f"arn:aws:s3:::{cur_bucket}", objects],
             }
         )
+    if bedrock_bucket:
+        prefix = (bedrock_prefix or "").strip("/")
+        objects = f"arn:aws:s3:::{bedrock_bucket}/{prefix + '/' if prefix else ''}AWSLogs/*"
+        statements.append(
+            {
+                "Sid": "ReadBedrockInvocationLogs",
+                "Effect": "Allow",
+                "Action": ["s3:GetObject", "s3:ListBucket"],
+                "Resource": [f"arn:aws:s3:::{bedrock_bucket}", objects],
+            }
+        )
     return {"Version": "2012-10-17", "Statement": statements}
 
 
@@ -184,6 +226,8 @@ def cloudformation_template(
     external_id: str,
     cur_bucket: str | None = None,
     cur_prefix: str | None = None,
+    bedrock_bucket: str | None = None,
+    bedrock_prefix: str | None = None,
 ) -> str:
     """CloudFormation (JSON is valid YAML) creating the read-only role."""
     template = {
@@ -199,7 +243,9 @@ def cloudformation_template(
                     "Policies": [
                         {
                             "PolicyName": "CostLensReadOnly",
-                            "PolicyDocument": policy_document(cur_bucket, cur_prefix),
+                            "PolicyDocument": policy_document(
+                                cur_bucket, cur_prefix, bedrock_bucket, bedrock_prefix
+                            ),
                         }
                     ],
                     "Tags": [{"Key": "managed-by", "Value": "costlens"}],
@@ -217,9 +263,13 @@ def terraform_module(
     external_id: str,
     cur_bucket: str | None = None,
     cur_prefix: str | None = None,
+    bedrock_bucket: str | None = None,
+    bedrock_prefix: str | None = None,
 ) -> str:
     trust = json.dumps(trust_policy(principal_arn, external_id), indent=2)
-    policy = json.dumps(policy_document(cur_bucket, cur_prefix), indent=2)
+    policy = json.dumps(
+        policy_document(cur_bucket, cur_prefix, bedrock_bucket, bedrock_prefix), indent=2
+    )
     return f"""# CostLens read-only role. Apply with: terraform init && terraform apply
 resource "aws_iam_role" "costlens" {{
   name                 = "{ROLE_NAME}"

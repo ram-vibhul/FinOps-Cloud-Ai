@@ -6,16 +6,18 @@ import uuid
 from datetime import date, datetime, timedelta
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Query, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import or_, select
 
 from costlens.accounts.roles import Permission, Role
-from costlens.api.deps import SessionDep, require
+from costlens.api.deps import SessionDep, plan_feature, require
 from costlens.auth.web import AuthContext
 from costlens.core.errors import AppError, NotFoundError, PermissionDeniedError
+from costlens.costs import ask as ask_ai
 from costlens.costs import explorer
 from costlens.costs.analytics import latest_date
+from costlens.costs.anomalies import alert_settings
 from costlens.db.base import utcnow
 from costlens.models import Organization, SavedView
 
@@ -33,8 +35,36 @@ def _range(db: SessionDep, auth: AuthContext, days: int) -> tuple[date, date]:
 
 @router.post("/api/v1/costs/explore")
 def explore(body: explorer.ExploreQuery, auth: Reader, db: SessionDep) -> dict[str, Any]:
+    from costlens.accounts.custom_roles import explore_filters
+
     assert auth.org_id is not None  # noqa: S101
+    if auth.scope:  # custom roles limited to accounts/teams (8.8)
+        body = body.model_copy(update={"filters": explore_filters(auth.scope, body.filters)})
     return explorer.explore(db, auth.org_id, body)
+
+
+class AskBody(BaseModel):
+    question: str = Field(min_length=3, max_length=300)
+
+
+@router.post("/api/v1/costs/ask", dependencies=[plan_feature("ai")])
+def ask(body: AskBody, request: Request, auth: Reader, db: SessionDep) -> dict[str, Any]:
+    """Turn a sentence into a report-builder query. Returns the query; does not run it."""
+    assert auth.org_id is not None  # noqa: S101
+    writer = request.app.state.ai
+    org = db.get(Organization, auth.org_id)
+    if writer is None:
+        raise AppError("AI is not set up on this server.", status=409, code="ai_disabled")
+    if org is None or not alert_settings(org).ai_explanations:
+        raise AppError(
+            "AI is turned off for this organisation. An admin can turn it on in Settings.",
+            status=409,
+            code="ai_off",
+        )
+    from costlens.billing.metering import use_ai
+
+    use_ai(db, request.app.state.settings, strict=True)  # B.12: counted against the plan
+    return ask_ai.ask(db, auth.org_id, body.question, writer)
 
 
 @router.get("/api/v1/costs/dimensions/{dimension}/values")
@@ -51,7 +81,17 @@ def values(
         raise AppError(str(exc), code="unknown_dimension") from exc
     start, end = _range(db, auth, days)
     assert auth.org_id is not None  # noqa: S101
-    return explorer.dimension_values(db, auth.org_id, dimension, start=start, end=end, search=q)
+    out = explorer.dimension_values(db, auth.org_id, dimension, start=start, end=end, search=q)
+    if auth.scope:  # only values inside a limited role's accounts/teams (8.8)
+        allowed = {"account": auth.scope.get("accounts"), "team": auth.scope.get("teams")}.get(
+            dimension
+        )
+        if allowed:
+            out = [v for v in out if v["value"] in allowed]
+        elif dimension not in ("service", "region", "charge_category", "pricing_category"):
+            # Resource IDs and tag values could reveal other accounts: not offered.
+            raise PermissionDeniedError("Your role is limited to some accounts or teams.")
+    return out
 
 
 @router.get("/api/v1/costs/tags")

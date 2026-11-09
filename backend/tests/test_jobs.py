@@ -115,3 +115,42 @@ def test_every_job_module_registers() -> None:
         "changes.import_cloudtrail",
     }
     assert expected <= set(registry.jobs)
+
+
+def test_scheduled_jobs_accept_procrastinate_timestamp() -> None:
+    """Procrastinate calls periodic jobs with ``timestamp=``; every one must accept it
+    (before this, every scheduled job failed in the PostgreSQL worker)."""
+    import inspect
+    from typing import Any
+
+    from costlens.jobs import load_all_jobs, registry
+    from costlens.jobs.runner import ProcrastinateRunner
+
+    load_all_jobs()
+    registered: dict[str, Any] = {}
+
+    class FakeApp:
+        def task(self, *, name: str, **_: Any):
+            def wrap(func: Any) -> Any:
+                registered[name] = func
+                return func
+
+            return wrap
+
+        def periodic(self, **_: Any):
+            return lambda task: task
+
+    ProcrastinateRunner(FakeApp())
+    crons = [s for s in registry.jobs.values() if s.cron]
+    assert len(crons) > 30
+    for spec in crons:
+        inspect.signature(registered[spec.name], follow_wrapped=False).bind(timestamp=1794278400)
+    calls: list[Any] = []
+
+    def sample(x: int = 1) -> int:
+        calls.append(x)
+        return x
+
+    from costlens.jobs.runner import periodic_safe
+
+    assert periodic_safe(sample)(timestamp=5) == 1 and calls == [1]

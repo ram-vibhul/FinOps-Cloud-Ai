@@ -244,7 +244,11 @@ def test_github_webhook_flow(env) -> None:
 
 def test_github_mapping() -> None:
     failed = {**DEPLOY, "deployment_status": {**DEPLOY["deployment_status"], "state": "failure"}}
-    assert github.to_change("deployment_status", failed) is None
+    mapped = github.to_change("deployment_status", failed)
+    assert mapped is not None and mapped.title.endswith("failed")
+    assert mapped.attributes["status"] == "failure"
+    pending = {**DEPLOY, "deployment_status": {**DEPLOY["deployment_status"], "state": "pending"}}
+    assert github.to_change("deployment_status", pending) is None
     release = github.to_change(
         "release",
         {
@@ -334,3 +338,111 @@ def test_demo_changes(db: Database) -> None:
         set_tenant(s, org_id=org_id)
         titles = [e.title for e in s.scalars(select(ChangeEvent))]
     assert any("ResizeCluster" in t for t in titles)
+
+
+def run_payload(name: str, conclusion: str = "success", action: str = "completed") -> dict:
+    return {
+        "action": action,
+        "repository": {"full_name": "acme/checkout-api"},
+        "sender": {"login": "ci-bot"},
+        "workflow_run": {
+            "id": 991,
+            "name": name,
+            "conclusion": conclusion,
+            "head_sha": "abc1234def",
+            "head_branch": "main",
+            "run_number": 42,
+            "event": "push",
+            "updated_at": "2026-11-05T09:30:00Z",
+            "html_url": "https://github.com/acme/checkout-api/actions/runs/991",
+            "triggering_actor": {"login": "ravi"},
+        },
+    }
+
+
+def test_github_actions_deploy_workflows() -> None:
+    change = github.to_change("workflow_run", run_payload("Deploy to production"))
+    assert change is not None
+    assert (
+        change.title
+        == 'acme/checkout-api: workflow "Deploy to production" succeeded on main (abc1234)'
+    )
+    assert change.actor == "ravi" and change.external_id == "workflow_run:991"
+    assert change.attributes["run_number"] == 42 and (change.url or "").endswith("/runs/991")
+    failed = github.to_change("workflow_run", run_payload("CD", "failure"))
+    assert failed is not None and "failure on main" in failed.title
+    assert github.to_change("workflow_run", run_payload("Unit tests")) is None  # not a deploy
+    assert github.to_change("workflow_run", run_payload("Deploy", "cancelled")) is None
+    assert github.to_change("workflow_run", run_payload("Deploy", action="requested")) is None
+    assert github.to_change("push", {}) is None
+
+
+def test_deploy_workflow_shows_up_in_a_k8s_investigation(db: Database) -> None:
+    import uuid
+    from datetime import timedelta
+
+    from costlens.changes.service import record
+    from costlens.db.base import utcnow
+    from costlens.db.tenant import set_tenant
+    from costlens.k8s.investigate import gather, investigate
+    from costlens.k8s.service import ingest_objects
+    from costlens.models import K8sCluster
+    from tests.helpers import make_org
+
+    org_id, _ = make_org(db, "Acme", "owner@acme.com")
+    payload = run_payload("Deploy to production")
+    payload["workflow_run"]["updated_at"] = (utcnow() - timedelta(minutes=30)).isoformat()
+    change = github.to_change("workflow_run", payload)
+    assert change is not None
+    with db.session() as s:
+        set_tenant(s, org_id=org_id)
+        record(s, org_id, change, source="github")
+        c = K8sCluster(
+            id=uuid.uuid4(), org_id=org_id, name="prod", token_hash="x" * 64, token_hint="x"
+        )
+        s.add(c)
+        s.flush()
+        ingest_objects(
+            s,
+            c,
+            "Pod",
+            "s",
+            [
+                {
+                    "uid": "p",
+                    "name": "checkout-api-7f-0",
+                    "namespace": "shop",
+                    "data": {
+                        "owners": [{"kind": "ReplicaSet", "name": "checkout-api-7f", "uid": "rs"}],
+                        "nodeName": "n",
+                        "phase": "Running",
+                        "containers": [{"name": "api", "image": "x"}],
+                        "container_statuses": [
+                            {
+                                "name": "api",
+                                "restartCount": 5,
+                                "current": {"state": "waiting", "reason": "CrashLoopBackOff"},
+                                "last": {"state": "terminated", "reason": "Error", "exitCode": 1},
+                            }
+                        ],
+                    },
+                }
+            ],
+            final=True,
+        )
+        ev = gather(
+            s,
+            c,
+            namespace="shop",
+            kind="Deployment",
+            name="checkout-api",
+            start=utcnow() - timedelta(hours=6),
+            end=utcnow(),
+        )
+        result = investigate(ev, "prod")
+    assert any("Deploy to production" in c for c in result["facts"]["changes"])
+    assert any(
+        e.startswith("Started after: Change: acme/checkout-api")
+        for e in result["causes"][0]["evidence"]
+    )
+    assert "Recent change:" in result["status_update"]

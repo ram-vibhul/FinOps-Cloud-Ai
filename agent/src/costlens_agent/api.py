@@ -65,13 +65,16 @@ class CostLensApi:
             delay = min(delay * 2, 30)
         raise RuntimeError("unreachable")
 
-    def hello(self, kubernetes_version: str | None, provider: str | None) -> dict[str, Any]:
+    def hello(
+        self, kubernetes_version: str | None, provider: str | None, **extra: Any
+    ) -> dict[str, Any]:
         return self._post(
             "hello",
             {
                 "agent_version": __version__,
                 "kubernetes_version": kubernetes_version,
                 "provider": provider,
+                **extra,
             },
         )
 
@@ -101,3 +104,29 @@ class CostLensApi:
         for i in range(0, len(events), self.config.chunk_size):
             self._post("events", {"events": events[i : i + self.config.chunk_size]})
         return len(events)
+
+    def usage(self, sampled_at: str, samples: list[dict[str, Any]]) -> int:
+        size = max(self.config.chunk_size, 5000)
+        for i in range(0, len(samples), size):
+            self._post("usage", {"sampled_at": sampled_at, "samples": samples[i : i + size]})
+        return len(samples)
+
+    def claim_tasks(self) -> list[dict[str, Any]]:
+        return self._post("tasks/claim", {}).get("tasks", [])
+
+    def task_result(
+        self, task_id: str, *, ok: bool, text: str | None = None, error: str | None = None
+    ) -> None:
+        self._post(f"tasks/{task_id}/result", {"ok": ok, "text": text, "error": error})
+
+    def metrics(
+        self,
+        query_id: str,
+        *,
+        ok: bool,
+        series: list[dict[str, Any]] | None = None,
+        error: str | None = None,
+    ) -> None:
+        self._post(
+            "metrics", {"query_id": query_id, "ok": ok, "error": error, "series": series or []}
+        )

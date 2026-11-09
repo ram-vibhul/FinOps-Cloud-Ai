@@ -89,6 +89,20 @@ def pending_alert(db: Session, org_id: uuid.UUID, base_url: str) -> list[Email]:
     for a in anomalies:
         a.notified_at = now
     db.flush()
+    from costlens.core.notify import Message, notify
+
+    notify(
+        db,
+        "cost_anomaly",
+        [
+            Message(
+                title=subject,
+                text="\n".join(line.replace("\n  ", " — ") for line in lines[:10])
+                + (f"\n…and {len(anomalies) - 10} more." if len(anomalies) > 10 else ""),
+                link=url,
+            )
+        ],
+    )
     return [
         Email(to=r, subject=subject, text=text, html=body, tags={"kind": "anomaly"})
         for r in recipients

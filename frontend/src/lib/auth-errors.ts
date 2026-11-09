@@ -12,6 +12,7 @@ const MESSAGES: Record<string, string> = {
   email_not_verified:
     "Your sign-in provider has not confirmed that you own this email address, so it can't be linked to the existing account. Sign in the way you did before.",
   domain_not_allowed: "Accounts with your email domain cannot sign in to this installation.",
+  sso_required: "Your organisation requires its own sign-in. Use the sign-in link your administrator gave you.",
   account_disabled: "This account has been disabled.",
 };
 
