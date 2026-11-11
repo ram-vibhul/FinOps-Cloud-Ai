@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: app
-  labels: {costlens-lab: "liveness-probe"}
+  labels: {ccradar-lab: "liveness-probe"}
 spec:
   replicas: 1
   selector: {matchLabels: {app: lab}}

@@ -8,7 +8,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
       <header className="flex h-14 items-center justify-between px-4">
         <div className="flex items-center gap-2 font-semibold tracking-tight">
           <img src="/favicon.svg" alt="" className="size-7" />
-          <span>CostLens</span>
+          <span>CloudCostRadar</span>
         </div>
         <ThemeToggle />
       </header>

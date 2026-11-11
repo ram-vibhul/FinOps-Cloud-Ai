@@ -9,16 +9,16 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.clouds.aws import fixes
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import CloudConnection, Finding, FixAction
+from ccradar.accounts.roles import Role
+from ccradar.clouds.aws import fixes
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import CloudConnection, Finding, FixAction
 from tests.fakes.aws import FakeAws
 from tests.helpers import add_to_org, make_org, sign_in_client
 
-READ_ROLE = "arn:aws:iam::111111111111:role/CostLensReadOnly"
-FIX_ROLE = "arn:aws:iam::111111111111:role/CostLensFixes"
+READ_ROLE = "arn:aws:iam::111111111111:role/CloudCostRadarReadOnly"
+FIX_ROLE = "arn:aws:iam::111111111111:role/CloudCostRadarFixes"
 NOW = datetime(2026, 11, 9, 9, tzinfo=UTC)
 
 
@@ -137,7 +137,7 @@ def test_turning_on_needs_owner_confirmation_and_a_separate_role(
     assert r.status_code == 200 and r.json()["enabled"] is True
     doc = fixes.policy_document()
     acting = next(x for x in doc["Statement"] if x["Sid"] == "ApprovedFixesOnUnprotectedResources")
-    assert acting["Condition"] == {"StringNotEquals": {"aws:ResourceTag/costlens-protect": "true"}}
+    assert acting["Condition"] == {"StringNotEquals": {"aws:ResourceTag/ccradar-protect": "true"}}
     assert "ec2:TerminateInstances" not in json.dumps(doc)
 
 
@@ -176,12 +176,12 @@ def test_guards_stop_unsafe_changes(client: TestClient, db: Database, env) -> No
         and env["ec2"].changes == []
     )
     # Protect tag on the volume.
-    env["ec2"].volumes["vol-1"]["Tags"] = [{"Key": "costlens-protect", "Value": "true"}]
+    env["ec2"].volumes["vol-1"]["Tags"] = [{"Key": "ccradar-protect", "Value": "true"}]
     d = sign_in_client(client, db, env["dev"], env["org"])
     v_fix = d.post(f"/api/v1/findings/{env['f']['vol-1']}/fix").json()
     a = sign_in_client(client, db, env["admin"], env["org"])
     a.post(f"/api/v1/fixes/{v_fix['id']}/approve")
-    assert "costlens-protect" in run(db, env, v_fix["id"]).result["error"]
+    assert "ccradar-protect" in run(db, env, v_fix["id"]).result["error"]
     # Turned off (any admin can): approved fixes no longer run.
     env["ec2"].volumes["vol-1"]["Tags"] = []
     d = sign_in_client(client, db, env["dev"], env["org"])
@@ -259,7 +259,8 @@ def test_auto_clean_up_files_requests_but_never_acts(client: TestClient, db: Dat
     a = sign_in_client(client, db, env["admin"], env["org"])
     rows = a.get("/api/v1/fixes").json()
     assert (
-        rows[0]["requested_by"] == "CostLens (auto clean-up)" and rows[0]["status"] == "requested"
+        rows[0]["requested_by"] == "CloudCostRadar (auto clean-up)"
+        and rows[0]["status"] == "requested"
     )
     assert run(db, env, str(fid)).status == "requested"  # still nothing without approval
     a.post(f"/api/v1/fixes/{fid}/approve")
@@ -271,7 +272,7 @@ def test_approved_savings_plan_purchase_within_spend_limit(
 ) -> None:
     from datetime import date
 
-    from costlens.models import PlannedPurchase
+    from ccradar.models import PlannedPurchase
 
     sp = FakeSavingsPlans()
     env["aws"].clients["savingsplans"] = sp
@@ -331,7 +332,7 @@ def test_approved_savings_plan_purchase_within_spend_limit(
             "savingsPlanOfferingId": "off-1",
             "commitment": "1.000",
             "clientToken": fix["id"],
-            "tags": {"created-by": "costlens"},
+            "tags": {"created-by": "ccradar"},
         }
     ]
     with db.session() as s:
@@ -343,7 +344,7 @@ def test_approved_savings_plan_purchase_within_spend_limit(
 def test_write_access_banner_data_and_turn_off_is_audited(
     client: TestClient, db: Database, env
 ) -> None:
-    from costlens.models import AuditEvent
+    from ccradar.models import AuditEvent
 
     d = sign_in_client(client, db, env["dev"], env["org"])
     assert d.get("/api/v1/org/write-access").json() == []

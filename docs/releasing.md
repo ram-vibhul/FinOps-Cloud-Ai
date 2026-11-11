@@ -33,19 +33,19 @@ Generated files with a `--check` in `make check`:
 
 ## Database migrations
 
-1. Change the models in `backend/src/costlens/models`.
+1. Change the models in `backend/src/ccradar/models`.
 2. Generate a revision against a fresh SQLite database migrated to the current head:
 
    ```bash
    cd backend
-   COSTLENS_DATABASE_URL=sqlite:///./mig.db .venv/bin/costlens migrate
-   COSTLENS_DATABASE_URL=sqlite:///./mig.db .venv/bin/alembic revision --autogenerate \
+   CCRADAR_DATABASE_URL=sqlite:///./mig.db .venv/bin/ccradar migrate
+   CCRADAR_DATABASE_URL=sqlite:///./mig.db .venv/bin/alembic revision --autogenerate \
      --rev-id 00NN -m "what changed"
    ```
 
 3. Edit the revision:
    - new tenant tables: enable row-level security after the generated commands, on
-     PostgreSQL only (`enable_tenant_rls_sql(table)` from `costlens.db.rls`);
+     PostgreSQL only (`enable_tenant_rls_sql(table)` from `ccradar.db.rls`);
    - encrypted columns: use `sa.String` (the encryption is in the model);
    - new NOT NULL columns on existing tables: add a `server_default`.
 4. New time-series tables must register a retention policy (`privacy/retention.py`).

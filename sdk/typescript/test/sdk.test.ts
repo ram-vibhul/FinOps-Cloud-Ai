@@ -18,12 +18,12 @@ function fake(answers: (number | Error)[] = []) {
 
 test("prompt text is never sent, only a salted fingerprint", async () => {
   const f = fake();
-  const u = new Usage({ apiKey: "clai_test", url: "https://costlens.example/", salt: SALT, transport: f.transport, team: "payments team" });
+  const u = new Usage({ apiKey: "clai_test", url: "https://ccradar.example/", salt: SALT, transport: f.transport, team: "payments team" });
   const e = u.record("anthropic", "claude-sonnet-5-5", { inputTokens: 1200, outputTokens: 300, prompt: PROMPT });
   await u.flush();
   const raw = JSON.stringify(f.calls[0].body);
   for (const secret of ["contract", "ACME", "12345", "rupees", "Summarise"]) assert.ok(!raw.includes(secret), secret);
-  assert.equal(f.calls[0].url, "https://costlens.example/api/v1/ingest/ai-usage");
+  assert.equal(f.calls[0].url, "https://ccradar.example/api/v1/ingest/ai-usage");
   assert.equal(f.calls[0].headers.Authorization, "Bearer clai_test");
   assert.equal(e.fingerprint, fingerprint(PROMPT, SALT));
   assert.equal((e.fingerprint as string).length, 32);

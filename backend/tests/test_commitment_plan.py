@@ -6,14 +6,14 @@ from decimal import Decimal
 import pytest
 from fastapi.testclient import TestClient
 
-from costlens.costs.commitment_plan import percentile, reservation_plan, savings_plan_plan
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.findings.registry import FindingIn
-from costlens.findings.service import _store
-from costlens.models import Commitment
+from ccradar.costs.commitment_plan import percentile, reservation_plan, savings_plan_plan
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.findings.registry import FindingIn
+from ccradar.findings.service import _store
+from ccradar.models import Commitment
 from tests.helpers import make_org, sign_in_client
 
 

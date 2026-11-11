@@ -7,13 +7,13 @@ from datetime import UTC, datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.billing import subscriptions
-from costlens.core.email import MemorySender, configure_email
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.jobs import load_all_jobs
-from costlens.models import Organization, Subscription
+from ccradar.accounts.roles import Role
+from ccradar.billing import subscriptions
+from ccradar.core.email import MemorySender, configure_email
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.jobs import load_all_jobs
+from ccradar.models import Organization, Subscription
 from tests.helpers import add_to_org, make_org
 
 START = datetime(2026, 11, 1, 10, tzinfo=UTC)
@@ -71,8 +71,8 @@ def test_reminders_then_free_plan(client: TestClient, db: Database) -> None:
     to = {m.to for m in outbox.outbox}
     assert to == {"o@acme.com"}  # owners only
     subjects = [m.subject for m in outbox.outbox]
-    assert subjects.count("CostLens: payment failed, please check") == 4
-    assert subjects[-1] == "CostLens: your organisation moved to the free plan"
+    assert subjects.count("CloudCostRadar: payment failed, please check") == 4
+    assert subjects[-1] == "CloudCostRadar: your organisation moved to the free plan"
     assert "6 more days" in outbox.outbox[2].text or "7 more days" in outbox.outbox[2].text
 
 

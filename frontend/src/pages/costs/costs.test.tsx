@@ -156,7 +156,7 @@ describe("display currency", () => {
       const urls = (globalThis.fetch as unknown as { mock: { calls: [string][] } }).mock.calls.map((c) => String(c[0]));
       expect(urls.some((u) => u.includes("/api/v1/costs/summary") && u.includes("currency=INR"))).toBe(true);
     });
-    expect(localStorage.getItem("costlens-display-currency")).toBe("INR");
+    expect(localStorage.getItem("ccradar-display-currency")).toBe("INR");
   });
 
   it("puts every cloud and service side by side", async () => {

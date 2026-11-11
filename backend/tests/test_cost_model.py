@@ -7,12 +7,12 @@ import pytest
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import DBAPIError, ProgrammingError
 
-from costlens.costs.ingest import CostDataError, CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.models import CostDaily, CostImportRun, CostLineItem
-from costlens.privacy import retention
+from ccradar.costs.ingest import CostDataError, CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.models import CostDaily, CostImportRun, CostLineItem
+from ccradar.privacy import retention
 from tests.conftest import POSTGRES_URL
 from tests.helpers import make_org
 
@@ -240,7 +240,7 @@ def test_cost_retention_uses_dates(db: Database) -> None:
 
 
 def test_demo_costs(db: Database) -> None:
-    from costlens.demo.seed import ensure_demo, load_all_seeders, seeders
+    from ccradar.demo.seed import ensure_demo, load_all_seeders, seeders
 
     load_all_seeders()
     if "costs.aws" not in seeders():  # another test reset the registry

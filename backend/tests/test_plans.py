@@ -7,11 +7,11 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from costlens.billing import plans
-from costlens.config import DeploymentMode, Settings
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import Organization, User
+from ccradar.billing import plans
+from ccradar.config import DeploymentMode, Settings
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import Organization, User
 from tests.helpers import make_org, sign_in_client
 
 
@@ -77,12 +77,12 @@ def test_own_catalogue_file(settings: Settings, tmp_path: Path) -> None:
 
 @pytest.fixture
 def saas(client: TestClient, db: Database):
-    from costlens.jobs import load_all_jobs
+    from ccradar.jobs import load_all_jobs
 
     load_all_jobs()  # invitations queue an email
     settings = client.app.state.settings  # type: ignore[attr-defined]
     settings.deployment_mode = DeploymentMode.SAAS
-    settings.aws_principal_arn = "arn:aws:iam::999999999999:role/costlens-collector"
+    settings.aws_principal_arn = "arn:aws:iam::999999999999:role/ccradar-collector"
     org_id, owner = make_org(db, "Acme", "o@acme.com")
     return {"c": sign_in_client(client, db, owner, org_id), "org": org_id, "owner": owner}
 

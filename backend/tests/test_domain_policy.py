@@ -9,13 +9,13 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.config import Settings
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.jobs import InProcessRunner
-from costlens.main import create_app
-from costlens.models import Membership, OrgDomain, OrgIdentityProvider, User
+from ccradar.accounts.roles import Role
+from ccradar.config import Settings
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.jobs import InProcessRunner
+from ccradar.main import create_app
+from ccradar.models import Membership, OrgDomain, OrgIdentityProvider, User
 from tests.fakes.oidc import CLIENT_ID, CLIENT_SECRET, FakeIdP
 from tests.helpers import add_to_org, make_org, sign_in_client
 
@@ -104,7 +104,7 @@ def test_enforced_sso_blocks_other_sign_ins_except_owners(
                 enabled=True,
             )
         )
-        from costlens.models import Organization
+        from ccradar.models import Organization
 
         org = s.get(Organization, org_id)
         assert org is not None
@@ -119,7 +119,7 @@ def test_auto_join_with_default_role(web: TestClient, db: Database, idp: FakeIdP
     org_id, _ = verified_org(db)
     with db.session() as s:
         set_tenant(s, bypass=True)
-        from costlens.models import Organization
+        from ccradar.models import Organization
 
         org = s.get(Organization, org_id)
         assert org is not None

@@ -10,14 +10,14 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.changes import cloudtrail, github
-from costlens.changes.service import ChangeIn, cost_effect, record, related_events
-from costlens.costs.anomalies import detect
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import ChangeEvent, CloudConnection, CostAnomaly
+from ccradar.accounts.roles import Role
+from ccradar.changes import cloudtrail, github
+from ccradar.changes.service import ChangeIn, cost_effect, record, related_events
+from ccradar.costs.anomalies import detect
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import ChangeEvent, CloudConnection, CostAnomaly
 from tests.fakes.aws import FakeAws, FakeCloudTrail
 from tests.helpers import add_to_org, make_org, sign_in_client
 
@@ -291,7 +291,7 @@ def test_cloudtrail_import(env) -> None:
         ]
     )
     aws = FakeAws(clients={"cloudtrail": trail})
-    role = "arn:aws:iam::222222222222:role/CostLensReadOnly"
+    role = "arn:aws:iam::222222222222:role/CloudCostRadarReadOnly"
     aws.allow(role, "ext")
     with env["db"].session() as s:
         set_tenant(s, org_id=env["org"])
@@ -327,7 +327,7 @@ def test_cloudtrail_import(env) -> None:
 
 
 def test_demo_changes(db: Database) -> None:
-    from costlens.demo.seed import ensure_demo, load_all_seeders, seeders
+    from ccradar.demo.seed import ensure_demo, load_all_seeders, seeders
 
     load_all_seeders()
     if "changes.events" not in seeders():
@@ -381,12 +381,12 @@ def test_deploy_workflow_shows_up_in_a_k8s_investigation(db: Database) -> None:
     import uuid
     from datetime import timedelta
 
-    from costlens.changes.service import record
-    from costlens.db.base import utcnow
-    from costlens.db.tenant import set_tenant
-    from costlens.k8s.investigate import gather, investigate
-    from costlens.k8s.service import ingest_objects
-    from costlens.models import K8sCluster
+    from ccradar.changes.service import record
+    from ccradar.db.base import utcnow
+    from ccradar.db.tenant import set_tenant
+    from ccradar.k8s.investigate import gather, investigate
+    from ccradar.k8s.service import ingest_objects
+    from ccradar.models import K8sCluster
     from tests.helpers import make_org
 
     org_id, _ = make_org(db, "Acme", "owner@acme.com")

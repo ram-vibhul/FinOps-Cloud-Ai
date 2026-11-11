@@ -7,8 +7,8 @@ placeholders are filled in.
 
 | File | What it is | Applies to |
 |---|---|---|
-| `terms.md` | Terms of Service | Hosted CostLens (SaaS) |
-| `eula.md` | End-User Licence Agreement | Self-hosted CostLens |
+| `terms.md` | Terms of Service | Hosted CloudCostRadar (SaaS) |
+| `eula.md` | End-User Licence Agreement | Self-hosted CloudCostRadar |
 | `privacy.md` | Privacy Notice | Website, SaaS and Yugiverse as a business |
 | `dpa.md` | Data Processing Agreement | Customer data processed in the SaaS |
 | `sla.md` | Service Level Agreement | Paid SaaS plans |

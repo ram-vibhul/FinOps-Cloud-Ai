@@ -8,15 +8,15 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.core import notify
-from costlens.core.notify import Message, WebhookError, payload, validate_webhook
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.k8s.health import detect
-from costlens.k8s.service import ingest_objects
-from costlens.models import K8sCluster, K8sInvestigation, NotificationChannel
+from ccradar.accounts.roles import Role
+from ccradar.core import notify
+from ccradar.core.notify import Message, WebhookError, payload, validate_webhook
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.k8s.health import detect
+from ccradar.k8s.service import ingest_objects
+from ccradar.models import K8sCluster, K8sInvestigation, NotificationChannel
 from tests.conftest import public_resolver
 from tests.helpers import add_to_org, make_org, sign_in_client
 
@@ -46,16 +46,16 @@ def test_payloads_are_provider_shaped_and_redacted() -> None:
     m = Message(
         "Deployment api is failing",
         "Likely cause: crash\nconn postgres://u:Secret99@db/x",
-        "https://costlens.example/i/1",
+        "https://ccradar.example/i/1",
     )
     slack = payload("slack", m)
     assert slack["blocks"][0]["text"]["text"] == "Deployment api is failing"
-    assert slack["blocks"][-1]["elements"][0]["url"] == "https://costlens.example/i/1"
+    assert slack["blocks"][-1]["elements"][0]["url"] == "https://ccradar.example/i/1"
     teams = payload("teams", m)
     card = teams["attachments"][0]["content"]
     assert (
         card["type"] == "AdaptiveCard"
-        and card["actions"][0]["url"] == "https://costlens.example/i/1"
+        and card["actions"][0]["url"] == "https://ccradar.example/i/1"
     )
     assert "Secret99" not in json.dumps(slack) + json.dumps(teams)
 
@@ -98,7 +98,7 @@ def test_channels_api(client: TestClient, db: Database) -> None:
         "/api/v1/org/notification-channels", json={"kind": "slack", "name": "#oncall", "url": SLACK}
     ).json()
     assert created["url_hint"] == "…XXXXXX" and "url" not in created
-    from costlens.core.notify import EVENTS
+    from ccradar.core.notify import EVENTS
 
     assert created["events"] == list(EVENTS) and created["enabled"]  # every event by default
     cid = created["id"]
@@ -107,7 +107,7 @@ def test_channels_api(client: TestClient, db: Database) -> None:
     assert c.post(f"/api/v1/org/notification-channels/{cid}/test").status_code == 200
     assert (
         sent[0]["url"] == SLACK
-        and sent[0]["body"]["blocks"][0]["text"]["text"] == "CostLens test message"
+        and sent[0]["body"]["blocks"][0]["text"]["text"] == "CloudCostRadar test message"
     )
     _, failing = recorder(500)
     client.app.state.http = failing  # type: ignore[attr-defined]
@@ -188,12 +188,12 @@ def test_detect_opens_once_notifies_and_resolves(db: Database) -> None:
             final=True,
         )
         ingest_objects(s, c, "Pod", "s", [crash_pod(True)], final=True)
-        assert detect(s, c, utcnow(), "https://costlens.example") == {
+        assert detect(s, c, utcnow(), "https://ccradar.example") == {
             "opened": 1,
             "resolved": 0,
             "sent": 1,
         }
-        assert detect(s, c, utcnow(), "https://costlens.example")["opened"] == 0  # no duplicates
+        assert detect(s, c, utcnow(), "https://ccradar.example")["opened"] == 0  # no duplicates
         inv = s.scalars(select(K8sInvestigation)).one()
         assert inv.trigger == "auto" and inv.status == "open"
         assert inv.result["causes"][0]["check"] == "crash_loop"
@@ -201,11 +201,11 @@ def test_detect_opens_once_notifies_and_resolves(db: Database) -> None:
         assert card["body"][0]["text"] == "Deployment api is failing in prod/shop"
         assert (
             card["actions"][0]["url"]
-            == f"https://costlens.example/kubernetes/investigations/{inv.id}"
+            == f"https://ccradar.example/kubernetes/investigations/{inv.id}"
         )
         assert sent[0]["url"] == TEAMS and len(sent) == 1  # disabled channel skipped
         ingest_objects(s, c, "Pod", "s2", [crash_pod(False)], final=True)
-        assert detect(s, c, utcnow(), "https://costlens.example")["resolved"] == 1
+        assert detect(s, c, utcnow(), "https://ccradar.example")["resolved"] == 1
         assert inv.status == "resolved" and "resolved_at" in inv.result
         assert sent[-1]["body"]["attachments"][0]["content"]["body"][0]["text"].startswith(
             "Resolved:"
@@ -213,9 +213,9 @@ def test_detect_opens_once_notifies_and_resolves(db: Database) -> None:
 
 
 def test_detection_job_skips_the_demo(db: Database, settings) -> None:
-    from costlens.demo.seed import ensure_demo, load_all_seeders
-    from costlens.jobs.context import JobContext, configure_jobs
-    from costlens.jobs.k8s import detect_health
+    from ccradar.demo.seed import ensure_demo, load_all_seeders
+    from ccradar.jobs.context import JobContext, configure_jobs
+    from ccradar.jobs.k8s import detect_health
 
     load_all_seeders()
     with db.session() as s:

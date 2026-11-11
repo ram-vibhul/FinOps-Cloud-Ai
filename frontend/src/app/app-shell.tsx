@@ -29,7 +29,7 @@ function Logo() {
       ) : (
         <img src="/favicon.svg" alt="" className="size-7" />
       )}
-      <span>{brand?.display_name ?? "CostLens"}</span>
+      <span>{brand?.display_name ?? "CloudCostRadar"}</span>
     </div>
   );
 }

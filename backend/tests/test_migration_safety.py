@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-VERSIONS = Path(__file__).resolve().parents[1] / "src" / "costlens" / "migrations" / "versions"
+VERSIONS = Path(__file__).resolve().parents[1] / "src" / "ccradar" / "migrations" / "versions"
 DESTRUCTIVE = re.compile(
     r"\b(drop_table|drop_column|drop_constraint|drop_index)\b|\btype_=|"
     r"DROP\s+(TABLE|COLUMN|SCHEMA)|DELETE\s+FROM|TRUNCATE",

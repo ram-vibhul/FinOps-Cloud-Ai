@@ -62,7 +62,7 @@ function SdkKeys() {
       <CardHeader>
         <CardTitle className="text-base">SDK keys</CardTitle>
         <CardDescription>
-          For the <code>costlens-ai</code> SDK (Python and TypeScript). It sends token counts and a salted fingerprint of
+          For the <code>ccradar-ai</code> SDK (Python and TypeScript). It sends token counts and a salted fingerprint of
           each prompt, never prompt or completion text. A key can only add usage; it cannot read anything.
         </CardDescription>
       </CardHeader>

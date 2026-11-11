@@ -72,7 +72,7 @@ export function InvestigatePage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Investigate</h1>
           <p className="text-sm text-muted-foreground">
-            Pick a workload: CostLens checks its pods, events, nodes, resource use and recent changes, and ranks the likely
+            Pick a workload: CloudCostRadar checks its pods, events, nodes, resource use and recent changes, and ranks the likely
             causes. <Link to="/kubernetes" className="underline underline-offset-4">Back to Kubernetes</Link>
           </p>
         </div>

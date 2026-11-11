@@ -1,7 +1,7 @@
 {
-  "name": "@costlens/ai",
+  "name": "@ccradar/ai",
   "version": "0.1.0",
-  "description": "Report AI/LLM token usage to CostLens: counts and salted fingerprints only, never prompt text.",
+  "description": "Report AI/LLM token usage to CloudCostRadar: counts and salted fingerprints only, never prompt text.",
   "license": "UNLICENSED",
   "type": "module",
   "main": "src/index.ts",

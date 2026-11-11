@@ -112,8 +112,8 @@ export function PurchasesCard({ canPlan, canApprove, reloadKey }: { canPlan: boo
         <CardTitle>Planned purchases</CardTitle>
         <CardDescription>
           Plans are previewed for a week and approved by an admin. Then a person buys them in the AWS console, or, where an
-          owner has turned on automatic fixes, CostLens buys an approved Savings Plan after a second person approves (within
-          the monthly spend limit). CostLens measures the saving on the bill each month afterwards.
+          owner has turned on automatic fixes, CloudCostRadar buys an approved Savings Plan after a second person approves (within
+          the monthly spend limit). CloudCostRadar measures the saving on the bill each month afterwards.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 text-sm">

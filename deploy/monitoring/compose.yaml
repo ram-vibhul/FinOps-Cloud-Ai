@@ -1,11 +1,11 @@
 # Uptime checks, alerts and the public status page for the hosted service (D.9, B.13).
-# Uptime Kuma (MIT), self-hosted. Run it OUTSIDE the CostLens hosting (another server,
-# region or provider) so it can still alert when CostLens is down. Where it runs and
+# Uptime Kuma (MIT), self-hosted. Run it OUTSIDE the CloudCostRadar hosting (another server,
+# region or provider) so it can still alert when CloudCostRadar is down. Where it runs and
 # what that costs is tracker Q7.
 #   docker compose -f deploy/monitoring/compose.yaml up -d
 # then open http://<host>:3001, create the admin account, and add the checks listed in
 # docs/monitoring.md. Put TLS in front before exposing the status page.
-name: costlens-monitoring
+name: ccradar-monitoring
 
 services:
   uptime-kuma:

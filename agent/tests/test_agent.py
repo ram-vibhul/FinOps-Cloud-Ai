@@ -7,11 +7,11 @@ from typing import Any
 import httpx
 import pytest
 
-from costlens_agent import trim
-from costlens_agent.api import CostLensApi, TokenRejected
-from costlens_agent.collect import Collector, provider_of
-from costlens_agent.config import AgentConfig, ConfigError, from_env
-from costlens_agent.main import SNAPSHOT_KINDS, Agent
+from ccradar_agent import trim
+from ccradar_agent.api import CloudCostRadarApi, TokenRejected
+from ccradar_agent.collect import Collector, provider_of
+from ccradar_agent.config import AgentConfig, ConfigError, from_env
+from ccradar_agent.main import SNAPSHOT_KINDS, Agent
 
 SECRET = "postgres://admin:hunter2@db:5432/shop"
 
@@ -147,7 +147,7 @@ def test_collector_paginates_and_filters_namespaces() -> None:
 
 
 CONFIG = AgentConfig(
-    url="https://costlens.example", token="ckt_abc_def", cluster_name="prod", chunk_size=2
+    url="https://ccradar.example", token="ckt_abc_def", cluster_name="prod", chunk_size=2
 )
 
 
@@ -173,7 +173,7 @@ def recorder(responses: list[int] | None = None):
 
 def test_snapshot_chunks_mark_only_the_last_final_and_empty_kinds_still_report() -> None:
     sent, transport = recorder()
-    api = CostLensApi(CONFIG, transport=transport, sleep=lambda _: None)
+    api = CloudCostRadarApi(CONFIG, transport=transport, sleep=lambda _: None)
     objects = [{"uid": str(i), "name": f"p{i}", "data": {}} for i in range(5)]
     assert api.snapshot("Pod", "snap-1", iter(objects)) == 5
     assert [len(s["body"]["objects"]) for s in sent] == [2, 2, 1]
@@ -187,15 +187,15 @@ def test_snapshot_chunks_mark_only_the_last_final_and_empty_kinds_still_report()
 def test_retries_outages_and_stops_on_revoked_token() -> None:
     waits: list[float] = []
     sent, transport = recorder([503, 429, 200])
-    api = CostLensApi(CONFIG, transport=transport, sleep=waits.append)
+    api = CloudCostRadarApi(CONFIG, transport=transport, sleep=waits.append)
     api.events([{"uid": "e"}])
     assert len(sent) == 3 and waits == [1.0, 2.0]
     _, transport = recorder([401])
     with pytest.raises(TokenRejected):
-        CostLensApi(CONFIG, transport=transport, sleep=lambda _: None).hello("v1.33", "eks")
+        CloudCostRadarApi(CONFIG, transport=transport, sleep=lambda _: None).hello("v1.33", "eks")
     _, transport = recorder([500, 500, 500, 500])
     with pytest.raises(httpx.HTTPStatusError):
-        CostLensApi(CONFIG, transport=transport, sleep=lambda _: None).hello(None, None)
+        CloudCostRadarApi(CONFIG, transport=transport, sleep=lambda _: None).hello(None, None)
 
 
 def test_agent_tick_sends_snapshot_then_only_new_or_changed_events() -> None:
@@ -216,7 +216,7 @@ def test_agent_tick_sends_snapshot_then_only_new_or_changed_events() -> None:
     listers["Event"] = lambda **_: page(events)
     now = [0.0]
     agent = Agent(
-        CostLensApi(CONFIG, transport=transport, sleep=lambda _: None),
+        CloudCostRadarApi(CONFIG, transport=transport, sleep=lambda _: None),
         Collector(listers, serialize=lambda x: x),
         lambda: "v1.33.2",
         clock=lambda: now[0],
@@ -241,26 +241,26 @@ def test_agent_tick_sends_snapshot_then_only_new_or_changed_events() -> None:
 def test_config_from_env(tmp_path) -> None:
     token = tmp_path / "token"
     token.write_text("ckt_a_b\n")
-    cfg = from_env({"COSTLENS_URL": "https://c.example/", "COSTLENS_TOKEN_FILE": str(token)})
+    cfg = from_env({"CCRADAR_URL": "https://c.example/", "CCRADAR_TOKEN_FILE": str(token)})
     assert cfg.url == "https://c.example" and cfg.token == "ckt_a_b"
     with pytest.raises(ConfigError):
-        from_env({"COSTLENS_URL": "http://c.example", "COSTLENS_TOKEN": "ckt_a_b"})
+        from_env({"CCRADAR_URL": "http://c.example", "CCRADAR_TOKEN": "ckt_a_b"})
     assert (
         from_env(
             {
-                "COSTLENS_URL": "http://c.example",
-                "COSTLENS_TOKEN": "ckt_a_b",
-                "COSTLENS_ALLOW_HTTP": "true",
+                "CCRADAR_URL": "http://c.example",
+                "CCRADAR_TOKEN": "ckt_a_b",
+                "CCRADAR_ALLOW_HTTP": "true",
             }
         ).url
         == "http://c.example"
     )
     with pytest.raises(ConfigError):
-        from_env({"COSTLENS_URL": "https://c.example", "COSTLENS_TOKEN": "wrong"})
+        from_env({"CCRADAR_URL": "https://c.example", "CCRADAR_TOKEN": "wrong"})
 
 
 def test_usage_samples_from_metrics_server_and_pause_without_it() -> None:
-    from costlens_agent.collect import usage_samples
+    from ccradar_agent.collect import usage_samples
 
     metrics = {
         "items": [
@@ -284,7 +284,7 @@ def test_usage_samples_from_metrics_server_and_pause_without_it() -> None:
     ]
     sent, transport = recorder()
     agent = Agent(
-        CostLensApi(CONFIG, transport=transport, sleep=lambda _: None),
+        CloudCostRadarApi(CONFIG, transport=transport, sleep=lambda _: None),
         c,
         lambda: None,
         clock=lambda: 100.0,
@@ -298,7 +298,7 @@ def test_usage_samples_from_metrics_server_and_pause_without_it() -> None:
         raise RuntimeError("404 metrics.k8s.io not found")
 
     broken = Agent(
-        CostLensApi(CONFIG, transport=transport, sleep=lambda _: None),
+        CloudCostRadarApi(CONFIG, transport=transport, sleep=lambda _: None),
         Collector({"PodMetrics": missing}, serialize=lambda x: x),
         lambda: None,
         clock=lambda: 100.0,
@@ -354,7 +354,7 @@ def test_ip_redaction_is_optional(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def task_api(calls: list) -> Any:
-    from costlens_agent.tasks import TaskApi
+    from ccradar_agent.tasks import TaskApi
 
     def read_log(name, namespace, **kw):
         calls.append(("log", name, namespace, kw))
@@ -386,7 +386,7 @@ def task_api(calls: list) -> Any:
 
 
 def test_logs_and_describe_tasks_are_capped_redacted_and_trimmed() -> None:
-    from costlens_agent.tasks import run
+    from ccradar_agent.tasks import run
 
     calls: list = []
     api = task_api(calls)
@@ -434,14 +434,14 @@ def test_logs_and_describe_tasks_are_capped_redacted_and_trimmed() -> None:
     ],
 )
 def test_tasks_outside_the_allow_list_are_refused(task: dict, why: str) -> None:
-    from costlens_agent.tasks import TaskRefused, run
+    from ccradar_agent.tasks import TaskRefused, run
 
     with pytest.raises(TaskRefused, match=why):
         run(task, task_api([]), lambda ns: ns != "kube-system")
 
 
 def test_logs_can_be_turned_off(monkeypatch: pytest.MonkeyPatch) -> None:
-    from costlens_agent import tasks
+    from ccradar_agent import tasks
 
     monkeypatch.setattr(tasks, "ALLOW_LOGS", False)
     with pytest.raises(tasks.TaskRefused, match="turned off"):
@@ -474,7 +474,7 @@ def test_agent_runs_claimed_tasks_and_reports_results() -> None:
             )
         return httpx.Response(200, json={"status": "done"})
 
-    api = CostLensApi(CONFIG, transport=httpx.MockTransport(handle), sleep=lambda _: None)
+    api = CloudCostRadarApi(CONFIG, transport=httpx.MockTransport(handle), sleep=lambda _: None)
     agent = Agent(api, Collector({}, serialize=lambda x: x), lambda: None, task_api=task_api([]))
     assert agent.tasks() == 1
     results = {p["path"].split("/")[-2]: p["body"] for p in posted if p["path"].endswith("/result")}
@@ -523,7 +523,7 @@ def prom_transport(fail: bool = False, seen: list | None = None):
 
 
 def test_prometheus_usage_samples(tmp_path) -> None:
-    from costlens_agent.prometheus import Prometheus, from_env
+    from ccradar_agent.prometheus import Prometheus, from_env
 
     token = tmp_path / "token"
     token.write_text("prom-secret\n")
@@ -540,11 +540,11 @@ def test_prometheus_usage_samples(tmp_path) -> None:
     assert seen[0].headers["authorization"] == "Bearer prom-secret"
     assert str(seen[0].url).startswith("http://prometheus.monitoring:9090/api/v1/query?query=")
     assert from_env({}) is None
-    assert from_env({"COSTLENS_PROMETHEUS_URL": "http://p:9090"}) is not None
+    assert from_env({"CCRADAR_PROMETHEUS_URL": "http://p:9090"}) is not None
 
 
 def test_agent_prefers_prometheus_and_falls_back_to_metrics_server() -> None:
-    from costlens_agent.prometheus import Prometheus
+    from ccradar_agent.prometheus import Prometheus
 
     sent, transport = recorder()
     metrics = {
@@ -558,7 +558,7 @@ def test_agent_prefers_prometheus_and_falls_back_to_metrics_server() -> None:
     collector = Collector({"PodMetrics": lambda **_: metrics}, serialize=lambda x: x)
     good = Prometheus("http://p", http=httpx.Client(transport=prom_transport()))
     agent = Agent(
-        CostLensApi(CONFIG, transport=transport, sleep=lambda _: None),
+        CloudCostRadarApi(CONFIG, transport=transport, sleep=lambda _: None),
         collector,
         lambda: None,
         prometheus=good,
@@ -567,7 +567,7 @@ def test_agent_prefers_prometheus_and_falls_back_to_metrics_server() -> None:
     assert agent.usage_source == "prometheus" and sent[-1]["body"]["samples"][0]["cpu"] == 0.25
     down = Prometheus("http://p", http=httpx.Client(transport=prom_transport(fail=True)))
     agent = Agent(
-        CostLensApi(CONFIG, transport=transport, sleep=lambda _: None),
+        CloudCostRadarApi(CONFIG, transport=transport, sleep=lambda _: None),
         collector,
         lambda: None,
         prometheus=down,
@@ -577,7 +577,7 @@ def test_agent_prefers_prometheus_and_falls_back_to_metrics_server() -> None:
 
 
 def test_prometheus_error_status_raises() -> None:
-    from costlens_agent.prometheus import Prometheus
+    from ccradar_agent.prometheus import Prometheus
 
     def handle(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"status": "error", "error": "parse error"})
@@ -596,7 +596,7 @@ def svc(name: str, ns: str, port: int = 9090, labels: dict | None = None) -> dic
 
 
 def test_prometheus_discovery_candidates_and_probe() -> None:
-    from costlens_agent.prometheus import candidates, discover
+    from ccradar_agent.prometheus import candidates, discover
 
     services = [
         svc("alertmanager-operated", "monitoring", 9093),
@@ -633,7 +633,7 @@ def test_agent_discovers_and_reports_prometheus() -> None:
         ]
     )
     agent = Agent(
-        CostLensApi(CONFIG, transport=transport, sleep=lambda _: None),
+        CloudCostRadarApi(CONFIG, transport=transport, sleep=lambda _: None),
         Collector(listers, serialize=lambda x: x),
         lambda: "v1.33",
         clock=lambda: 0.0,
@@ -649,7 +649,7 @@ def test_agent_discovers_and_reports_prometheus() -> None:
 
 
 def test_customer_queries_are_rechecked_run_and_reported() -> None:
-    from costlens_agent.prometheus import Prometheus
+    from ccradar_agent.prometheus import Prometheus
 
     def handle(request: httpx.Request) -> httpx.Response:
         q = request.url.params["query"]
@@ -676,7 +676,7 @@ def test_customer_queries_are_rechecked_run_and_reported() -> None:
 
     sent, transport = recorder()
     agent = Agent(
-        CostLensApi(CONFIG, transport=transport, sleep=lambda _: None),
+        CloudCostRadarApi(CONFIG, transport=transport, sleep=lambda _: None),
         Collector({}, serialize=lambda x: x),
         lambda: None,
         prometheus=Prometheus("http://p", http=httpx.Client(transport=httpx.MockTransport(handle))),
@@ -703,8 +703,8 @@ def test_customer_queries_are_rechecked_run_and_reported() -> None:
 
 
 def test_promql_test_task() -> None:
-    from costlens_agent.prometheus import Prometheus
-    from costlens_agent.tasks import TaskRefused, run
+    from ccradar_agent.prometheus import Prometheus
+    from ccradar_agent.tasks import TaskRefused, run
 
     def handle(request: httpx.Request) -> httpx.Response:
         return httpx.Response(

@@ -49,7 +49,7 @@ export function SetupHelpDialog({ connection }: { connection: CloudConnection })
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild><Button variant="ghost" size="sm">Setup and last collection</Button></DialogTrigger>
-      <DialogContent title={`${connection.name}: setup and last collection`} description="The read-only roles CostLens needs, and what it saw the last time it collected.">
+      <DialogContent title={`${connection.name}: setup and last collection`} description="The read-only roles CloudCostRadar needs, and what it saw the last time it collected.">
         {seen && (
           <section aria-label="Last collection" className="grid gap-1 text-sm">
             <p>Scope: <code className="break-all text-xs">{seen.scope ?? "—"}</code></p>

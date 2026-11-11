@@ -6,17 +6,17 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.clouds.aws.commitment_job import snapshot
-from costlens.clouds.aws.commitments import collect
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.findings.service import run
-from costlens.models import CloudConnection, Finding
+from ccradar.accounts.roles import Role
+from ccradar.clouds.aws.commitment_job import snapshot
+from ccradar.clouds.aws.commitments import collect
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.findings.service import run
+from ccradar.models import CloudConnection, Finding
 from tests.fakes.aws import FakeAws
 from tests.helpers import add_to_org, make_org, sign_in_client
 
-ROLE = "arn:aws:iam::222222222222:role/costlens"
+ROLE = "arn:aws:iam::222222222222:role/ccradar"
 
 
 class FakeCE:
@@ -180,7 +180,7 @@ def test_api_and_refresh(client: TestClient, db: Database, org) -> None:
 
 
 def test_demo_commitments(client: TestClient, db: Database) -> None:
-    from costlens.demo.seed import ensure_demo, load_all_seeders
+    from ccradar.demo.seed import ensure_demo, load_all_seeders
 
     load_all_seeders()
     with db.session() as s:

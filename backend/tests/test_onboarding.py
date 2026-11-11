@@ -8,26 +8,26 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.trial import start_trial, trial_status
-from costlens.clouds import export_check
-from costlens.config import DeploymentMode, Settings
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.jobs import InProcessRunner
-from costlens.main import create_app
-from costlens.models import CloudConnection, Finding, InboxItem, Organization
+from ccradar.accounts.trial import start_trial, trial_status
+from ccradar.clouds import export_check
+from ccradar.config import DeploymentMode, Settings
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.jobs import InProcessRunner
+from ccradar.main import create_app
+from ccradar.models import CloudConnection, Finding, InboxItem, Organization
 from tests.conftest import offline_http_client, public_resolver
 from tests.fakes.aws import FakeAws, FakeS3
 from tests.helpers import make_org, sign_in_client
 from tests.test_azure import BLOB_LIST, CLIENT, SUB, TENANT, FakeAzure, make_client
 
-ROLE = "arn:aws:iam::123456789012:role/CostLensReadOnly"
+ROLE = "arn:aws:iam::123456789012:role/CloudCostRadarReadOnly"
 NOW = datetime(2026, 11, 9, 12, tzinfo=UTC)
 
 
 @pytest.fixture
 def env(settings: Settings, db: Database):
-    settings.aws_principal_arn = "arn:aws:iam::999999999999:role/costlens-collector"
+    settings.aws_principal_arn = "arn:aws:iam::999999999999:role/ccradar-collector"
     aws, runner = FakeAws(), InProcessRunner()
     app = create_app(
         settings,
@@ -132,8 +132,8 @@ def test_export_check_aws(env) -> None:
         empty["ok"] and empty["code"] == "empty" and empty["location"] == "s3://acme-cur/exports/"
     )
     for month in ("2026-10", "2026-11"):
-        s3.put("acme-cur", f"exports/costlens/data/BILLING_PERIOD={month}/part-0.parquet", b"x")
-    s3.put("acme-cur", "exports/costlens/metadata/manifest.json", b"{}")
+        s3.put("acme-cur", f"exports/ccradar/data/BILLING_PERIOD={month}/part-0.parquet", b"x")
+    s3.put("acme-cur", "exports/ccradar/metadata/manifest.json", b"{}")
     ready = c.post(path).json()
     assert ready["code"] == "ready" and ready["files"] == 2
     assert ready["months"] == ["2026-10", "2026-11"] and "2 files" in ready["message"]
@@ -175,7 +175,7 @@ def test_export_check_azure() -> None:
             return httpx.Response(200, json={"access_token": "t", "expires_in": 3600})
         return httpx.Response(403, text="AuthorizationPermissionMismatch")
 
-    from costlens.clouds.azure.client import AzureClient
+    from ccradar.clouds.azure.client import AzureClient
 
     client = AzureClient(
         httpx.Client(transport=httpx.MockTransport(forbidden)), TENANT, CLIENT, "s"

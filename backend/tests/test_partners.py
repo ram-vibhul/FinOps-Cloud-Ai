@@ -6,10 +6,10 @@ from decimal import Decimal
 
 from fastapi.testclient import TestClient
 
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import Organization, User
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import Organization, User
 from tests.helpers import make_org, sign_in_client
 
 
@@ -142,8 +142,8 @@ def test_only_platform_staff_mark_partners(client: TestClient, db: Database) -> 
 def test_portfolio_order_and_branded_statement(
     client: TestClient, db: Database, monkeypatch
 ) -> None:
-    from costlens.models import CloudConnection
-    from costlens.reports import rebill
+    from ccradar.models import CloudConnection
+    from ccradar.reports import rebill
 
     pid, staff = make_partner(db)
     c = sign_in_client(client, db, staff, pid)

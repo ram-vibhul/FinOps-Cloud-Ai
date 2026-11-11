@@ -1,4 +1,4 @@
-/** Minimal typed client for the CostLens API. Cookies carry the session. */
+/** Minimal typed client for the CloudCostRadar API. Cookies carry the session. */
 
 /** RFC 9457 problem details, as returned by the API for every error. */
 export interface Problem {
@@ -43,8 +43,8 @@ export function setCsrfToken(token: string | undefined): void {
 /** The CSRF token: from /me when known, else the readable cookie set at sign-in. */
 export function csrfToken(): string | undefined {
   if (sessionCsrf) return sessionCsrf;
-  const match = document.cookie.split("; ").find((c) => c.startsWith("costlens_csrf="));
-  return match ? decodeURIComponent(match.slice("costlens_csrf=".length)) : undefined;
+  const match = document.cookie.split("; ").find((c) => c.startsWith("ccradar_csrf="));
+  return match ? decodeURIComponent(match.slice("ccradar_csrf=".length)) : undefined;
 }
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {

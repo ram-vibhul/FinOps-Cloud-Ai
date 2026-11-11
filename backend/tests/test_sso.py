@@ -12,14 +12,14 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy import text
 
-from costlens.accounts import service as acc
-from costlens.accounts.roles import Role
-from costlens.auth.providers import configured_providers, parse_instance_providers
-from costlens.config import Settings
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.jobs import InProcessRunner
-from costlens.main import create_app
+from ccradar.accounts import service as acc
+from ccradar.accounts.roles import Role
+from ccradar.auth.providers import configured_providers, parse_instance_providers
+from ccradar.config import Settings
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.jobs import InProcessRunner
+from ccradar.main import create_app
 from tests.conftest import public_resolver
 from tests.fakes.oidc import FakeIdP
 from tests.helpers import add_to_org, make_org, sign_in_client
@@ -117,7 +117,7 @@ def test_parse_instance_providers() -> None:
     ],
 )
 def test_invalid_instance_providers(item: dict) -> None:
-    with pytest.raises(ValueError, match="COSTLENS_OIDC_PROVIDERS"):
+    with pytest.raises(ValueError, match="CCRADAR_OIDC_PROVIDERS"):
         parse_instance_providers(json.dumps([item]))
 
 

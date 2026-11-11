@@ -7,16 +7,16 @@ from typing import Any
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import CloudConnection, CostImportRun
+from ccradar.accounts.roles import Role
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import CloudConnection, CostImportRun
 from tests.fakes.aws import FakeAws
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 OCT = date(2026, 10, 1)
-ROLE = "arn:aws:iam::111111111111:role/costlens"
+ROLE = "arn:aws:iam::111111111111:role/ccradar"
 
 
 def _lines(cost: str) -> list[CostLine]:

@@ -72,7 +72,7 @@ export function SignInPage() {
     <PublicLayout>
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl">Sign in to CostLens</CardTitle>
+          <CardTitle className="text-xl">Sign in to CloudCostRadar</CardTitle>
           <CardDescription>See where your cloud money goes and fix problems faster.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">

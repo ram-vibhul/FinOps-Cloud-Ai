@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from costlens.cli import main
-from costlens.k8s import lab
+from ccradar.cli import main
+from ccradar.k8s import lab
 
 
 def test_every_recorded_failure_is_diagnosed_first() -> None:

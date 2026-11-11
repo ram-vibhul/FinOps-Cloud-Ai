@@ -7,8 +7,8 @@ from typing import Any
 import httpx
 from fastapi.testclient import TestClient
 
-from costlens.accounts.roles import Role
-from costlens.db import Database
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
 from tests.helpers import add_to_org, make_org, sign_in_client
 from tests.test_findings_workflow import make_finding
 
@@ -92,7 +92,9 @@ def test_jira_ticket_and_servicenow_record(client: TestClient, db: Database) -> 
         == "Basic " + base64.b64encode(b"bot@acme.com:jira-secret-token").decode()
     )
     fields = fake.body(0)["fields"]
-    assert fields["project"] == {"key": "OPS"} and fields["summary"] == "[CostLens] Delete vol-x"
+    assert (
+        fields["project"] == {"key": "OPS"} and fields["summary"] == "[CloudCostRadar] Delete vol-x"
+    )
     text = json.dumps(fields["description"])
     assert "300.00 USD a month" in text and "aws ec2 delete-volume" in text and "eu-west-1" in text
 
@@ -102,7 +104,7 @@ def test_jira_ticket_and_servicenow_record(client: TestClient, db: Database) -> 
             "kind": "servicenow",
             "name": "ServiceNow",
             "base_url": "https://acme.service-now.com",
-            "username": "costlens",
+            "username": "ccradar",
             "token": "pw-1234",
             "config": {"table": "incident"},
         },
@@ -112,7 +114,7 @@ def test_jira_ticket_and_servicenow_record(client: TestClient, db: Database) -> 
     assert out["url"] == (
         "https://acme.service-now.com/nav_to.do?uri=incident.do%3Fsys_id%3Dabc123"
     )
-    assert fake.body(1)["short_description"] == "[CostLens] Delete vol-x"
+    assert fake.body(1)["short_description"] == "[CloudCostRadar] Delete vol-x"
     links = c.get(f"/api/v1/findings/{fid}/links").json()
     assert [x["provider"] for x in links] == ["jira", "servicenow"]
     history = c.get(f"/api/v1/findings/{fid}/history").json()
@@ -137,11 +139,11 @@ def test_github_and_gitlab_pull_requests(client: TestClient, db: Database) -> No
     assert calls[0] == ("GET", "/repos/acme/infra/git/ref/heads/main")
     assert calls[1] == ("POST", "/repos/acme/infra/git/refs")
     assert calls[2][0] == "PUT" and calls[2][1].startswith(
-        "/repos/acme/infra/contents/costlens/fixes/"
+        "/repos/acme/infra/contents/ccradar/fixes/"
     )
     assert calls[3] == ("POST", "/repos/acme/infra/pulls")
     branch = fake.body(1)["ref"].removeprefix("refs/heads/")
-    assert branch.startswith("costlens/delete-vol-x-") and fake.body(1)["sha"] == "basesha"
+    assert branch.startswith("ccradar/delete-vol-x-") and fake.body(1)["sha"] == "basesha"
     plan = base64.b64decode(fake.body(2)["content"]).decode()
     assert plan.startswith("# Delete vol-x") and "1. Snapshot the volume" in plan
     assert fake.body(3) == {**fake.body(3), "head": branch, "base": "main"}

@@ -5,11 +5,11 @@ from decimal import Decimal
 
 from fastapi.testclient import TestClient
 
-from costlens.clouds import setup_help
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import CloudConnection
+from ccradar.clouds import setup_help
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import CloudConnection
 from tests.helpers import make_org, sign_in_client
 
 SUB = "33333333-3333-3333-3333-333333333333"
@@ -30,7 +30,7 @@ def test_gcp_commands_cover_dataset_job_user_and_projects() -> None:
     text = "\n".join(out["commands"])
     assert "bq add-iam-policy-binding" in text and "'acme-billing:billing'" in text
     assert "roles/bigquery.jobUser" in text and "'web-prod'" in text
-    assert "costlens-reader@acme-billing.iam.gserviceaccount.com" in text
+    assert "ccradar-reader@acme-billing.iam.gserviceaccount.com" in text
     assert {r["role"] for r in out["roles"]} >= {
         "roles/bigquery.dataViewer",
         "roles/recommender.computeViewer",

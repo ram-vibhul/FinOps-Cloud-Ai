@@ -3,11 +3,11 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from costlens.config import Settings
-from costlens.core.ratelimit import MemoryLimiter, PostgresLimiter, Rule, cleanup_postgres_buckets
-from costlens.db import Database
-from costlens.jobs import InProcessRunner
-from costlens.main import create_app
+from ccradar.config import Settings
+from ccradar.core.ratelimit import MemoryLimiter, PostgresLimiter, Rule, cleanup_postgres_buckets
+from ccradar.db import Database
+from ccradar.jobs import InProcessRunner
+from ccradar.main import create_app
 from tests.conftest import POSTGRES_URL
 from tests.helpers import make_org, sign_in_client
 

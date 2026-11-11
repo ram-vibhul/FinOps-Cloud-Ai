@@ -6,9 +6,9 @@ from decimal import Decimal
 import pytest
 from fastapi.testclient import TestClient
 
-from costlens.accounts.roles import Role
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
+from ccradar.accounts.roles import Role
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 START, END = date(2026, 11, 1), date(2026, 11, 10)
@@ -209,8 +209,8 @@ def test_saved_views(env) -> None:
 
 
 def test_accounts_labelled_with_names(env) -> None:
-    from costlens.db.tenant import set_tenant
-    from costlens.models import CloudAccount
+    from ccradar.db.tenant import set_tenant
+    from ccradar.models import CloudAccount
 
     with env["db"].session() as s:
         set_tenant(s, org_id=env["org"])

@@ -11,20 +11,20 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.costs import flow_logs as fl
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.inventory.aws import Found
-from costlens.inventory.service import upsert
-from costlens.k8s.service import ingest_objects
-from costlens.models import CloudConnection, K8sCluster, NetworkAttribution
+from ccradar.accounts.roles import Role
+from ccradar.costs import flow_logs as fl
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.inventory.aws import Found
+from ccradar.inventory.service import upsert
+from ccradar.k8s.service import ingest_objects
+from ccradar.models import CloudConnection, K8sCluster, NetworkAttribution
 from tests.fakes.aws import FakeAws
 from tests.helpers import add_to_org, make_org, sign_in_client
 
-ROLE = "arn:aws:iam::111111111111:role/costlens"
+ROLE = "arn:aws:iam::111111111111:role/ccradar"
 ENIS = [
     {
         "NetworkInterfaceId": "eni-web",

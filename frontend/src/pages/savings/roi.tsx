@@ -25,14 +25,14 @@ function PriceForm({ initial, onSaved }: { initial: RoiSettings; onSaved: () => 
     }
   }
   return (
-    <form onSubmit={(e) => void save(e)} aria-label="CostLens price" className="flex flex-wrap items-end gap-2">
+    <form onSubmit={(e) => void save(e)} aria-label="CloudCostRadar price" className="flex flex-wrap items-end gap-2">
       <div className="grid gap-1">
-        <Label htmlFor="roi-price">What you pay for CostLens per month ({s.currency})</Label>
+        <Label htmlFor="roi-price">What you pay for CloudCostRadar per month ({s.currency})</Label>
         <Input id="roi-price" type="number" min={0} value={s.monthly_price ?? ""}
           onChange={(e) => setS({ ...s, monthly_price: e.target.value === "" ? null : Number(e.target.value) })} />
       </div>
       <div className="grid gap-1">
-        <Label htmlFor="roi-since">Using CostLens since</Label>
+        <Label htmlFor="roi-since">Using CloudCostRadar since</Label>
         <Input id="roi-since" type="date" value={s.since ?? ""} onChange={(e) => setS({ ...s, since: e.target.value || null })} />
       </div>
       <Button type="submit">Save</Button>
@@ -56,7 +56,7 @@ export function RoiPage() {
         <div>
           <p className="text-sm text-muted-foreground"><Link to="/savings" className="underline underline-offset-4">Savings</Link> /</p>
           <h1 className="text-2xl font-semibold tracking-tight">ROI pack</h1>
-          <p className="text-sm text-muted-foreground">What CostLens saved against what it costs, with the evidence behind each figure.</p>
+          <p className="text-sm text-muted-foreground">What CloudCostRadar saved against what it costs, with the evidence behind each figure.</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <div className="grid gap-1">
@@ -76,7 +76,7 @@ export function RoiPage() {
           <div className="grid gap-4 sm:grid-cols-4">
             <Card><CardHeader><CardDescription>Verified savings</CardDescription>
               <CardTitle className="text-2xl tabular-nums">{money(d.verified_total, d.currency)}</CardTitle></CardHeader></Card>
-            <Card><CardHeader><CardDescription>CostLens cost</CardDescription>
+            <Card><CardHeader><CardDescription>CloudCostRadar cost</CardDescription>
               <CardTitle className="text-2xl tabular-nums">{d.product_cost == null ? "Not set" : money(d.product_cost, d.product_currency)}</CardTitle></CardHeader></Card>
             <Card><CardHeader><CardDescription>Return</CardDescription>
               <CardTitle className="text-2xl tabular-nums">{d.roi_multiple == null ? "–" : `${d.roi_multiple}×`}</CardTitle></CardHeader></Card>

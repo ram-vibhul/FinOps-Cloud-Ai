@@ -10,13 +10,13 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select, update
 
-from costlens.accounts.roles import Role
-from costlens.db import Database
-from costlens.db.base import Base, utcnow
-from costlens.db.tenant import set_tenant, tenant_tables
-from costlens.jobs import load_all_jobs
-from costlens.models import AuditEvent, OrgIdentityProvider, User
-from costlens.privacy import service
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
+from ccradar.db.base import Base, utcnow
+from ccradar.db.tenant import set_tenant, tenant_tables
+from ccradar.jobs import load_all_jobs
+from ccradar.models import AuditEvent, OrgIdentityProvider, User
+from ccradar.privacy import service
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 
@@ -181,8 +181,8 @@ def test_delete_restore_and_purge(team) -> None:
 
 
 def test_demo_cannot_be_deleted(team) -> None:
-    from costlens.demo.seed import ensure_demo
-    from costlens.models import Membership
+    from ccradar.demo.seed import ensure_demo
+    from ccradar.models import Membership
 
     with team["db"].session() as s:
         demo = ensure_demo(s)
@@ -195,7 +195,7 @@ def test_demo_cannot_be_deleted(team) -> None:
 
 
 def test_storage_rejects_unsafe_keys(tmp_path) -> None:
-    from costlens.core.storage import LocalStorage
+    from ccradar.core.storage import LocalStorage
 
     store = LocalStorage(tmp_path)
     store.put("exports/a/b.zip", b"x")

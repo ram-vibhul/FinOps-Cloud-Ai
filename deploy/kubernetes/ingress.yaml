@@ -2,19 +2,19 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: costlens
+  name: ccradar
 spec:
   ingressClassName: nginx
   tls:
-    - hosts: ["costlens.example.com"]
-      secretName: costlens-tls
+    - hosts: ["ccradar.example.com"]
+      secretName: ccradar-tls
   rules:
-    - host: costlens.example.com
+    - host: ccradar.example.com
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: costlens-web
+                name: ccradar-web
                 port: { name: http }

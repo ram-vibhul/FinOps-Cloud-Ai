@@ -6,12 +6,12 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
-from costlens.accounts.roles import Role
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.models import AuditEvent
-from costlens.privacy import retention
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.models import AuditEvent
+from ccradar.privacy import retention
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 
@@ -47,7 +47,7 @@ def test_purge_respects_each_org_setting(db: Database) -> None:
             add_event(db, org, days)
     with db.session() as s:
         set_tenant(s, bypass=True)
-        from costlens.models import Organization
+        from ccradar.models import Organization
 
         org_b = s.get(Organization, b)
         assert org_b is not None
@@ -65,8 +65,8 @@ def test_purge_respects_each_org_setting(db: Database) -> None:
 
 
 def test_bounds_and_unknown_kinds(db: Database) -> None:
-    from costlens.core.errors import AppError
-    from costlens.models import Organization
+    from ccradar.core.errors import AppError
+    from ccradar.models import Organization
 
     org = Organization(name="x", slug="x", retention_days={})
     with pytest.raises(AppError, match="between 90 and 2555"):

@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: app
-  labels: {costlens-lab: "image-pull"}
+  labels: {ccradar-lab: "image-pull"}
 spec:
   replicas: 1
   selector: {matchLabels: {app: lab}}

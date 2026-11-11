@@ -111,8 +111,8 @@ function PlanCard({ canPlan, onPlanned }: { canPlan: boolean; onPlanned: () => v
       <CardHeader>
         <CardTitle>Purchase plan</CardTitle>
         <CardDescription>
-          Sized on a low percentile of steady usage after the changes CostLens already suggests, and bought in steps so
-          expiries are spread out. CostLens never buys anything: use this to plan purchases in the AWS console.
+          Sized on a low percentile of steady usage after the changes CloudCostRadar already suggests, and bought in steps so
+          expiries are spread out. CloudCostRadar never buys anything: use this to plan purchases in the AWS console.
         </CardDescription>
         <div className="flex flex-wrap gap-2">
           <NativeSelect aria-label="Term" value={term} onChange={(e) => setTerm(e.target.value)}>
@@ -136,7 +136,7 @@ function PlanCard({ canPlan, onPlanned }: { canPlan: boolean; onPlanned: () => v
             </p>
             <p className="text-muted-foreground">
               Steady On-Demand compute is {money(sp.steady_on_demand_hourly ?? 0, cur)}/hour (the {sp.percentile}th percentile
-              of {sp.window?.days} days); pending CostLens changes remove {money(sp.pending_changes_monthly ?? 0, cur)} a month,
+              of {sp.window?.days} days); pending CloudCostRadar changes remove {money(sp.pending_changes_monthly ?? 0, cur)} a month,
               leaving {money(sp.after_changes_on_demand_hourly ?? 0, cur)}/hour. Discount {(100 * (sp.discount ?? 0)).toFixed(0)}% ({sp.discount_source}).
             </p>
             <table className="w-full text-left">
@@ -227,7 +227,7 @@ export function CommitmentsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Savings Plans and reservations</CardTitle>
-          <CardDescription>CostLens alerts your notification channels 90, 30 and 7 days before each one ends.</CardDescription>
+          <CardDescription>CloudCostRadar alerts your notification channels 90, 30 and 7 days before each one ends.</CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {items.length === 0 && !data.loading ? (

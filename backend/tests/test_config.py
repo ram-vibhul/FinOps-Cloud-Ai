@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from costlens.config import DEFAULT_AI_MODEL, DeploymentMode, Settings
+from ccradar.config import DEFAULT_AI_MODEL, DeploymentMode, Settings
 
 
 def make(**kwargs) -> Settings:
@@ -20,12 +20,12 @@ def test_local_defaults() -> None:
 
 
 def test_env_prefix(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("COSTLENS_ENVIRONMENT_NAME", "staging")
+    monkeypatch.setenv("CCRADAR_ENVIRONMENT_NAME", "staging")
     assert make().environment_name == "staging"
 
 
 def test_production_requires_secrets() -> None:
-    with pytest.raises(ValidationError, match="COSTLENS_SECRET_KEY"):
+    with pytest.raises(ValidationError, match="CCRADAR_SECRET_KEY"):
         make(deployment_mode="saas", database_url="postgresql://u@h/db")
 
 

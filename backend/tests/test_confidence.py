@@ -3,13 +3,13 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select
 
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.findings import service
-from costlens.findings.confidence import assess
-from costlens.findings.registry import FindingIn
-from costlens.findings.service import _store, run
-from costlens.models import Finding
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.findings import service
+from ccradar.findings.confidence import assess
+from ccradar.findings.registry import FindingIn
+from ccradar.findings.service import _store, run
+from ccradar.models import Finding
 from tests.helpers import make_org
 
 

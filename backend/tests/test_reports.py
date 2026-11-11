@@ -7,13 +7,13 @@ from decimal import Decimal
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.core.email import Email, SmtpSender
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.models import ReportSchedule
-from costlens.reports import scheduled
+from ccradar.core.email import Email, SmtpSender
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.models import ReportSchedule
+from ccradar.reports import scheduled
 from tests.helpers import make_org, sign_in_client
 
 
@@ -118,5 +118,5 @@ def test_schedules_send_and_download(client: TestClient, db: Database) -> None:
         again = scheduled.send_due(s, org_id, delivered.append, now=now)
     assert sent == 1 and again == 0
     mail = delivered[0]
-    assert mail["to"] == "cfo@acme.com" and mail["subject"] == "CostLens: Monthly costs"
+    assert mail["to"] == "cfo@acme.com" and mail["subject"] == "CloudCostRadar: Monthly costs"
     assert mail["attachments"][0]["filename"].endswith(".pdf") and "total 50.00 USD" in mail["text"]

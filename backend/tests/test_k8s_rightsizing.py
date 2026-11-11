@@ -7,13 +7,13 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.k8s.rightsizing import _advise
-from costlens.k8s.service import ingest_objects
-from costlens.k8s.usage import ingest_usage
-from costlens.models import K8sCluster, K8sCost, K8sUsage
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.k8s.rightsizing import _advise
+from ccradar.k8s.service import ingest_objects
+from ccradar.k8s.usage import ingest_usage
+from ccradar.models import K8sCluster, K8sCost, K8sUsage
 from tests.helpers import make_org, sign_in_client
 
 
@@ -232,7 +232,7 @@ def test_api_recommendations_with_savings_and_usage_series(
 
 
 def test_agent_usage_endpoint_clamps_clock(client: TestClient, db: Database) -> None:
-    from costlens.k8s.service import issue_token
+    from ccradar.k8s.service import issue_token
 
     org_id, _ = make_org(db, "Acme", "owner@acme.com")
     c = setup(db, org_id)
@@ -266,8 +266,8 @@ def test_agent_usage_endpoint_clamps_clock(client: TestClient, db: Database) -> 
 
 
 def test_demo_rightsizing_shows_each_kind_of_advice(client: TestClient, db: Database) -> None:
-    from costlens.accounts.roles import Role
-    from costlens.demo.seed import ensure_demo, load_all_seeders
+    from ccradar.accounts.roles import Role
+    from ccradar.demo.seed import ensure_demo, load_all_seeders
     from tests.helpers import add_to_org
 
     load_all_seeders()

@@ -4,7 +4,7 @@ import procrastinate
 import pytest
 from procrastinate.testing import InMemoryConnector
 
-from costlens.jobs import InProcessRunner, JobRegistry, ProcrastinateRunner, job
+from ccradar.jobs import InProcessRunner, JobRegistry, ProcrastinateRunner, job
 from tests.conftest import POSTGRES_URL
 
 
@@ -69,14 +69,14 @@ def test_procrastinate_runner_defers_jobs() -> None:
     assert calls == []  # deferred, not run inline
 
 
-@pytest.mark.skipif(not POSTGRES_URL, reason="needs COSTLENS_TEST_DATABASE_URL (PostgreSQL)")
+@pytest.mark.skipif(not POSTGRES_URL, reason="needs CCRADAR_TEST_DATABASE_URL (PostgreSQL)")
 def test_procrastinate_worker_runs_deferred_job_on_postgres(
     admin_database_url: str, database_url: str
 ) -> None:
     """End to end on PostgreSQL: migrate (incl. queue schema), defer, run the worker."""
     import asyncio
 
-    from costlens.jobs.runner import build_procrastinate_app, run_worker_async
+    from ccradar.jobs.runner import build_procrastinate_app, run_worker_async
     from tests.conftest import migrate_for_tests
 
     migrate_for_tests(admin_database_url)  # worker below runs as the app role
@@ -98,7 +98,7 @@ def test_procrastinate_worker_runs_deferred_job_on_postgres(
 
 def test_every_job_module_registers() -> None:
     """Guards against registration imports being removed by an automatic clean-up."""
-    from costlens.jobs import load_all_jobs, registry
+    from ccradar.jobs import load_all_jobs, registry
 
     load_all_jobs()
     expected = {
@@ -123,8 +123,8 @@ def test_scheduled_jobs_accept_procrastinate_timestamp() -> None:
     import inspect
     from typing import Any
 
-    from costlens.jobs import load_all_jobs, registry
-    from costlens.jobs.runner import ProcrastinateRunner
+    from ccradar.jobs import load_all_jobs, registry
+    from ccradar.jobs.runner import ProcrastinateRunner
 
     load_all_jobs()
     registered: dict[str, Any] = {}
@@ -151,6 +151,6 @@ def test_scheduled_jobs_accept_procrastinate_timestamp() -> None:
         calls.append(x)
         return x
 
-    from costlens.jobs.runner import periodic_safe
+    from ccradar.jobs.runner import periodic_safe
 
     assert periodic_safe(sample)(timestamp=5) == 1 and calls == [1]

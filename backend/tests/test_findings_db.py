@@ -7,16 +7,16 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.findings import aws_db
-from costlens.findings.aws_db import support_for
-from costlens.findings.service import run
-from costlens.inventory.aws import Found
-from costlens.inventory.service import upsert
-from costlens.models import Finding
+from ccradar.accounts.roles import Role
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.findings import aws_db
+from ccradar.findings.aws_db import support_for
+from ccradar.findings.service import run
+from ccradar.inventory.aws import Found
+from ccradar.inventory.service import upsert
+from ccradar.models import Finding
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 NOW = datetime(2026, 11, 8, 12, tzinfo=UTC)
@@ -156,7 +156,7 @@ def test_database_detectors(db: Database) -> None:
 
 
 def test_demo_flags_the_postgres_11_database(client: TestClient, db: Database) -> None:
-    from costlens.demo.seed import ensure_demo, load_all_seeders
+    from ccradar.demo.seed import ensure_demo, load_all_seeders
 
     load_all_seeders()
     with db.session() as s:

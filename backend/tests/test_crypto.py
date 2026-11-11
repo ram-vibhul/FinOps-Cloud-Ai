@@ -7,18 +7,18 @@ import pytest
 from cryptography.fernet import Fernet
 from sqlalchemy import text
 
-from costlens.core.crypto import (
+from ccradar.core.crypto import (
     DecryptionError,
     SecretBox,
     configure_encryption,
     local_dev_key,
     secret_box,
 )
-from costlens.core.netguard import UnsafeURLError, check_public_https_url
-from costlens.db import Database
-from costlens.db.keys import encrypted_columns, rotate_encryption_keys
-from costlens.db.tenant import set_tenant
-from costlens.models import OrgIdentityProvider
+from ccradar.core.netguard import UnsafeURLError, check_public_https_url
+from ccradar.db import Database
+from ccradar.db.keys import encrypted_columns, rotate_encryption_keys
+from ccradar.db.tenant import set_tenant
+from ccradar.models import OrgIdentityProvider
 from tests.conftest import TEST_ENCRYPTION_KEY
 from tests.helpers import make_org
 

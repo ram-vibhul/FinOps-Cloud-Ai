@@ -24,18 +24,18 @@ jobs:
       postgres:
         image: postgres:17.11-trixie
         env:
-          POSTGRES_USER: costlens
-          POSTGRES_PASSWORD: costlens
-          POSTGRES_DB: costlens_test
+          POSTGRES_USER: ccradar
+          POSTGRES_PASSWORD: ccradar
+          POSTGRES_DB: ccradar_test
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U costlens" --health-interval 5s
+          --health-cmd "pg_isready -U ccradar" --health-interval 5s
           --health-timeout 3s --health-retries 20
     defaults:
       run:
         working-directory: backend
     env:
-      COSTLENS_TEST_DATABASE_URL: ${{ matrix.database == 'postgres' && 'postgresql://costlens:costlens@localhost:5432/costlens_test' || '' }}
+      CCRADAR_TEST_DATABASE_URL: ${{ matrix.database == 'postgres' && 'postgresql://ccradar:ccradar@localhost:5432/ccradar_test' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -57,10 +57,10 @@ jobs:
         if: matrix.database != 'postgres'
         working-directory: .
         run: |
-          helm lint deploy/helm/costlens-agent --strict \
-            --set costlens.url=https://costlens.example --set costlens.token=ckt_lint_token
-          helm template t deploy/helm/costlens-agent \
-            --set costlens.url=https://costlens.example --set costlens.token=ckt_lint_token > /dev/null
+          helm lint deploy/helm/cloudcostradar-agent --strict \
+            --set ccradar.url=https://ccradar.example --set ccradar.token=ckt_lint_token
+          helm template t deploy/helm/cloudcostradar-agent \
+            --set ccradar.url=https://ccradar.example --set ccradar.token=ckt_lint_token > /dev/null
 
   frontend:
     name: Frontend
@@ -111,12 +111,12 @@ jobs:
         with:
           context: .
           load: true
-          tags: costlens:ci
+          tags: ccradar:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Smoke test
         run: |
-          docker run -d --name k -p 8000:8000 costlens:ci
+          docker run -d --name k -p 8000:8000 ccradar:ci
           for i in $(seq 1 30); do curl -fs localhost:8000/readyz && break; sleep 1; done
           curl -fs localhost:8000/api/v1/meta
           curl -fs localhost:8000/ | grep -q '<div id="root">'
@@ -125,21 +125,21 @@ jobs:
         run: |
           docker rm -f k
           cat > .env <<ENV
-          COSTLENS_IMAGE=costlens:ci
-          COSTLENS_DEPLOYMENT_MODE=self_hosted
-          COSTLENS_BASE_URL=http://localhost:8000
-          COSTLENS_SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(48))")
-          COSTLENS_ENCRYPTION_KEYS=$(python3 -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())")
+          CCRADAR_IMAGE=ccradar:ci
+          CCRADAR_DEPLOYMENT_MODE=self_hosted
+          CCRADAR_BASE_URL=http://localhost:8000
+          CCRADAR_SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(48))")
+          CCRADAR_ENCRYPTION_KEYS=$(python3 -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())")
           POSTGRES_PASSWORD=$(python3 -c "import secrets; print(secrets.token_hex(16))")
-          COSTLENS_DB_APP_PASSWORD=$(python3 -c "import secrets; print(secrets.token_hex(16))")
+          CCRADAR_DB_APP_PASSWORD=$(python3 -c "import secrets; print(secrets.token_hex(16))")
           ENV
           sed -i 's/^ *//' .env
           docker compose up -d --no-build
           for i in $(seq 1 60); do curl -fs localhost:8000/readyz && break; sleep 2; done
           curl -fs localhost:8000/readyz
           test "$(docker compose ps worker --format '{{.State}}')" = running
-          docker compose run --rm -T migrate costlens backup create /data/smoke.tar.gz
-          docker compose run --rm -T migrate costlens backup verify /data/smoke.tar.gz
+          docker compose run --rm -T migrate ccradar backup create /data/smoke.tar.gz
+          docker compose run --rm -T migrate ccradar backup verify /data/smoke.tar.gz
           ! docker compose logs worker | grep -q 'ended with status: Error'
           docker compose logs --tail 50
           docker compose down -v

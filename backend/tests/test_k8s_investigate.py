@@ -6,13 +6,13 @@ from datetime import timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from costlens.accounts.roles import Role
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.k8s.investigate import gather, investigate
-from costlens.k8s.service import ingest_events, ingest_objects
-from costlens.models import ChangeEvent, K8sCluster, K8sUsage
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.k8s.investigate import gather, investigate
+from ccradar.k8s.service import ingest_events, ingest_objects
+from ccradar.models import ChangeEvent, K8sCluster, K8sUsage
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 RS = {"kind": "ReplicaSet", "name": "api-6c", "uid": "rs"}
@@ -285,7 +285,7 @@ def test_healthy_workload(db: Database) -> None:
 
 
 def test_api_workloads_run_save_refresh_and_isolation(client: TestClient, db: Database) -> None:
-    from costlens.demo.seed import ensure_demo, load_all_seeders
+    from ccradar.demo.seed import ensure_demo, load_all_seeders
 
     load_all_seeders()
     with db.session() as s:
@@ -393,7 +393,7 @@ class FakeWriter:
 def test_ai_wording_only_when_opted_in_and_only_on_redacted_facts(
     client: TestClient, db: Database
 ) -> None:
-    from costlens.models import Organization
+    from ccradar.models import Organization
 
     org_id, owner = make_org(db, "Acme", "owner@acme.com")
     with db.session() as s:
@@ -436,7 +436,7 @@ def test_ai_wording_only_when_opted_in_and_only_on_redacted_facts(
 def test_demo_cause_and_effect_links_deploy_memory_and_ooms(
     client: TestClient, db: Database
 ) -> None:
-    from costlens.demo.seed import ensure_demo, load_all_seeders
+    from ccradar.demo.seed import ensure_demo, load_all_seeders
 
     load_all_seeders()
     with db.session() as s:
@@ -473,7 +473,7 @@ def test_demo_cause_and_effect_links_deploy_memory_and_ooms(
 
 
 def test_correlation_without_changes_or_workload(db: Database) -> None:
-    from costlens.k8s.correlate import attach, correlate
+    from ccradar.k8s.correlate import attach, correlate
 
     org_id, _ = make_org(db, "Solo", "solo@x.com")
     with db.session() as s:
@@ -497,8 +497,8 @@ def test_demo_story_does_not_depend_on_the_weekday(db: Database) -> None:
 
     from sqlalchemy import select
 
-    from costlens.demo.seed import ensure_demo, load_all_seeders, reset_demo
-    from costlens.k8s.correlate import correlate
+    from ccradar.demo.seed import ensure_demo, load_all_seeders, reset_demo
+    from ccradar.k8s.correlate import correlate
 
     load_all_seeders()
     with db.session() as s:

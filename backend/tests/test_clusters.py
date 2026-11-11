@@ -6,11 +6,11 @@ from datetime import timedelta
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.models import AuditEvent, K8sCluster, K8sObject
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.models import AuditEvent, K8sCluster, K8sObject
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 
@@ -40,7 +40,7 @@ def pod(uid: str, name: str, ns: str = "shop") -> dict:
 def test_create_returns_token_once_and_install_command(client: TestClient, db: Database) -> None:
     org_id, _, c, created = connect(client, db)
     assert created["token"].startswith("ckt_") and created["status"] == "waiting"
-    assert "helm upgrade --install costlens-agent" in created["install_command"]
+    assert "helm upgrade --install cloudcostradar-agent" in created["install_command"]
     assert created["token"] in created["install_command"]
     listed = c.get("/api/v1/clusters").json()
     assert listed[0]["name"] == "prod-eu" and "token" not in listed[0]
@@ -137,7 +137,7 @@ def test_events_upsert(client: TestClient, db: Database) -> None:
     }
     assert a.post("events", {"events": [event]}).json() == {"received": 1}
     assert a.post("events", {"events": [{**event, "count": 7}]}).json() == {"received": 1}
-    from costlens.models import K8sEvent
+    from ccradar.models import K8sEvent
 
     with db.session() as s:
         set_tenant(s, bypass=True)
@@ -195,8 +195,8 @@ def test_silent_cluster(client: TestClient, db: Database) -> None:
 def test_retention_purges_old_events_and_removed_objects_only(
     client: TestClient, db: Database
 ) -> None:
-    from costlens.models import K8sEvent
-    from costlens.privacy.retention import apply_retention
+    from ccradar.models import K8sEvent
+    from ccradar.privacy.retention import apply_retention
 
     org_id, _, _, created = connect(client, db)
     a = agent(client, created["token"])
@@ -246,10 +246,10 @@ def test_real_agent_end_to_end(client: TestClient, db: Database) -> None:
     from typing import cast
 
     import httpx
-    from costlens_agent.api import CostLensApi
-    from costlens_agent.collect import Collector
-    from costlens_agent.config import AgentConfig
-    from costlens_agent.main import SNAPSHOT_KINDS, Agent
+    from ccradar_agent.api import CloudCostRadarApi
+    from ccradar_agent.collect import Collector
+    from ccradar_agent.config import AgentConfig
+    from ccradar_agent.main import SNAPSHOT_KINDS, Agent
 
     org_id, owner, _, created = connect(client, db)
     client.cookies.clear()
@@ -298,7 +298,7 @@ def test_real_agent_end_to_end(client: TestClient, db: Database) -> None:
     )
     config = AgentConfig(url="http://testserver", token=created["token"], cluster_name="prod-eu")
     agent = Agent(
-        CostLensApi(config, http=cast("httpx.Client", client)),
+        CloudCostRadarApi(config, http=cast("httpx.Client", client)),
         Collector(listers, lambda x: x),
         lambda: "v1.33.2",
     )
@@ -369,9 +369,9 @@ def test_silent_agent_warned_once_and_back(db: Database) -> None:
 
     import httpx
 
-    from costlens.core import notify
-    from costlens.k8s.health import check_agents
-    from costlens.models import NotificationChannel
+    from ccradar.core import notify
+    from ccradar.k8s.health import check_agents
+    from ccradar.models import NotificationChannel
     from tests.conftest import public_resolver
 
     sent: list[dict] = []
@@ -410,6 +410,6 @@ def test_silent_agent_warned_once_and_back(db: Database) -> None:
         cl.last_seen_at = utcnow()
         assert check_agents(s, utcnow(), "https://x") == {"silent": 0, "back": 1}
     assert [m["blocks"][0]["text"]["text"] for m in sent] == [
-        "CostLens agent in prod stopped reporting",
-        "CostLens agent in prod is reporting again",
+        "CloudCostRadar agent in prod stopped reporting",
+        "CloudCostRadar agent in prod is reporting again",
     ]

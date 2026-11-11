@@ -82,7 +82,7 @@ export function makeMe(overrides: Partial<Me> = {}): Me {
 }
 
 export const META = {
-  product: "CostLens",
+  product: "CloudCostRadar",
   vendor: "Yugiverse",
   version: "0.1.0",
   deployment_mode: "self_hosted",

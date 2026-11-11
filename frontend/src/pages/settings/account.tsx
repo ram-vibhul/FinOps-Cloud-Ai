@@ -18,7 +18,7 @@ export function AccountTab() {
         <CardHeader>
           <CardTitle>Your data</CardTitle>
           <CardDescription>
-            Download everything CostLens stores about you: profile, sign-in methods, organisations, sessions and your
+            Download everything CloudCostRadar stores about you: profile, sign-in methods, organisations, sessions and your
             actions.
           </CardDescription>
         </CardHeader>

@@ -5,12 +5,12 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
-from costlens.accounts.roles import Role
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.k8s.promql import problem
-from costlens.k8s.service import issue_token
-from costlens.models import K8sCluster
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.k8s.promql import problem
+from ccradar.k8s.service import issue_token
+from ccradar.models import K8sCluster
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 
@@ -35,9 +35,9 @@ def test_promql_rules(q: str, ok: bool) -> None:
 
 
 def test_agent_copy_of_promql_rules_is_identical() -> None:
-    from costlens_agent import promql as agent
+    from ccradar_agent import promql as agent
 
-    from costlens.k8s import promql as server
+    from ccradar.k8s import promql as server
 
     for q in ("rate(x[2d])", "sum(x", "ok_metric", 'a{b="("}', "x[1h:5m]", "é"):
         assert agent.problem(q) == server.problem(q)

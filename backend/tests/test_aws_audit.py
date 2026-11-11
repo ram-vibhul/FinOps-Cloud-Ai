@@ -6,18 +6,18 @@ from decimal import Decimal
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.aws_audit.catalogue import CHECKS
-from costlens.aws_audit.service import run_audit
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.findings.registry import FindingIn
-from costlens.findings.service import _store
-from costlens.inventory.aws import Found
-from costlens.inventory.service import upsert
-from costlens.models import AuditResult, Finding
+from ccradar.accounts.roles import Role
+from ccradar.aws_audit.catalogue import CHECKS
+from ccradar.aws_audit.service import run_audit
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.findings.registry import FindingIn
+from ccradar.findings.service import _store
+from ccradar.inventory.aws import Found
+from ccradar.inventory.service import upsert
+from ccradar.models import AuditResult, Finding
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 
@@ -147,7 +147,7 @@ def test_every_row_ends_in_a_clear_state(db: Database) -> None:
 
 def test_detector_failure_is_reported(db: Database, monkeypatch) -> None:
     org_id, _ = _seed(db)
-    import costlens.findings.service as fs
+    import ccradar.findings.service as fs
 
     real = fs.run
     monkeypatch.setattr(
@@ -181,7 +181,7 @@ def test_api(client: TestClient, db: Database) -> None:
 
 
 def test_catalogue_covers_every_detector_once() -> None:
-    from costlens.findings.registry import load_all
+    from ccradar.findings.registry import load_all
 
     used = [d for c in CHECKS for d in c.detectors]
     assert sorted(used) == sorted(load_all()) and len({c.id for c in CHECKS}) == len(CHECKS)

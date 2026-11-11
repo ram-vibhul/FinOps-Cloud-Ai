@@ -7,12 +7,12 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.costs.tagrules import TagRule, apply_rules, canonical
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import CostLineItem
+from ccradar.accounts.roles import Role
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.costs.tagrules import TagRule, apply_rules, canonical
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import CostLineItem
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 START = date(2026, 11, 1)

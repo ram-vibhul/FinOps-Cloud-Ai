@@ -6,15 +6,15 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import select
 
-from costlens.aws_audit.service import run_audit
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.findings.service import run
-from costlens.inventory.aws import Found
-from costlens.inventory.service import upsert
-from costlens.models import AuditResult, Finding, ReliabilityTarget
+from ccradar.aws_audit.service import run_audit
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.findings.service import run
+from ccradar.inventory.aws import Found
+from ccradar.inventory.service import upsert
+from ccradar.models import AuditResult, Finding, ReliabilityTarget
 from tests.helpers import make_org
 
 EC2, RDS = "Amazon Elastic Compute Cloud", "Amazon Relational Database Service"

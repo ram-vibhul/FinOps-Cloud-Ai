@@ -15,11 +15,11 @@ describe("theme", () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
     act(() => result.current.setTheme("dark"));
     expect(document.documentElement).toHaveClass("dark");
-    expect(localStorage.getItem("costlens-theme")).toBe("dark");
+    expect(localStorage.getItem("ccradar-theme")).toBe("dark");
   });
 
   it("restores the stored theme", () => {
-    localStorage.setItem("costlens-theme", "dark");
+    localStorage.setItem("ccradar-theme", "dark");
     const { result } = renderHook(() => useTheme(), { wrapper });
     expect(result.current.resolved).toBe("dark");
   });

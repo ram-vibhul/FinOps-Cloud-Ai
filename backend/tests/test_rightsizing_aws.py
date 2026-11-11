@@ -7,17 +7,17 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.clouds.aws import metrics
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.findings.aws_usage import rds_memory_gib, smaller
-from costlens.findings.service import run
-from costlens.inventory.aws import Found
-from costlens.inventory.service import upsert
-from costlens.models import Finding, ResourceMetric
+from ccradar.accounts.roles import Role
+from ccradar.clouds.aws import metrics
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.findings.aws_usage import rds_memory_gib, smaller
+from ccradar.findings.service import run
+from ccradar.inventory.aws import Found
+from ccradar.inventory.service import upsert
+from ccradar.models import Finding, ResourceMetric
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 
@@ -249,8 +249,8 @@ def test_ec2_and_rds_detectors(db: Database) -> None:
 def test_inventory_collection_gathers_metrics_and_survives_denial(
     client: TestClient, db: Database
 ) -> None:
-    from costlens.inventory.service import collect_aws
-    from costlens.models import CloudConnection
+    from ccradar.inventory.service import collect_aws
+    from ccradar.models import CloudConnection
     from tests.fakes.aws import FakeAws
     from tests.test_inventory import FakeEC2
 
@@ -284,7 +284,7 @@ def test_inventory_collection_gathers_metrics_and_survives_denial(
 
 
 def test_demo_suggests_downsizing_the_quiet_web_server(client: TestClient, db: Database) -> None:
-    from costlens.demo.seed import ensure_demo, load_all_seeders
+    from ccradar.demo.seed import ensure_demo, load_all_seeders
 
     load_all_seeders()
     with db.session() as s:

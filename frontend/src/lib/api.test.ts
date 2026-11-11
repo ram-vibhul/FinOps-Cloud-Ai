@@ -30,13 +30,13 @@ describe("apiFetch", () => {
   });
 
   it("sends the CSRF token on unsafe requests only", async () => {
-    document.cookie = "costlens_csrf=tok123; path=/";
+    document.cookie = "ccradar_csrf=tok123; path=/";
     const spy = mockFetchJson({});
     await apiFetch("/api/x", { method: "POST", body: "{}" });
     await apiFetch("/api/x");
     expect(new Headers(spy.mock.calls[0]?.[1]?.headers).get("X-CSRF-Token")).toBe("tok123");
     expect(new Headers(spy.mock.calls[1]?.[1]?.headers).get("X-CSRF-Token")).toBeNull();
-    document.cookie = "costlens_csrf=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+    document.cookie = "ccradar_csrf=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
   });
 
   it("sends JSON content type when there is a body", async () => {

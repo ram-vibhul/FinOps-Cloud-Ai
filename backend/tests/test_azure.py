@@ -11,12 +11,12 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.clouds.azure import advisor
-from costlens.clouds.azure import costs as azure_costs
-from costlens.clouds.azure.client import AzureClient, AzureError
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import CloudConnection, CostLineItem, ExternalRecommendation
+from ccradar.clouds.azure import advisor
+from ccradar.clouds.azure import costs as azure_costs
+from ccradar.clouds.azure.client import AzureClient, AzureError
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import CloudConnection, CostLineItem, ExternalRecommendation
 from tests.helpers import make_org, sign_in_client
 
 TENANT = "11111111-1111-1111-1111-111111111111"
@@ -262,7 +262,7 @@ def test_connect_import_and_advisor(client: TestClient, db: Database) -> None:
 
 
 def test_imported_azure_advice_becomes_an_azure_finding(db: Database) -> None:
-    from costlens.findings import service
+    from ccradar.findings import service
 
     org_id, _ = make_org(db, "Acme", "o@acme.com")
     fake = FakeAzure()
@@ -283,7 +283,7 @@ def test_imported_azure_advice_becomes_an_azure_finding(db: Database) -> None:
     with db.session() as s:
         set_tenant(s, org_id=org_id)
         service.run(s, org_id, only=["aws.imported_advice"])
-        from costlens.models import Finding
+        from ccradar.models import Finding
 
         found = {f.resource_id: f for f in s.scalars(select(Finding))}
     vm = next(f for rid, f in found.items() if rid and rid.endswith("/vm1"))

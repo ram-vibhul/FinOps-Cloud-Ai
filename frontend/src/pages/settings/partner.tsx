@@ -134,7 +134,7 @@ export function PartnerTab() {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader><CardTitle>Branding</CardTitle><CardDescription>What your clients see in the header instead of CostLens.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Branding</CardTitle><CardDescription>What your clients see in the header instead of CloudCostRadar.</CardDescription></CardHeader>
         <CardContent>
           <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); void act(() => api.setBranding(brand), "Branding saved."); }}>
             <div className="grid gap-1"><Label htmlFor="br-name">Display name</Label>

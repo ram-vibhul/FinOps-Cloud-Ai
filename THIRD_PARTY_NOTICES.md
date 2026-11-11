@@ -1,6 +1,6 @@
 # Third-party notices
 
-CostLens includes the open-source components listed below. Each is
+CloudCostRadar includes the open-source components listed below. Each is
 distributed under its own licence; the full licence texts are included
 with each package (Python: `*.dist-info/`, JavaScript: the package folder)
 and are available from the project homepages.

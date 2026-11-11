@@ -8,12 +8,12 @@ import httpx
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.k8s.service import issue_token
-from costlens.models import K8sAgentTask, K8sCluster
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.k8s.service import issue_token
+from ccradar.models import K8sAgentTask, K8sCluster
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 
@@ -192,11 +192,11 @@ def test_first_scan_runs_once_after_first_full_report(client: TestClient, db: Da
 
 
 def test_real_agent_completes_a_logs_task(client: TestClient, db: Database) -> None:
-    from costlens_agent.api import CostLensApi
-    from costlens_agent.collect import Collector
-    from costlens_agent.config import AgentConfig
-    from costlens_agent.main import Agent
-    from costlens_agent.tasks import TaskApi
+    from ccradar_agent.api import CloudCostRadarApi
+    from ccradar_agent.collect import Collector
+    from ccradar_agent.config import AgentConfig
+    from ccradar_agent.main import Agent
+    from ccradar_agent.tasks import TaskApi
 
     org_id, _, member, cid, token = setup(client, db)
     tid = (
@@ -205,7 +205,7 @@ def test_real_agent_completes_a_logs_task(client: TestClient, db: Database) -> N
         .json()["id"]
     )
     client.cookies.clear()
-    api = CostLensApi(
+    api = CloudCostRadarApi(
         AgentConfig(url="http://testserver", token=token, cluster_name="prod"),
         http=cast(httpx.Client, client),
     )

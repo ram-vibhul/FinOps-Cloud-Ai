@@ -7,11 +7,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.costs import ai_insights
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.findings import service
-from costlens.models import AiUsageEvent, Finding
+from ccradar.costs import ai_insights
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.findings import service
+from ccradar.models import AiUsageEvent, Finding
 from tests.helpers import make_org, sign_in_client
 
 NOW = datetime(2026, 11, 9, 12, tzinfo=UTC)

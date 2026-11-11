@@ -9,12 +9,12 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.costs import ai_usage
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.models import AiUsageEvent
+from ccradar.costs import ai_usage
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.models import AiUsageEvent
 from tests.helpers import make_org, sign_in_client
 
 SDK = Path(__file__).resolve().parents[2] / "sdk" / "python" / "src"
@@ -76,19 +76,19 @@ def test_ingest_privacy_and_summary(client: TestClient, db: Database) -> None:
     # The real SDK, posting through the API.
     sys.path.insert(0, str(SDK))
     try:
-        from costlens_ai import Usage
+        from ccradar_ai import Usage
     finally:
         sys.path.remove(str(SDK))
 
     def transport(url: str, body: bytes, headers: dict[str, str]) -> int:
         assert url.endswith("/api/v1/ingest/ai-usage")
         return client.post(
-            url.replace("https://costlens.example", ""), content=body, headers=headers
+            url.replace("https://ccradar.example", ""), content=body, headers=headers
         ).status_code
 
     sdk = Usage(
         key,
-        "https://costlens.example",
+        "https://ccradar.example",
         app="checkout",
         team="payments",
         salt=b"s",

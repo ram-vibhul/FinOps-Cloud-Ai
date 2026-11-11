@@ -68,8 +68,8 @@ export function OutgoingWebhooksCard() {
         <CardTitle>Webhooks</CardTitle>
         <CardDescription>
           Send the same events as JSON to your own HTTPS endpoint. Each request is signed: check the
-          <code className="mx-1">X-CostLens-Signature</code>header (HMAC-SHA256 of <code>timestamp.body</code> with the secret) and
-          ignore repeats of the same <code>X-CostLens-Delivery</code>. Failed deliveries are retried for about 9 hours.
+          <code className="mx-1">X-CloudCostRadar-Signature</code>header (HMAC-SHA256 of <code>timestamp.body</code> with the secret) and
+          ignore repeats of the same <code>X-CloudCostRadar-Delivery</code>. Failed deliveries are retried for about 9 hours.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">

@@ -8,14 +8,14 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.clouds.aws import bedrock_logs, policy
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import AiUsageEvent, CloudConnection
+from ccradar.clouds.aws import bedrock_logs, policy
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import AiUsageEvent, CloudConnection
 from tests.fakes.aws import FakeAws, FakeS3
 from tests.helpers import make_org, sign_in_client
 
-ROLE = "arn:aws:iam::111111111111:role/CostLensReadOnly"
+ROLE = "arn:aws:iam::111111111111:role/CloudCostRadarReadOnly"
 BUCKET = "acme-bedrock-logs"
 SECRET_PROMPT = "Write a refund email to Meera Iyer about order 88123"
 SECRET_ANSWER = "Dear Meera, your refund of 4,250 rupees"

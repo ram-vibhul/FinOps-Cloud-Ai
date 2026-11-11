@@ -5,11 +5,11 @@ from decimal import Decimal
 
 from fastapi.testclient import TestClient
 
-from costlens.accounts.roles import Role
-from costlens.costs import fx
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
+from ccradar.accounts.roles import Role
+from ccradar.costs import fx
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 NOV = date(2026, 11, 1)

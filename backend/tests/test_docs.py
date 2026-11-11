@@ -31,9 +31,9 @@ def test_relative_links_resolve() -> None:
 
 
 def test_every_setting_is_documented() -> None:
-    from costlens.config import Settings
+    from ccradar.config import Settings
 
     text = (DOCS / "configuration.md").read_text(encoding="utf-8")
     for name in Settings.model_fields:
-        assert f"`COSTLENS_{name.upper()}`" in text, name
+        assert f"`CCRADAR_{name.upper()}`" in text, name
     assert "| — |" not in text  # every setting has a description

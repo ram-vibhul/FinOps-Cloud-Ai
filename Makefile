@@ -9,7 +9,7 @@ setup:
 	cd frontend && npm ci
 
 dev-api:
-	cd backend && .venv/bin/costlens migrate && COSTLENS_LOCAL_LOGIN=true .venv/bin/costlens serve --reload
+	cd backend && .venv/bin/ccradar migrate && CCRADAR_LOCAL_LOGIN=true .venv/bin/ccradar serve --reload
 
 dev-ui:
 	cd frontend && npm run dev
@@ -19,8 +19,8 @@ lint:
 	cd agent && ../$(PY)/ruff format --check . && ../$(PY)/ruff check . && ../$(PY)/pyright
 	cd sdk/python && ../../$(PY)/ruff format --check . && ../../$(PY)/ruff check . && ../../$(PY)/pyright
 	cd sdk/typescript && ../../frontend/node_modules/.bin/tsc -p tsconfig.json
-	@command -v helm >/dev/null && helm lint deploy/helm/costlens-agent --quiet \
-	  --set costlens.url=https://costlens.example --set costlens.token=ckt_lint_token || true
+	@command -v helm >/dev/null && helm lint deploy/helm/cloudcostradar-agent --quiet \
+	  --set ccradar.url=https://ccradar.example --set ccradar.token=ckt_lint_token || true
 	cd frontend && npm run lint && npm run typecheck
 
 test:
@@ -31,17 +31,17 @@ test:
 	cd frontend && npm test
 
 # Backend tests against a throwaway PostgreSQL 17 container (needs Docker).
-PG_TEST_URL := postgresql://costlens:costlens@localhost:55432/costlens_test
+PG_TEST_URL := postgresql://ccradar:ccradar@localhost:55432/ccradar_test
 test-pg:
-	@docker inspect costlens-pgtest >/dev/null 2>&1 || docker run -d --name costlens-pgtest \
-	  -e POSTGRES_USER=costlens -e POSTGRES_PASSWORD=costlens -e POSTGRES_DB=costlens_test \
+	@docker inspect ccradar-pgtest >/dev/null 2>&1 || docker run -d --name ccradar-pgtest \
+	  -e POSTGRES_USER=ccradar -e POSTGRES_PASSWORD=ccradar -e POSTGRES_DB=ccradar_test \
 	  -p 55432:5432 postgres:17.11-trixie >/dev/null
-	@docker start costlens-pgtest >/dev/null
-	@until docker exec costlens-pgtest pg_isready -U costlens -d costlens_test >/dev/null 2>&1; do sleep 1; done
-	cd backend && COSTLENS_TEST_DATABASE_URL=$(PG_TEST_URL) .venv/bin/pytest
+	@docker start ccradar-pgtest >/dev/null
+	@until docker exec ccradar-pgtest pg_isready -U ccradar -d ccradar_test >/dev/null 2>&1; do sleep 1; done
+	cd backend && CCRADAR_TEST_DATABASE_URL=$(PG_TEST_URL) .venv/bin/pytest
 
 pg-stop:
-	-docker rm -f costlens-pgtest
+	-docker rm -f ccradar-pgtest
 
 build:
 	cd frontend && npm run build
@@ -56,5 +56,5 @@ notices:
 	$(PY)/python tools/third_party_notices.py
 
 image:
-	docker build -t costlens:dev .
-	docker build -f agent/Dockerfile -t costlens-agent:dev .
+	docker build -t ccradar:dev .
+	docker build -f agent/Dockerfile -t cloudcostradar-agent:dev .

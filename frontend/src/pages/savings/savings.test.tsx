@@ -265,7 +265,7 @@ describe("ROI pack", () => {
     expect(await screen.findByText("6×")).toBeInTheDocument();
     expect(screen.getByText("Downsize i-1")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /PDF/ })).toHaveAttribute("href", "/api/v1/roi/pack.pdf?");
-    expect(screen.getByRole("form", { name: "CostLens price" })).toBeInTheDocument();
+    expect(screen.getByRole("form", { name: "CloudCostRadar price" })).toBeInTheDocument();
   });
 });
 
@@ -304,7 +304,7 @@ describe("automatic fixes", () => {
     });
     renderRoute("/savings");
     await userEvent.click(await screen.findByRole("button", { name: /Delete unattached volume vol-1/ }));
-    await userEvent.click(await screen.findByRole("button", { name: "Ask CostLens to fix this" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Ask CloudCostRadar to fix this" }));
     await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/findings/f7/fix")).toBe(true));
   });
 });

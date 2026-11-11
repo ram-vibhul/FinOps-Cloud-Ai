@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate THIRD_PARTY_NOTICES.md from installed runtime dependencies.
 
-Python: walks the runtime dependency closure of the ``costlens`` distribution in
+Python: walks the runtime dependency closure of the ``ccradar`` distribution in
 the active environment (dev-only tools are excluded).
 JavaScript: walks the production dependency closure of frontend/package.json
 using frontend/node_modules.
@@ -56,7 +56,7 @@ def python_licence(dist: metadata.Distribution) -> str:
     return raw[0][:60] if raw else "UNKNOWN"
 
 
-def python_packages(root: str = "costlens") -> list[tuple[str, str, str]]:
+def python_packages(root: str = "ccradar") -> list[tuple[str, str, str]]:
     seen: dict[str, metadata.Distribution] = {}
     stack = [(root, frozenset[str]())]
     while stack:
@@ -75,7 +75,7 @@ def python_packages(root: str = "costlens") -> list[tuple[str, str, str]]:
             if req.marker and not any(req.marker.evaluate(env) for env in envs):
                 continue
             if key == root and req.marker and "extra" in str(req.marker):
-                continue  # skip costlens[dev]
+                continue  # skip ccradar[dev]
             stack.append((req.name, frozenset(req.extras)))
     seen.pop(root, None)
     return sorted(
@@ -109,7 +109,7 @@ def render(py: list[tuple[str, str, str]], js: list[tuple[str, str, str]]) -> st
     lines = [
         "# Third-party notices",
         "",
-        "CostLens includes the open-source components listed below. Each is",
+        "CloudCostRadar includes the open-source components listed below. Each is",
         "distributed under its own licence; the full licence texts are included",
         "with each package (Python: `*.dist-info/`, JavaScript: the package folder)",
         "and are available from the project homepages.",

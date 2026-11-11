@@ -3,8 +3,8 @@ from __future__ import annotations
 import httpx
 from fastapi.testclient import TestClient
 
-from costlens.accounts.roles import Role
-from costlens.db import Database
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 
@@ -55,7 +55,7 @@ def test_domain_verification_by_dns_txt(client: TestClient, db: Database) -> Non
     d = c.post("/api/v1/org/domains", json={"domain": "@Acme.COM."}).json()
     assert d["domain"] == "acme.com" and d["verified_at"] is None
     rec = d["record"]
-    assert rec["name"] == "_costlens-verification.acme.com" and rec["type"] == "TXT"
+    assert rec["name"] == "_ccradar-verification.acme.com" and rec["type"] == "TXT"
     first = c.post(f"/api/v1/org/domains/{d['id']}/verify").json()
     assert first["verified_at"] is None and "not found" in first["last_error"]
     fake.records[rec["name"]] = ["v=spf1 -all", rec["value"]]
@@ -66,5 +66,5 @@ def test_domain_verification_by_dns_txt(client: TestClient, db: Database) -> Non
     other_id, other = make_org(db, "Rival", "r@rival.com")
     o = sign_in_client(client, db, other, other_id)
     od = o.post("/api/v1/org/domains", json={"domain": "acme.com"}).json()
-    fake.records["_costlens-verification.acme.com"].append(od["record"]["value"])
+    fake.records["_ccradar-verification.acme.com"].append(od["record"]["value"])
     assert o.post(f"/api/v1/org/domains/{od['id']}/verify").json()["code"] == "domain_taken"

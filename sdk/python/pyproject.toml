@@ -1,9 +1,9 @@
 [project]
-name = "costlens-ai"
+name = "ccradar-ai"
 version = "0.1.0"
-description = "Report AI/LLM token usage to CostLens: counts and salted fingerprints only, never prompt text."
+description = "Report AI/LLM token usage to CloudCostRadar: counts and salted fingerprints only, never prompt text."
 requires-python = ">=3.10"
-license = { text = "Proprietary (see the CostLens LICENSE); open-source licence pending, tracker Q13" }
+license = { text = "Proprietary (see the CloudCostRadar LICENSE); open-source licence pending, tracker Q13" }
 dependencies = []
 
 [build-system]

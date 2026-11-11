@@ -33,7 +33,7 @@ export function FixesDialog({ connection, isOwner }: { connection: CloudConnecti
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild><Button variant="ghost" size="sm">Automatic fixes</Button></DialogTrigger>
       <DialogContent title="Automatic fixes (opt-in)"
-        description="Off by default. When on, CostLens may stop idle instances, release idle Elastic IPs and delete unattached volumes (after a snapshot), but only after a second person approves each fix, and never on resources tagged costlens-protect = true.">
+        description="Off by default. When on, CloudCostRadar may stop idle instances, release idle Elastic IPs and delete unattached volumes (after a snapshot), but only after a second person approves each fix, and never on resources tagged ccradar-protect = true.">
         {s?.enabled && s.settings ? (
           <div className="grid gap-2 text-sm">
             <p>On until <b>{new Date(s.settings.expires_at).toLocaleString()}</b>, at most {s.settings.max_actions_per_day} fix(es) a day, using <code className="break-all">{s.settings.role_arn}</code>.</p>
@@ -51,7 +51,7 @@ export function FixesDialog({ connection, isOwner }: { connection: CloudConnecti
                 void run(() => api.enableFixes(connection.id, { role_arn: roleArn.trim(), days, max_actions_per_day: perDay, spend_limit_monthly: spend, auto_request: auto, confirm }), "Automatic fixes are on.");
               }}>
                 <div className="grid gap-1"><Label htmlFor="fx-role">Fixes role ARN</Label>
-                  <Input id="fx-role" required value={roleArn} onChange={(e) => setRoleArn(e.target.value)} placeholder="arn:aws:iam::123456789012:role/CostLensFixes" /></div>
+                  <Input id="fx-role" required value={roleArn} onChange={(e) => setRoleArn(e.target.value)} placeholder="arn:aws:iam::123456789012:role/CloudCostRadarFixes" /></div>
                 <div className="flex gap-2">
                   <div className="grid gap-1"><Label htmlFor="fx-days">For (days)</Label>
                     <Input id="fx-days" type="number" min={1} max={90} className="w-24" value={days} onChange={(e) => setDays(Number(e.target.value))} /></div>
@@ -63,7 +63,7 @@ export function FixesDialog({ connection, isOwner }: { connection: CloudConnecti
                 <label className="flex items-start gap-2"><input type="checkbox" className="mt-1" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
                   Auto clean-up: file requests for resources idle for a week (each still needs approval).</label>
                 <label className="flex items-start gap-2"><input type="checkbox" className="mt-1" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} />
-                  I allow CostLens to change resources in this AWS account as described above.</label>
+                  I allow CloudCostRadar to change resources in this AWS account as described above.</label>
                 <Button type="submit" disabled={!confirm}>Turn on automatic fixes</Button>
               </form>
             ) : (

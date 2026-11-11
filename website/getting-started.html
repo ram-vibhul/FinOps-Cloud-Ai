@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Getting started · CostLens</title>
+  <title>Getting started · CloudCostRadar</title>
   <meta name="description" content="Connect a cloud account and see your first savings in minutes.">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
   <header>
-    <a class="logo" href="index.html">CostLens</a>
+    <a class="logo" href="index.html">CloudCostRadar</a>
     <nav aria-label="Main">
       <ul>
         <li><a href="index.html">Product</a></li>
@@ -27,19 +27,19 @@
     <h2>Hosted</h2>
     <ol class="steps">
       <li><strong>Sign up</strong> with Google or your company's single sign-on, and create your organisation. You can explore a demo organisation with sample data first.</li>
-      <li><strong>Connect a cloud account.</strong> For AWS, CostLens gives you a CloudFormation or Terraform template that creates a read-only role; Azure uses a service principal with reader roles, Google Cloud a service account with BigQuery billing export access.</li>
+      <li><strong>Connect a cloud account.</strong> For AWS, CloudCostRadar gives you a CloudFormation or Terraform template that creates a read-only role; Azure uses a service principal with reader roles, Google Cloud a service account with BigQuery billing export access.</li>
       <li><strong>See your first savings.</strong> The first import, the cloud's own recommendations and every saving check run straight away; you are notified when the savings are ready.</li>
       <li><strong>Invite your team</strong>, set a budget, and send alerts to Slack or Microsoft Teams. The guided setup in the app ticks each step off by itself.</li>
     </ol>
     <h2>In your own environment</h2>
     <p>You need Docker. The included Compose file runs the web app, the background worker and PostgreSQL 17.</p>
     <pre><code>docker compose up -d
-docker compose exec web costlens platform-admin add you@example.com</code></pre>
-    <p>Without a licence, CostLens runs its free tier. Install a licence key with <code>costlens licence install FILE</code> or in the app.</p>
+docker compose exec web ccradar platform-admin add you@example.com</code></pre>
+    <p>Without a licence, CloudCostRadar runs its free tier. Install a licence key with <code>ccradar licence install FILE</code> or in the app.</p>
     <p class="note">The full installation guide is part of the product documentation.</p>
   </main>
   <footer>
-    <p>CostLens is made by Yugiverse. <a href="security.html">Security</a> · <a href="support.html">Support</a> · <a href="changelog.html">What's new</a></p>
+    <p>CloudCostRadar is made by Yugiverse. <a href="security.html">Security</a> · <a href="support.html">Support</a> · <a href="changelog.html">What's new</a></p>
   </footer>
 </body>
 </html>

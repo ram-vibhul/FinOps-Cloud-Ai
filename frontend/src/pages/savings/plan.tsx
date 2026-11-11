@@ -12,7 +12,7 @@ export function QuickWinsCard({ reloadKey }: { reloadKey: unknown }) {
     <Card>
       <CardHeader>
         <CardTitle>Plan</CardTitle>
-        <CardDescription>Open savings sorted by effort, risk and how sure CostLens is.</CardDescription>
+        <CardDescription>Open savings sorted by effort, risk and how sure CloudCostRadar is.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4 md:grid-cols-3">
         {p.buckets.map((b) => (

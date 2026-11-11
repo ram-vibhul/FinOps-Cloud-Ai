@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: app
-  labels: {costlens-lab: "bad-config"}
+  labels: {ccradar-lab: "bad-config"}
 spec:
   replicas: 1
   selector: {matchLabels: {app: lab}}

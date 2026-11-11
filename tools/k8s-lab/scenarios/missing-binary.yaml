@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: app
-  labels: {costlens-lab: "missing-binary"}
+  labels: {ccradar-lab: "missing-binary"}
 spec:
   replicas: 1
   selector: {matchLabels: {app: lab}}

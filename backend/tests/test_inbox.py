@@ -5,13 +5,13 @@ from datetime import timedelta
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.core.email import MemorySender, configure_email
-from costlens.core.notify import Message, notify
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.models import CloudConnection, InboxItem
+from ccradar.accounts.roles import Role
+from ccradar.core.email import MemorySender, configure_email
+from ccradar.core.notify import Message, notify
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.models import CloudConnection, InboxItem
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 
@@ -98,7 +98,7 @@ def test_preferences_mute_the_inbox_and_add_email(client: TestClient, db: Databa
     send(db, org_id, "cost_anomaly", "Spike")
     assert inbox_of(db, viewer) == [("cost_anomaly", "Spike")]
     mails = [m for m in outbox.outbox if m.to == "v@acme.com"]
-    assert [m.subject for m in mails] == ["CostLens: Over budget"]
+    assert [m.subject for m in mails] == ["CloudCostRadar: Over budget"]
     assert "/costs" in mails[0].text and "Notifications" in mails[0].text
 
 
@@ -117,7 +117,7 @@ def test_invitation_reaches_an_existing_users_inbox(client: TestClient, db: Data
 
 
 def test_import_failures_and_first_import_are_notified(client: TestClient, db: Database) -> None:
-    from costlens.jobs.costs import _connection_state, _report_connection
+    from ccradar.jobs.costs import _connection_state, _report_connection
 
     org_id, owner = make_org(db, "Acme", "o@acme.com")
     with db.session() as s:
@@ -151,7 +151,7 @@ def test_import_failures_and_first_import_are_notified(client: TestClient, db: D
 
 
 def test_old_notifications_follow_the_retention_setting(db: Database) -> None:
-    from costlens.privacy.retention import apply_retention
+    from ccradar.privacy.retention import apply_retention
 
     org_id, owner = make_org(db, "Acme", "o@acme.com")
     send(db, org_id, "budget_alert", "Old")

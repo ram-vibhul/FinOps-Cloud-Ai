@@ -8,13 +8,13 @@ from fastapi import APIRouter
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
-from costlens.config import Settings
-from costlens.core.errors import ConflictError
-from costlens.core.logging import JsonFormatter, RequestIdFilter, request_id_var
-from costlens.core.metrics import Counter, Histogram, Registry
-from costlens.db import Database
-from costlens.jobs import InProcessRunner
-from costlens.main import create_app
+from ccradar.config import Settings
+from ccradar.core.errors import ConflictError
+from ccradar.core.logging import JsonFormatter, RequestIdFilter, request_id_var
+from ccradar.core.metrics import Counter, Histogram, Registry
+from ccradar.db import Database
+from ccradar.jobs import InProcessRunner
+from ccradar.main import create_app
 
 
 class Item(BaseModel):
@@ -75,7 +75,7 @@ def test_app_error_keeps_code(settings: Settings, db: Database) -> None:
 def test_unhandled_error_hides_details_and_keeps_headers(
     settings: Settings, db: Database, caplog: pytest.LogCaptureFixture
 ) -> None:
-    with caplog.at_level(logging.ERROR, logger="costlens.errors"), make_client(settings, db) as c:
+    with caplog.at_level(logging.ERROR, logger="ccradar.errors"), make_client(settings, db) as c:
         response = c.get("/api/v1/_test/boom")
     assert response.status_code == 500
     body = response.json()
@@ -89,7 +89,7 @@ def test_unhandled_error_hides_details_and_keeps_headers(
 
 
 def test_json_formatter_includes_request_id_and_extra() -> None:
-    record = logging.LogRecord("costlens.test", logging.INFO, __file__, 1, "hello %s", ("w",), None)
+    record = logging.LogRecord("ccradar.test", logging.INFO, __file__, 1, "hello %s", ("w",), None)
     record.status = 200
     token = request_id_var.set("req-1")
     try:
@@ -106,9 +106,9 @@ def test_json_formatter_includes_request_id_and_extra() -> None:
 def test_access_log_has_route_template(
     settings: Settings, db: Database, caplog: pytest.LogCaptureFixture
 ) -> None:
-    with caplog.at_level(logging.INFO, logger="costlens.access"), make_client(settings, db) as c:
+    with caplog.at_level(logging.INFO, logger="ccradar.access"), make_client(settings, db) as c:
         c.post("/api/v1/_test/items/42", json={"name": "x", "qty": 1})
-    record = next(r for r in caplog.records if r.name == "costlens.access")
+    record = next(r for r in caplog.records if r.name == "ccradar.access")
     assert record.route == "/api/v1/_test/items/{item_id}"  # type: ignore[attr-defined]
     assert record.status == 200  # type: ignore[attr-defined]
 
@@ -134,9 +134,9 @@ def test_metrics_open_in_local_mode(client: TestClient) -> None:
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/plain")
     text = response.text
-    assert 'costlens_http_requests_total{method="GET",route="/healthz",status="200"}' in text
-    assert "costlens_http_request_duration_seconds_bucket" in text
-    assert 'costlens_build_info{version="0.1.0",mode="local"} 1' in text
+    assert 'ccradar_http_requests_total{method="GET",route="/healthz",status="200"}' in text
+    assert "ccradar_http_request_duration_seconds_bucket" in text
+    assert 'ccradar_build_info{version="0.1.0",mode="local"} 1' in text
 
 
 def test_metrics_requires_token_when_configured(settings: Settings, db: Database) -> None:
@@ -150,7 +150,7 @@ def test_metrics_requires_token_when_configured(settings: Settings, db: Database
 
 
 def test_metrics_hidden_in_production_without_token(settings: Settings, db: Database) -> None:
-    from costlens.config import DeploymentMode
+    from ccradar.config import DeploymentMode
 
     settings.deployment_mode = DeploymentMode.SELF_HOSTED
     with TestClient(create_app(settings, db=db, runner=InProcessRunner())) as c:
@@ -182,8 +182,8 @@ def test_registry_rendering() -> None:
 
 
 def test_job_metrics_recorded() -> None:
-    from costlens.core.metrics import JOBS
-    from costlens.jobs import JobRegistry, job
+    from ccradar.core.metrics import JOBS
+    from ccradar.jobs import JobRegistry, job
 
     reg = JobRegistry()
     job("metric_ok", into=reg)(lambda: None)

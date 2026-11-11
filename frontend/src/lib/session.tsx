@@ -26,7 +26,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setCsrfToken(undefined);
       if (error instanceof ApiError && error.status === 401) setState({ status: "anonymous" });
-      else setState({ status: "error", message: "Could not reach CostLens. Check your connection." });
+      else setState({ status: "error", message: "Could not reach CloudCostRadar. Check your connection." });
     }
   }, []);
 

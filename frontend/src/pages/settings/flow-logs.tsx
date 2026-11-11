@@ -39,7 +39,7 @@ export function FlowLogsDialog({ connection }: { connection: CloudConnection }) 
         <Button variant="ghost" size="sm">Flow logs</Button>
       </DialogTrigger>
       <DialogContent title={`VPC Flow Logs for ${connection.name}`}
-        description="CostLens reads a day of flow records to show which workloads cause NAT, cross-zone and internet transfer cost. Read-only.">
+        description="CloudCostRadar reads a day of flow records to show which workloads cause NAT, cross-zone and internet transfer cost. Read-only.">
         {state && (
           <div className="grid gap-3 text-sm">
             <p>{state.enabled ? "Attribution is on." : "Attribution is off."}
@@ -72,7 +72,7 @@ export function FlowLogsDialog({ connection }: { connection: CloudConnection }) 
             </div>
             {state.policy_statements.length > 0 && (
               <div className="grid gap-1">
-                <p className="font-medium">Add to the CostLens role so it can read these logs:</p>
+                <p className="font-medium">Add to the CloudCostRadar role so it can read these logs:</p>
                 <pre className="max-h-40 overflow-auto rounded bg-muted p-2 text-xs">{JSON.stringify(state.policy_statements, null, 2)}</pre>
               </div>
             )}

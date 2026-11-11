@@ -5,12 +5,12 @@ from decimal import Decimal
 
 from fastapi.testclient import TestClient
 
-from costlens.costs import alerts, digest
-from costlens.costs.anomalies import detect
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import Organization
+from ccradar.costs import alerts, digest
+from ccradar.costs.anomalies import detect
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import Organization
 from tests.helpers import make_org, sign_in_client
 
 END = date(2026, 11, 8)  # Sunday
@@ -74,22 +74,22 @@ def test_digest_numbers_channels_email_and_once_a_week(
         n = digest.send(
             s,
             org_id,
-            "https://costlens.example",
+            "https://ccradar.example",
             date(2026, 11, 9),
             lambda name, **kw: queued.append(kw),
         )
         again = digest.send(
             s,
             org_id,
-            "https://costlens.example",
+            "https://ccradar.example",
             date(2026, 11, 11),
             lambda name, **kw: queued.append(kw),
         )
-        next_week = digest.send(s, org_id, "https://costlens.example", date(2026, 11, 16), None)
+        next_week = digest.send(s, org_id, "https://ccradar.example", date(2026, 11, 16), None)
     assert n == 2 and again == 0 and next_week == 1  # channel + one email; then once a week
     event, messages = posted[0]
     assert event == "weekly_digest" and messages[0].title == "Acme: weekly cost digest"
-    assert messages[0].link == "https://costlens.example/costs" and messages[0].severity == "info"
+    assert messages[0].link == "https://ccradar.example/costs" and messages[0].severity == "info"
     assert queued[0]["message"]["to"] == "o@acme.com"
     assert queued[0]["message"]["subject"] == "Acme: weekly cost digest"
 
@@ -110,14 +110,14 @@ def test_anomaly_alerts_also_go_to_channels(db: Database, monkeypatch) -> None:
     load(db, org_id)
     posted: list[tuple[str, list]] = []
     monkeypatch.setattr(
-        "costlens.core.notify.notify",
+        "ccradar.core.notify.notify",
         lambda db, event, messages: posted.append((event, list(messages))) or 1,
     )
     with db.session() as s:
         created = detect(s, org_id)
         assert created
-        emails = alerts.pending_alert(s, org_id, "https://costlens.example")
+        emails = alerts.pending_alert(s, org_id, "https://ccradar.example")
     assert emails and emails[0].to == "o@acme.com"
     event, messages = posted[0]
     assert event == "cost_anomaly" and messages[0].title == emails[0].subject
-    assert "Amazon EC2" in messages[0].text and messages[0].link == "https://costlens.example/costs"
+    assert "Amazon EC2" in messages[0].text and messages[0].link == "https://ccradar.example/costs"

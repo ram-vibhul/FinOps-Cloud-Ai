@@ -6,21 +6,21 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.clouds.aws import policy
-from costlens.clouds.aws.client import AwsAccessError, account_from_arn
-from costlens.config import Settings
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.jobs import InProcessRunner
-from costlens.main import create_app
-from costlens.models import CloudAccount
+from ccradar.accounts.roles import Role
+from ccradar.clouds.aws import policy
+from ccradar.clouds.aws.client import AwsAccessError, account_from_arn
+from ccradar.config import Settings
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.jobs import InProcessRunner
+from ccradar.main import create_app
+from ccradar.models import CloudAccount
 from tests.conftest import offline_http_client, public_resolver
 from tests.fakes.aws import FakeAws
 from tests.helpers import add_to_org, make_org, sign_in_client
 
-PRINCIPAL = "arn:aws:iam::999999999999:role/costlens-collector"
-ROLE = "arn:aws:iam::123456789012:role/CostLensReadOnly"
+PRINCIPAL = "arn:aws:iam::999999999999:role/ccradar-collector"
+ROLE = "arn:aws:iam::123456789012:role/CloudCostRadarReadOnly"
 
 
 @pytest.fixture
@@ -59,11 +59,11 @@ def test_policy_is_read_only() -> None:
 
 
 def test_cur_bucket_access_is_scoped_to_prefix() -> None:
-    doc = policy.policy_document("acme-billing", "/cur/costlens/")
+    doc = policy.policy_document("acme-billing", "/cur/ccradar/")
     stmt = next(s for s in doc["Statement"] if s["Sid"] == "ReadCostAndUsageExport")
     assert stmt["Resource"] == [
         "arn:aws:s3:::acme-billing",
-        "arn:aws:s3:::acme-billing/cur/costlens/*",
+        "arn:aws:s3:::acme-billing/cur/ccradar/*",
     ]
 
 
@@ -71,12 +71,12 @@ def test_trust_policy_requires_external_id() -> None:
     template = json.loads(
         policy.cloudformation_template(principal_arn=PRINCIPAL, external_id="ext-1")
     )
-    trust = template["Resources"]["CostLensRole"]["Properties"]["AssumeRolePolicyDocument"]
+    trust = template["Resources"]["CloudCostRadarRole"]["Properties"]["AssumeRolePolicyDocument"]
     stmt = trust["Statement"][0]
     assert stmt["Principal"] == {"AWS": PRINCIPAL}
     assert stmt["Condition"] == {"StringEquals": {"sts:ExternalId": "ext-1"}}
     tf = policy.terraform_module(principal_arn=PRINCIPAL, external_id="ext-1")
-    assert '"sts:ExternalId": "ext-1"' in tf and 'resource "aws_iam_role" "costlens"' in tf
+    assert '"sts:ExternalId": "ext-1"' in tf and 'resource "aws_iam_role" "ccradar"' in tf
 
 
 @pytest.mark.parametrize(
@@ -103,10 +103,10 @@ def test_connect_flow(env) -> None:
         "/api/v1/connections/aws",
         json={"name": "Production", "cur_bucket": "acme-cur", "cur_prefix": "exports"},
     ).json()
-    assert conn["status"] == "pending" and conn["external_id"].startswith("costlens-")
+    assert conn["status"] == "pending" and conn["external_id"].startswith("ccradar-")
     setup = c.get(f"/api/v1/connections/{conn['id']}/aws-setup").json()
     template = json.loads(setup["cloudformation"])
-    trust = template["Resources"]["CostLensRole"]["Properties"]["AssumeRolePolicyDocument"]
+    trust = template["Resources"]["CloudCostRadarRole"]["Properties"]["AssumeRolePolicyDocument"]
     assert (
         trust["Statement"][0]["Condition"]["StringEquals"]["sts:ExternalId"] == conn["external_id"]
     )
@@ -207,7 +207,7 @@ def test_boto3_gateway_maps_errors_and_caches(monkeypatch: pytest.MonkeyPatch) -
     import boto3
     from botocore.stub import Stubber
 
-    from costlens.clouds.aws.client import Boto3Gateway
+    from ccradar.clouds.aws.client import Boto3Gateway
 
     sts = boto3.client(
         "sts", region_name="us-east-1", aws_access_key_id="x", aws_secret_access_key="y"
@@ -230,8 +230,8 @@ def test_boto3_gateway_maps_errors_and_caches(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(boto3, "client", lambda *a, **k: sts)
     gateway = Boto3Gateway()
     with pytest.raises(AwsAccessError) as exc:
-        gateway.assume(ROLE, "ext", "costlens-test")
+        gateway.assume(ROLE, "ext", "ccradar-test")
     assert exc.value.code == "access_denied"
-    first = gateway.assume(ROLE, "ext", "costlens-test")
-    assert gateway.assume(ROLE, "ext", "costlens-test") is first  # cached until near expiry
+    first = gateway.assume(ROLE, "ext", "ccradar-test")
+    assert gateway.assume(ROLE, "ext", "ccradar-test") is first  # cached until near expiry
     stub.assert_no_pending_responses()

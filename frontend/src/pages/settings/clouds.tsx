@@ -83,7 +83,7 @@ export function CloudsTab() {
         <div>
           <h2 className="text-lg font-semibold">Cloud accounts</h2>
           <p className="text-sm text-muted-foreground">
-            CostLens reads cost and resource information through a read-only role you create. It never changes anything.
+            CloudCostRadar reads cost and resource information through a read-only role you create. It never changes anything.
           </p>
         </div>
         {canManage && (
@@ -212,7 +212,7 @@ function AddAwsDialog({ onCreated }: { onCreated: (c: CloudConnection) => void }
           </div>
           <div className="grid gap-2">
             <Label htmlFor="aws-prefix">Export path prefix (optional)</Label>
-            <Input id="aws-prefix" placeholder="cur/costlens" value={prefix} onChange={(e) => setPrefix(e.target.value)} />
+            <Input id="aws-prefix" placeholder="cur/ccradar" value={prefix} onChange={(e) => setPrefix(e.target.value)} />
           </div>
           <Button type="submit">Continue</Button>
         </form>
@@ -255,25 +255,25 @@ function AwsSetupDialog({ connection, onClose, onVerified }: {
                 Download a template and deploy it in the AWS account:
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Button type="button" variant="outline" size="sm"
-                    onClick={() => downloadText("costlens-read-only.json", setup.data!.cloudformation)}>
+                    onClick={() => downloadText("ccradar-read-only.json", setup.data!.cloudformation)}>
                     <Download /> CloudFormation
                   </Button>
                   <Button type="button" variant="outline" size="sm"
-                    onClick={() => downloadText("costlens-read-only.tf", setup.data!.terraform)}>
+                    onClick={() => downloadText("ccradar-read-only.tf", setup.data!.terraform)}>
                     <Download /> Terraform
                   </Button>
                 </div>
                 <code className="mt-2 block overflow-x-auto rounded bg-muted p-2 text-xs">{setup.data.cli_command}</code>
               </li>
               <li>
-                The role trusts only CostLens and only with this external ID:{" "}
+                The role trusts only CloudCostRadar and only with this external ID:{" "}
                 <code className="break-all text-xs">{setup.data.external_id}</code>
               </li>
               <li>Copy the role ARN from the stack outputs and paste it below.</li>
             </ol>
             <form onSubmit={(e) => void verify(e)} className="grid gap-2">
               <Label htmlFor="role-arn">Role ARN</Label>
-              <Input id="role-arn" placeholder="arn:aws:iam::123456789012:role/CostLensReadOnly" value={roleArn}
+              <Input id="role-arn" placeholder="arn:aws:iam::123456789012:role/CloudCostRadarReadOnly" value={roleArn}
                 onChange={(e) => setRoleArn(e.target.value)} required />
               {problem && <p role="alert" className="text-sm text-destructive">{problem}</p>}
               <Button type="submit" disabled={busy}>Verify and connect</Button>
@@ -331,7 +331,7 @@ function PermissionsDialog({ connection }: { connection: CloudConnection }) {
             </ul>
             {report.policy_snippet && (
               <div className="grid gap-1">
-                <p className="text-sm font-medium">Add this statement to the CostLens role to fix what is missing:</p>
+                <p className="text-sm font-medium">Add this statement to the CloudCostRadar role to fix what is missing:</p>
                 <pre className="max-h-40 overflow-auto rounded bg-muted p-2 text-xs">{report.policy_snippet}</pre>
               </div>
             )}

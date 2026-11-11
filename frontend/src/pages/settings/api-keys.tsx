@@ -91,10 +91,10 @@ export function ApiKeysTab() {
         <details className="text-sm">
           <summary className="cursor-pointer">Connect an AI assistant (MCP)</summary>
           <p className="mt-2 text-muted-foreground">
-            CostLens is a read-only MCP server at <code>{`${window.location.origin}/mcp`}</code>. Create a <b>Read</b> key and add the server to your assistant, for example:
+            CloudCostRadar is a read-only MCP server at <code>{`${window.location.origin}/mcp`}</code>. Create a <b>Read</b> key and add the server to your assistant, for example:
           </p>
           <pre aria-label="MCP configuration" className="mt-2 overflow-auto rounded-md bg-muted p-2 text-xs">{JSON.stringify(
-            { mcpServers: { costlens: { type: "http", url: `${window.location.origin}/mcp`, headers: { Authorization: "Bearer clk_…" } } } }, null, 2)}</pre>
+            { mcpServers: { ccradar: { type: "http", url: `${window.location.origin}/mcp`, headers: { Authorization: "Bearer clk_…" } } } }, null, 2)}</pre>
         </details>
       </CardContent>
     </Card>

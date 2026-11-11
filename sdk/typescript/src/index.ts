@@ -1,8 +1,8 @@
 /**
- * Report AI/LLM usage to CostLens.
+ * Report AI/LLM usage to CloudCostRadar.
  *
- *   import { Usage } from "@costlens/ai";
- *   const usage = new Usage({ apiKey: process.env.COSTLENS_AI_KEY!, url: "https://costlens.example.com", app: "checkout" });
+ *   import { Usage } from "@ccradar/ai";
+ *   const usage = new Usage({ apiKey: process.env.CCRADAR_AI_KEY!, url: "https://ccradar.example.com", app: "checkout" });
  *   const res = await anthropic.messages.create({ ... });
  *   usage.fromAnthropic(res, { feature: "summaries", prompt });
  *   await usage.close();
@@ -64,7 +64,7 @@ export function fingerprint(prompt: string, salt: Uint8Array): string {
 }
 
 const fetchTransport: Transport = async (url, body, headers) => {
-  if (!url.startsWith("https://") && !url.startsWith("http://localhost")) throw new Error("CostLens URL must use https");
+  if (!url.startsWith("https://") && !url.startsWith("http://localhost")) throw new Error("CloudCostRadar URL must use https");
   const res = await fetch(url, { method: "POST", body, headers, signal: AbortSignal.timeout(10_000) });
   return res.status;
 };
@@ -82,7 +82,7 @@ export class Usage {
   #failures = 0;
 
   constructor(opts: UsageOptions) {
-    if (!opts.apiKey?.startsWith("clai_")) throw new Error("use a CostLens AI usage key (starts with clai_)");
+    if (!opts.apiKey?.startsWith("clai_")) throw new Error("use a CloudCostRadar AI usage key (starts with clai_)");
     this.#key = opts.apiKey;
     this.#endpoint = `${opts.url.replace(/\/+$/, "")}/api/v1/ingest/ai-usage`;
     this.#defaults = { app: clean(opts.app), team: clean(opts.team), environment: clean(opts.environment, 40) };
@@ -157,7 +157,7 @@ export class Usage {
       status = await this.#send(this.#endpoint, JSON.stringify({ events: batch }), {
         Authorization: `Bearer ${this.#key}`,
         "Content-Type": "application/json",
-        "User-Agent": `costlens-ai-js/${VERSION}`,
+        "User-Agent": `ccradar-ai-js/${VERSION}`,
       });
     } catch {
       status = 0;

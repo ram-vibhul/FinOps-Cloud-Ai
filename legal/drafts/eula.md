@@ -1,12 +1,12 @@
 > **DRAFT — NOT REVIEWED BY A LAWYER. NOT FOR PUBLICATION.** Placeholders are in [SQUARE BRACKETS].
 
-# CostLens End-User Licence Agreement (self-hosted)
+# CloudCostRadar End-User Licence Agreement (self-hosted)
 
 Last updated: [DATE]
 
 This End-User Licence Agreement ("**EULA**") is between [YUGIVERSE LEGAL ENTITY NAME],
-[ADDRESS] ("**Yugiverse**") and the organisation installing CostLens ("**Licensee**").
-It covers CostLens software that the Licensee runs in its own environment (the
+[ADDRESS] ("**Yugiverse**") and the organisation installing CloudCostRadar ("**Licensee**").
+It covers CloudCostRadar software that the Licensee runs in its own environment (the
 "**Software**"), including container images, Helm charts and updates.
 
 ## 1. Licence

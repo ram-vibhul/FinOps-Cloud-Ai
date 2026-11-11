@@ -1,25 +1,25 @@
 > **DRAFT — NOT REVIEWED BY A LAWYER. NOT FOR PUBLICATION.** Placeholders are in [SQUARE BRACKETS].
 
-# CostLens Terms of Service
+# CloudCostRadar Terms of Service
 
 Last updated: [DATE]
 
 These Terms of Service ("**Terms**") are an agreement between [YUGIVERSE LEGAL ENTITY NAME],
 [ENTITY TYPE, e.g. sole proprietorship], with its place of business at [ADDRESS]
 ("**Yugiverse**", "**we**", "**us**") and the organisation or person that accepts them
-("**Customer**", "**you**"). They govern your use of the hosted CostLens service (the
-"**Service**"). Self-hosted CostLens is covered by the End-User Licence Agreement instead.
+("**Customer**", "**you**"). They govern your use of the hosted CloudCostRadar service (the
+"**Service**"). Self-hosted CloudCostRadar is covered by the End-User Licence Agreement instead.
 
 By creating an account, starting a trial or using the Service, you accept these Terms.
 If you accept them for an organisation, you confirm you are authorised to bind it.
 
 ## 1. The Service
 
-1.1 CostLens reads cost, usage and resource information from cloud, Kubernetes and
+1.1 CloudCostRadar reads cost, usage and resource information from cloud, Kubernetes and
 software-as-a-service accounts you connect, and shows costs, savings recommendations,
 budgets, forecasts, alerts and reports.
 
-1.2 **Read-only by default.** CostLens uses the read-only access you grant. It changes
+1.2 **Read-only by default.** CloudCostRadar uses the read-only access you grant. It changes
 nothing in your accounts unless you separately grant write access and turn on automatic
 fixes; each change then needs approval as described in the product.
 

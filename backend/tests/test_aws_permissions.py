@@ -7,18 +7,18 @@ import pytest
 from botocore.exceptions import ClientError
 from fastapi.testclient import TestClient
 
-from costlens.clouds.aws import permissions
-from costlens.config import Settings
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.jobs import InProcessRunner
-from costlens.main import create_app
-from costlens.models import CloudConnection
+from ccradar.clouds.aws import permissions
+from ccradar.config import Settings
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.jobs import InProcessRunner
+from ccradar.main import create_app
+from ccradar.models import CloudConnection
 from tests.conftest import offline_http_client, public_resolver
 from tests.fakes.aws import FakeAws
 from tests.helpers import make_org, sign_in_client
 
-ROLE = "arn:aws:iam::123456789012:role/CostLensReadOnly"
+ROLE = "arn:aws:iam::123456789012:role/CloudCostRadarReadOnly"
 
 
 class ProbeClient:

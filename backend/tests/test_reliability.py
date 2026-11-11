@@ -5,15 +5,15 @@ import uuid
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.findings import targets
-from costlens.findings.registry import FindingIn
-from costlens.inventory.aws import Found
-from costlens.inventory.service import upsert
-from costlens.k8s.rightsizing import _advise
-from costlens.models import ReliabilityTarget
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.findings import targets
+from ccradar.findings.registry import FindingIn
+from ccradar.inventory.aws import Found
+from ccradar.inventory.service import upsert
+from ccradar.k8s.rightsizing import _advise
+from ccradar.models import ReliabilityTarget
 from tests.helpers import add_to_org, make_org, sign_in_client
 from tests.test_k8s_rightsizing import stats
 

@@ -5,11 +5,11 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
-from costlens.accounts.roles import Role
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.models import K8sCluster, K8sInvestigation
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.models import K8sCluster, K8sInvestigation
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 

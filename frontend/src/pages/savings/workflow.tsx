@@ -131,7 +131,7 @@ export function WorkflowPanel({ f, isAdmin, members, onChanged }: {
             await api.requestFix(f.id);
             toast.success("Fix requested. Another admin must approve it.");
           })}>
-            Ask CostLens to fix this
+            Ask CloudCostRadar to fix this
           </Button>
         </div>
       )}

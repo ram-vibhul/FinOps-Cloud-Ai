@@ -61,7 +61,7 @@ export function WorkIntegrationsTab() {
       <CardHeader>
         <CardTitle>Tickets and pull requests</CardTitle>
         <CardDescription>
-          Open a Jira or ServiceNow ticket, or a GitHub or GitLab pull request with a fix plan, from any saving. CostLens
+          Open a Jira or ServiceNow ticket, or a GitHub or GitLab pull request with a fix plan, from any saving. CloudCostRadar
           only adds a Markdown plan file on a new branch; people review it and make the change. Use a token that can only
           reach the project or repository you name here. Tokens are stored encrypted and never shown again.
         </CardDescription>

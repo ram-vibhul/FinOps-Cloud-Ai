@@ -8,11 +8,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
-from costlens.costs import fx
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import ExchangeRate, Organization
+from ccradar.costs import fx
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import ExchangeRate, Organization
 from tests.helpers import make_org, sign_in_client
 
 FEED = """<?xml version="1.0" encoding="UTF-8"?>
@@ -145,7 +145,7 @@ def test_spend_converted_to_display_currency(mixed) -> None:
 
 
 def test_summary_reports_unconverted(mixed, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("costlens.api.costs._today", lambda: date(2026, 11, 7))
+    monkeypatch.setattr("ccradar.api.costs._today", lambda: date(2026, 11, 7))
     c = sign_in_client(mixed["c"], mixed["db"], mixed["owner"], mixed["org"])
     s = c.get("/api/v1/costs/summary").json()
     assert s["currency"] == "INR" and s["month_to_date"] == 8100.0

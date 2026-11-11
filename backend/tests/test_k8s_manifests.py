@@ -29,13 +29,13 @@ def test_kustomization_lists_every_manifest() -> None:
     kust = yaml.safe_load((K8S / "kustomization.yaml").read_text())
     files = {p.name for p in K8S.glob("*.yaml")} - {"kustomization.yaml"}
     assert set(kust["resources"]) == files
-    assert kust["secretGenerator"][0]["envs"] == ["costlens.env"]
+    assert kust["secretGenerator"][0]["envs"] == ["ccradar.env"]
     assert all(i["newTag"] != "latest" for i in kust["images"])
 
 
 def test_pods_are_hardened() -> None:
     specs = pod_specs()
-    assert {name for name, _ in specs} == {"costlens-web", "costlens-worker", "costlens-migrate"}
+    assert {name for name, _ in specs} == {"ccradar-web", "ccradar-worker", "ccradar-migrate"}
     for name, spec in specs:
         assert spec["securityContext"]["runAsNonRoot"] is True, name
         assert spec["automountServiceAccountToken"] is False, name
@@ -44,7 +44,7 @@ def test_pods_are_hardened() -> None:
             assert sc["readOnlyRootFilesystem"] and not sc["allowPrivilegeEscalation"], name
             assert sc["capabilities"]["drop"] == ["ALL"], name
             assert "limits" in c["resources"], name
-            assert c["envFrom"][0]["secretRef"]["name"] == "costlens-env", name
+            assert c["envFrom"][0]["secretRef"]["name"] == "ccradar-env", name
 
 
 def test_web_and_worker_share_the_data_volume() -> None:
@@ -56,13 +56,20 @@ def test_web_and_worker_share_the_data_volume() -> None:
         ]
         for name, spec in pod_specs()
     }
-    assert claims["costlens-web"] == claims["costlens-worker"] == ["costlens-data"]
+    assert claims["ccradar-web"] == claims["ccradar-worker"] == ["ccradar-data"]
     pvc = next(d for d in docs() if d["kind"] == "PersistentVolumeClaim")
     assert pvc["spec"]["accessModes"] == ["ReadWriteMany"]
 
 
 def test_no_real_settings_file_is_committed() -> None:
-    assert not (K8S / "costlens.env").exists()
-    assert "deploy/kubernetes/costlens.env" in (ROOT / ".gitignore").read_text()
-    example = (K8S / "costlens.env.example").read_text()
-    assert "COSTLENS_SECRET_KEY=\n" in example and "COSTLENS_ENCRYPTION_KEYS=\n" in example
+    assert not (K8S / "ccradar.env").exists()
+    assert "deploy/kubernetes/ccradar.env" in (ROOT / ".gitignore").read_text()
+    example = (K8S / "ccradar.env.example").read_text()
+    assert "CCRADAR_SECRET_KEY=\n" in example and "CCRADAR_ENCRYPTION_KEYS=\n" in example
+
+
+def test_image_keeps_data_in_the_volume() -> None:
+    # Without it the app wrote to ./data under /app, which the non-root user cannot do,
+    # and the container crashed at start (found running deploy/compose/local.yaml).
+    dockerfile = (ROOT / "Dockerfile").read_text()
+    assert "CCRADAR_DATA_DIR=/data" in dockerfile and 'VOLUME ["/data"]' in dockerfile

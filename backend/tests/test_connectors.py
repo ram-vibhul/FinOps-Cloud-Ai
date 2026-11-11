@@ -13,10 +13,10 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.connectors import saas
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import CloudConnection, CostLineItem
+from ccradar.connectors import saas
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import CloudConnection, CostLineItem
 from tests.helpers import make_org, sign_in_client
 
 _key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -40,8 +40,8 @@ class FakeVendors:
         if host.endswith(".snowflakecomputing.com"):
             token = request.headers["authorization"].removeprefix("Bearer ")
             claims = jwt.decode(token, _key.public_key(), algorithms=["RS256"])
-            assert claims["sub"] == "XY12345.COSTLENS" and claims["iss"].startswith(
-                "XY12345.COSTLENS.SHA256:"
+            assert claims["sub"] == "XY12345.CCRADAR" and claims["iss"].startswith(
+                "XY12345.CCRADAR.SHA256:"
             )
             assert request.headers["x-snowflake-authorization-token-type"] == "KEYPAIR_JWT"
             if request.method == "POST":
@@ -212,7 +212,7 @@ def test_snowflake_keypair_jwt_async_and_partitions() -> None:
     fake = FakeVendors()
     cfg = {
         "account": "xy12345.eu-west-1",
-        "user": "costlens",
+        "user": "ccradar",
         "warehouse": "REPORTING",
         "_fast": True,
     }

@@ -5,7 +5,7 @@ import { api, errorMessage } from "@/lib/api";
 import { atLeast, useMe } from "@/lib/session";
 import { useLoad } from "@/lib/use-load";
 
-/** Shown on every page while CostLens may change resources in a cloud account (8.12). */
+/** Shown on every page while CloudCostRadar may change resources in a cloud account (8.12). */
 export function WriteAccessBanner() {
   const me = useMe();
   const list = useLoad(() => api.writeAccess(), [me.active_organization_id]);
@@ -15,7 +15,7 @@ export function WriteAccessBanner() {
   async function turnOff(id: string) {
     try {
       await api.disableFixes(id);
-      toast.success("Automatic fixes are off. CostLens is read-only again for this account.");
+      toast.success("Automatic fixes are off. CloudCostRadar is read-only again for this account.");
     } catch (error) {
       toast.error(errorMessage(error));
     }
@@ -28,7 +28,7 @@ export function WriteAccessBanner() {
         <span key={r.connection_id} className="flex flex-wrap items-center gap-2">
           <ShieldAlert className="size-4 shrink-0 text-destructive" aria-hidden />
           <span>
-            <b>CostLens can change resources</b> in {r.name}{r.account_id ? ` (${r.account_id})` : ""}: turned on by {r.enabled_by ?? "an owner"} on{" "}
+            <b>CloudCostRadar can change resources</b> in {r.name}{r.account_id ? ` (${r.account_id})` : ""}: turned on by {r.enabled_by ?? "an owner"} on{" "}
             {new Date(r.enabled_at).toLocaleDateString()}, until {new Date(r.expires_at).toLocaleDateString()}. Every change needs a second person&apos;s approval.
           </span>
           {atLeast(me.role, "admin") && (

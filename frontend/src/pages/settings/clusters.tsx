@@ -78,7 +78,7 @@ export function ClustersTab() {
   }
 
   async function remove(c: K8sCluster) {
-    if (!window.confirm(`Disconnect ${c.name}? Its token stops working and its data in CostLens is removed.`)) return;
+    if (!window.confirm(`Disconnect ${c.name}? Its token stops working and its data in CloudCostRadar is removed.`)) return;
     try {
       await api.deleteCluster(c.id);
       await list.reload();

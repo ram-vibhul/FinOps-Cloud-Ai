@@ -6,14 +6,14 @@ from decimal import Decimal
 import pytest
 from fastapi.testclient import TestClient
 
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.findings.service import run
-from costlens.findings.upgrades import aurora_support, coming_up
-from costlens.inventory.aws import Found
-from costlens.inventory.service import upsert
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.findings.service import run
+from ccradar.findings.upgrades import aurora_support, coming_up
+from ccradar.inventory.aws import Found
+from ccradar.inventory.service import upsert
 from tests.helpers import make_org, sign_in_client
 
 RDS = "Amazon Relational Database Service"
@@ -33,7 +33,7 @@ def test_aurora_calendar() -> None:
 
 
 def test_upgrade_findings_and_overview(client: TestClient, db: Database, monkeypatch) -> None:
-    from costlens.findings import aws_compute
+    from ccradar.findings import aws_compute
 
     monkeypatch.setattr(aws_compute, "_usd", lambda db, org_id, currency: 1.0)
     org_id, owner = make_org(db, "Acme", "o@acme.com")

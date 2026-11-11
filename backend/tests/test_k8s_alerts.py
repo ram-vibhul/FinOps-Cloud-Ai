@@ -10,13 +10,13 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.k8s import alerts
-from costlens.k8s.service import ingest_objects
-from costlens.models import K8sCluster, K8sInvestigation
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.k8s import alerts
+from ccradar.k8s.service import ingest_objects
+from ccradar.models import K8sCluster, K8sInvestigation
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 
@@ -74,7 +74,7 @@ def setup(db: Database):
 ALERTMANAGER = {
     "version": "4",
     "status": "firing",
-    "receiver": "costlens",
+    "receiver": "ccradar",
     "alerts": [
         {
             "status": "firing",
@@ -105,7 +105,7 @@ def test_verify_signatures() -> None:
     )
     assert not alerts.verify("pagerduty", "pd-secret", body, {})
     assert alerts.verify("alertmanager", "tok", body, {"authorization": "Bearer tok"})
-    assert alerts.verify("opsgenie", "tok", body, {"x-costlens-token": "tok"})
+    assert alerts.verify("opsgenie", "tok", body, {"x-cloudcostradar-token": "tok"})
     assert not alerts.verify("alertmanager", "tok", body, {"authorization": "Bearer nope"})
     assert not alerts.verify("alertmanager", "tok", body, {})
 
@@ -249,7 +249,7 @@ def test_pagerduty_uses_its_own_signing_secret(client: TestClient, db: Database)
 def test_detection_does_not_duplicate_alert_investigations(
     client: TestClient, db: Database
 ) -> None:
-    from costlens.k8s.health import detect
+    from ccradar.k8s.health import detect
 
     org_id, owner, cid = setup(db)
     c = sign_in_client(client, db, owner, org_id)

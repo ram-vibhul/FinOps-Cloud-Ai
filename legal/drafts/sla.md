@@ -1,15 +1,15 @@
 > **DRAFT — NOT REVIEWED BY A LAWYER. NOT FOR PUBLICATION.** Placeholders are in [SQUARE BRACKETS].
 
-# CostLens Service Level Agreement
+# CloudCostRadar Service Level Agreement
 
 Last updated: [DATE]
 
-This SLA applies to paid plans of the hosted CostLens service [ON PLANS: BUSINESS AND
-ENTERPRISE — Q2]. It does not apply to free plans, trials or self-hosted CostLens.
+This SLA applies to paid plans of the hosted CloudCostRadar service [ON PLANS: BUSINESS AND
+ENTERPRISE — Q2]. It does not apply to free plans, trials or self-hosted CloudCostRadar.
 
 ## 1. Availability commitment
 
-Yugiverse will make the CostLens web application and API available
+Yugiverse will make the CloudCostRadar web application and API available
 [99.5 / 99.9 — Q6] % of each calendar month ("**Monthly Uptime**").
 
 Monthly Uptime = (total minutes in the month − minutes of Downtime) ÷ total minutes.

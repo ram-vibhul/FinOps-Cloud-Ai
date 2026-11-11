@@ -7,18 +7,18 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
-from costlens.clouds.aws import cost_explorer
-from costlens.config import Settings
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.jobs import InProcessRunner, load_all_jobs
-from costlens.main import create_app
-from costlens.models import CloudAccount, CloudConnection, CostDaily, CostLineItem
+from ccradar.clouds.aws import cost_explorer
+from ccradar.config import Settings
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.jobs import InProcessRunner, load_all_jobs
+from ccradar.main import create_app
+from ccradar.models import CloudAccount, CloudConnection, CostDaily, CostLineItem
 from tests.conftest import offline_http_client, public_resolver
 from tests.fakes.aws import FakeAws, FakeCostExplorer
 from tests.helpers import make_org, sign_in_client
 
-ROLE = "arn:aws:iam::111111111111:role/CostLensReadOnly"
+ROLE = "arn:aws:iam::111111111111:role/CloudCostRadarReadOnly"
 ROWS = [
     ("2026-10-30", "111111111111", "Amazon Elastic Compute Cloud - Compute", "100.00", "80.00"),
     ("2026-10-30", "222222222222", "Amazon Simple Storage Service", "10.50", "10.50"),
@@ -57,14 +57,14 @@ def env(settings: Settings, db: Database):
             provider="aws",
             name="Payer",
             status="active",
-            external_id="costlens-ext",
+            external_id="ccradar-ext",
             role_arn=ROLE,
             account_id="111111111111",
         )
         s.add(conn)
         s.flush()
         conn_id = conn.id
-    aws.allow(ROLE, "costlens-ext")
+    aws.allow(ROLE, "ccradar-ext")
     with TestClient(app) as c:
         yield {
             "c": c,
@@ -179,7 +179,7 @@ def test_collect_now_and_history(env) -> None:
 
 
 def test_scheduler_picks_the_source(env) -> None:
-    from costlens.jobs.costs import schedule_imports
+    from ccradar.jobs.costs import schedule_imports
 
     assert schedule_imports() == 1
     assert env["ce"].requests  # Cost Explorer used without a CUR bucket

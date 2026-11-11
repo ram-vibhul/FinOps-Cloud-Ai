@@ -1,9 +1,9 @@
 # Only the web pods accept traffic, and only on their HTTP port. Outgoing traffic stays
-# open: CostLens calls cloud APIs, Slack/Teams, SSO providers and your database.
+# open: CloudCostRadar calls cloud APIs, Slack/Teams, SSO providers and your database.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: costlens-default-deny-ingress
+  name: ccradar-default-deny-ingress
 spec:
   podSelector: {}
   policyTypes: ["Ingress"]
@@ -11,7 +11,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: costlens-web-http
+  name: ccradar-web-http
 spec:
   podSelector:
     matchLabels:

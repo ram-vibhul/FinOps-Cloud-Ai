@@ -11,12 +11,12 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
-from costlens import cli
-from costlens.billing import licence, plans
-from costlens.config import DeploymentMode, Settings
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import User
+from ccradar import cli
+from ccradar.billing import licence, plans
+from ccradar.config import DeploymentMode, Settings
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import User
 from tests.helpers import make_org, sign_in_client
 
 NOW = datetime(2026, 11, 9, tzinfo=UTC)
@@ -42,7 +42,7 @@ def sign(key: Ed25519PrivateKey, **fields) -> str:
         **fields,
     }
     body = json.dumps(payload).encode()
-    return f"CLv1.{b64(body)}.{b64(key.sign(body))}"
+    return f"CCRv1.{b64(body)}.{b64(key.sign(body))}"
 
 
 @pytest.fixture
@@ -68,7 +68,7 @@ def test_signature_and_format(yugiverse: Ed25519PrivateKey) -> None:
     tampered["plan"] = "enterprise"
     with pytest.raises(licence.LicenceError):
         licence.decode(f"{head}.{b64(json.dumps(tampered).encode())}.{sig}")
-    with pytest.raises(licence.LicenceError, match="not a CostLens licence"):
+    with pytest.raises(licence.LicenceError, match="not a CloudCostRadar licence"):
         licence.decode("hello")
     with pytest.raises(licence.LicenceError, match="newer version"):
         licence.decode(sign(yugiverse, v=2))
@@ -99,7 +99,7 @@ def test_plan_follows_the_licence(
 ) -> None:
     settings.deployment_mode = DeploymentMode.SELF_HOSTED
     org_id, _ = make_org(db, "Acme", "o@acme.com")
-    from costlens.models import Organization
+    from ccradar.models import Organization
 
     def plan_now():
         with db.session() as s:
@@ -176,12 +176,12 @@ def test_warnings_before_expiry_and_in_grace(
     calm = licence.status(None, settings, now=NOW)
     assert calm["state"] == "valid" and calm["warning"] is None and calm["days_left"] == 365
     soon = licence.status(None, settings, now=NOW + timedelta(days=345))
-    assert soon["warning"].startswith("Your CostLens licence ends in 20 days")
+    assert soon["warning"].startswith("Your CloudCostRadar licence ends in 20 days")
     grace = licence.status(None, settings, now=NOW + timedelta(days=370))
     assert grace["state"] == "grace" and "keeps working until" in grace["warning"]
     assert grace["grace_days_left"] == 9
     gone = licence.status(None, settings, now=NOW + timedelta(days=400))
     assert gone["state"] == "expired" and "free tier" in gone["warning"]
-    settings.licence_key = SecretStr("CLv1.bad.key")
+    settings.licence_key = SecretStr("CCRv1.bad.key")
     bad = licence.status(None, settings)
     assert bad["state"] == "invalid" and bad["warning"].startswith("The licence key cannot be used")

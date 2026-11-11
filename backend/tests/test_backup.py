@@ -11,11 +11,11 @@ from pathlib import Path
 import pytest
 from sqlalchemy import select
 
-from costlens import backup, cli
-from costlens.config import Settings
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import Organization
+from ccradar import backup, cli
+from ccradar.config import Settings
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import Organization
 from tests.helpers import make_org
 
 
@@ -46,7 +46,7 @@ def test_round_trip(owner_settings: Settings, db: Database, tmp_path: Path) -> N
     manifest = backup.create(owner_settings, out)
     assert manifest["files"] == 1 and manifest["revision"] and "ENCRYPTION_KEYS" in manifest["note"]
     assert (out.stat().st_mode & 0o777) == 0o600  # it holds encrypted secrets
-    assert backup.verify(out)["costlens_version"] == manifest["costlens_version"]
+    assert backup.verify(out)["ccradar_version"] == manifest["ccradar_version"]
 
     make_org(db, "Added later", "l@acme.com")
     (files / "costs.csv").write_text("changed")
@@ -84,7 +84,7 @@ def test_refuses_newer_and_unsafe_backups(
     backup.create(owner_settings, good)
     newer = tmp_path / "newer.tar.gz"
     _tamper(good, newer, {"revision": "9999"})
-    with pytest.raises(backup.BackupError, match="newer CostLens"):
+    with pytest.raises(backup.BackupError, match="newer CloudCostRadar"):
         backup.verify(newer)
     evil = tmp_path / "evil.tar.gz"
     _tamper(good, evil, {}, extra="../escape.txt")
@@ -102,7 +102,7 @@ def test_refuses_newer_and_unsafe_backups(
         info = tarfile.TarInfo("hello.txt")
         info.size = 2
         t.addfile(info, io.BytesIO(b"hi"))
-    with pytest.raises(backup.BackupError, match="not a CostLens backup"):
+    with pytest.raises(backup.BackupError, match="not a CloudCostRadar backup"):
         backup.verify(not_backup)
 
 

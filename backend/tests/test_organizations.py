@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from costlens.accounts.roles import Role
-from costlens.db import Database
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
 from tests.helpers import add_to_org, make_org, make_user, sign_in_client
 
 
@@ -111,8 +111,8 @@ def test_transfer_ownership(team) -> None:
 def test_removed_member_loses_access_immediately(team) -> None:
     c = as_(team, "viewer")
     assert c.get("/api/v1/org").status_code == 200
-    token = c.cookies.get("costlens_session")
+    token = c.cookies.get("ccradar_session")
     as_(team, "owner").delete(f"/api/v1/org/members/{team['viewer']}")
     c.cookies.clear()
-    c.cookies.set("costlens_session", token or "")
+    c.cookies.set("ccradar_session", token or "")
     assert c.get("/api/v1/org").status_code == 409  # no organisation any more

@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 
 export const CURRENCIES = ["USD", "INR", "EUR", "GBP", "AUD", "CAD", "SGD", "JPY", "AED", "CHF", "SEK", "NZD"];
-const KEY = "costlens-display-currency";
+const KEY = "ccradar-display-currency";
 
 function read(): string | undefined {
   try {

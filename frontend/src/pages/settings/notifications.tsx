@@ -52,7 +52,7 @@ export function NotificationsTab() {
       <CardHeader>
         <CardTitle>Notifications</CardTitle>
         <CardDescription>
-          Where CostLens posts alerts: Kubernetes workloads that start failing (with the likely cause) and when they
+          Where CloudCostRadar posts alerts: Kubernetes workloads that start failing (with the likely cause) and when they
           recover. Use an incoming webhook from Slack, or a Teams Workflows (&quot;post to a channel when a webhook request is
           received&quot;) address.
         </CardDescription>

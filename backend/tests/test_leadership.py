@@ -8,11 +8,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import ReportSchedule
-from costlens.reports import leadership, scheduled
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import ReportSchedule
+from ccradar.reports import leadership, scheduled
 from tests.helpers import make_org, sign_in_client
 
 
@@ -114,8 +114,8 @@ def test_scheduled_leadership_email(acme, db: Database, monkeypatch) -> None:
         sched = s.scalars(select(ReportSchedule)).one()
         scheduled.send(s, org_id, sched, delivered.append)
     mail = delivered[0]
-    assert mail["to"] == "ceo@acme.com" and mail["subject"] == "CostLens: Board pack"
-    assert mail["text"].startswith("CostLens leadership report — October 2026")
+    assert mail["to"] == "ceo@acme.com" and mail["subject"] == "CloudCostRadar: Board pack"
+    assert mail["text"].startswith("CloudCostRadar leadership report — October 2026")
     assert "up 36%" in mail["text"]
     att = mail["attachments"][0]
-    assert att["filename"] == "costlens-leadership-2026-10.pdf"
+    assert att["filename"] == "ccradar-leadership-2026-10.pdf"

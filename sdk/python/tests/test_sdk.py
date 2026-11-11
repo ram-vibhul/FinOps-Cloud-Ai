@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from costlens_ai import Usage, fingerprint
+from ccradar_ai import Usage, fingerprint
 
 PROMPT = "Summarise this contract for ACME Corp: the secret price is 12345 rupees."
 SALT = b"customer-side-salt"
@@ -26,7 +26,7 @@ class Fake:
 
 
 def usage(fake: Fake, **kw: Any) -> Usage:
-    return Usage("clai_test", "https://costlens.example/", salt=SALT, transport=fake, **kw)
+    return Usage("clai_test", "https://ccradar.example/", salt=SALT, transport=fake, **kw)
 
 
 def test_prompt_text_is_never_sent_only_a_salted_fingerprint() -> None:
@@ -38,7 +38,7 @@ def test_prompt_text_is_never_sent_only_a_salted_fingerprint() -> None:
     u.flush()
     url, body, headers = fake.calls[0]
     raw = json.dumps(body)
-    assert url == "https://costlens.example/api/v1/ingest/ai-usage"
+    assert url == "https://ccradar.example/api/v1/ingest/ai-usage"
     assert headers["Authorization"] == "Bearer clai_test"
     for secret in ("contract", "ACME", "12345", "rupees", "Summarise"):
         assert secret not in raw
@@ -117,7 +117,7 @@ def test_batching_retries_and_never_raising() -> None:
 def test_needs_a_usage_key_and_https() -> None:
     with pytest.raises(ValueError, match="clai_"):
         Usage("sk-123", "https://x")
-    from costlens_ai import _urllib_transport
+    from ccradar_ai import _urllib_transport
 
     with pytest.raises(ValueError, match="https"):
         _urllib_transport("http://evil.example/x", b"{}", {})

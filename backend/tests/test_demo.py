@@ -7,12 +7,12 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.demo import seed as demo
-from costlens.models import Invitation, Membership
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.demo import seed as demo
+from ccradar.models import Invitation, Membership
 from tests.helpers import make_user, sign_in_client
 
 
@@ -136,7 +136,7 @@ def test_demo_can_be_disabled(client: TestClient, db: Database) -> None:
 
 
 def test_customers_cannot_take_reserved_slugs(db: Database) -> None:
-    from costlens.models import Organization
+    from ccradar.models import Organization
     from tests.helpers import make_org
 
     org_id, _ = make_org(db, "Demo", "someone@x.com")
@@ -157,8 +157,8 @@ def test_all_feature_seeders_register() -> None:
 def test_an_empty_demo_is_seeded_again(db: Database) -> None:
     from sqlalchemy import delete, func, select
 
-    from costlens.demo.seed import ensure_demo, load_all_seeders
-    from costlens.models import CostDaily
+    from ccradar.demo.seed import ensure_demo, load_all_seeders
+    from ccradar.models import CostDaily
 
     load_all_seeders()
     with db.session() as s:

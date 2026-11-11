@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: app
-  labels: {costlens-lab: "crash-loop"}
+  labels: {ccradar-lab: "crash-loop"}
 spec:
   replicas: 1
   selector: {matchLabels: {app: lab}}

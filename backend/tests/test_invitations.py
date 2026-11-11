@@ -6,15 +6,15 @@ from email import message_from_bytes
 import pytest
 from fastapi.testclient import TestClient
 
-from costlens.accounts.roles import Role
-from costlens.config import Settings
-from costlens.core.email import Email, MemorySender, SmtpSender
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.jobs import InProcessRunner, load_all_jobs
-from costlens.main import create_app
-from costlens.models import Invitation
+from ccradar.accounts.roles import Role
+from ccradar.config import Settings
+from ccradar.core.email import Email, MemorySender, SmtpSender
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.jobs import InProcessRunner, load_all_jobs
+from ccradar.main import create_app
+from ccradar.models import Invitation
 from tests.conftest import public_resolver
 from tests.helpers import add_to_org, make_org, make_user, sign_in_client
 
@@ -156,10 +156,10 @@ def test_smtp_message_building() -> None:
         username=None,
         password=None,
         security="starttls",
-        from_address="CostLens <no-reply@costlens.example>",
+        from_address="CloudCostRadar <no-reply@ccradar.example>",
     )
     mime = sender.build(Email(to="a@b.com", subject="Hi", text="plain", html="<p>rich</p>"))
     parsed = message_from_bytes(mime.as_bytes())
-    assert parsed["To"] == "a@b.com" and parsed["From"].startswith("CostLens")
+    assert parsed["To"] == "a@b.com" and parsed["From"].startswith("CloudCostRadar")
     assert parsed.is_multipart()
     assert {p.get_content_type() for p in parsed.walk()} >= {"text/plain", "text/html"}

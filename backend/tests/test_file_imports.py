@@ -11,13 +11,13 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
-from costlens.accounts.roles import Role
-from costlens.costs import files
-from costlens.costs.parsing import ValueProblem, parse_date, parse_decimal, parse_tags
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.jobs import load_all_jobs
-from costlens.models import CostDaily, CostLineItem
+from ccradar.accounts.roles import Role
+from ccradar.costs import files
+from ccradar.costs.parsing import ValueProblem, parse_date, parse_decimal, parse_tags
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.jobs import load_all_jobs
+from ccradar.models import CostDaily, CostLineItem
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 FOCUS_HEADER = (
@@ -275,12 +275,12 @@ def test_bad_uploads_and_permissions(env) -> None:
 
 
 def test_focus_from_aws_s3(db: Database) -> None:
-    from costlens.clouds.aws import cur
-    from costlens.models import CloudConnection
+    from ccradar.clouds.aws import cur
+    from ccradar.models import CloudConnection
     from tests.fakes.aws import FakeAws, FakeS3
 
     org_id, _ = make_org(db, "Acme", "o@acme.com")
-    role = "arn:aws:iam::111111111111:role/CostLensReadOnly"
+    role = "arn:aws:iam::111111111111:role/CloudCostRadarReadOnly"
     with db.session() as s:
         set_tenant(s, org_id=org_id)
         conn = CloudConnection(

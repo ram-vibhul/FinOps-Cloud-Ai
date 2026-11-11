@@ -7,12 +7,12 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.billing import subscriptions
-from costlens.config import DeploymentMode
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import InboxItem, Organization, Subscription, User
+from ccradar.accounts.roles import Role
+from ccradar.billing import subscriptions
+from ccradar.config import DeploymentMode
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import InboxItem, Organization, Subscription, User
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 

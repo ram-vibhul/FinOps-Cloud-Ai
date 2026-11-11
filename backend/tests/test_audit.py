@@ -8,9 +8,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, ProgrammingError
 
-from costlens.accounts.roles import Role
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
 from tests.conftest import POSTGRES_URL
 from tests.helpers import add_to_org, make_org, sign_in_client
 
@@ -135,7 +135,7 @@ def test_app_role_cannot_rewrite_audit_history(team) -> None:
 
 
 def test_singular_action_nouns() -> None:
-    from costlens.audit.recorder import singular
+    from ccradar.audit.recorder import singular
 
     assert singular("cost_anomalies") == "cost_anomaly"
     assert singular("memberships") == "membership"

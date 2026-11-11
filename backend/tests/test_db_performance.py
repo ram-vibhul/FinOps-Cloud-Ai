@@ -6,16 +6,16 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import select
 
-from costlens.aws_audit.service import run_audit
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.findings.aws_db_perf import gp3_iops_cost, smaller_node
-from costlens.findings.service import run
-from costlens.inventory.aws import Found
-from costlens.inventory.service import upsert
-from costlens.models import AuditResult, Finding
+from ccradar.aws_audit.service import run_audit
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.findings.aws_db_perf import gp3_iops_cost, smaller_node
+from ccradar.findings.service import run
+from ccradar.inventory.aws import Found
+from ccradar.inventory.service import upsert
+from ccradar.models import AuditResult, Finding
 from tests.helpers import make_org
 from tests.test_rightsizing_aws import add_metrics
 
@@ -33,7 +33,7 @@ def test_helpers() -> None:
 
 
 def test_detectors_and_notes(db: Database, monkeypatch) -> None:
-    from costlens.findings import aws_compute
+    from ccradar.findings import aws_compute
 
     monkeypatch.setattr(aws_compute, "_usd", lambda db, org_id, currency: 1.0)
     org_id, _ = make_org(db, "Acme", "o@acme.com")
@@ -160,8 +160,8 @@ def test_detectors_and_notes(db: Database, monkeypatch) -> None:
     cache_notes = checks["elasticache.sizing"]
     assert cache_notes.status == "saving"  # the finding wins over the notes
     assert checks["rds.storage"].status == "saving"
-    from costlens.aws_audit.inspections import cache_performance
-    from costlens.aws_audit.service import Facts
+    from ccradar.aws_audit.inspections import cache_performance
+    from ccradar.aws_audit.service import Facts
 
     with db.session() as s:
         set_tenant(s, org_id=org_id)

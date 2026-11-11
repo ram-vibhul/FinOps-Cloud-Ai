@@ -7,13 +7,13 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from costlens.billing import metering
-from costlens.config import DeploymentMode, Settings
-from costlens.core.errors import AppError
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.models import Organization
+from ccradar.billing import metering
+from ccradar.config import DeploymentMode, Settings
+from ccradar.core.errors import AppError
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.models import Organization
 from tests.helpers import make_org, sign_in_client
 
 
@@ -117,7 +117,7 @@ def test_snapshots_and_history(client: TestClient, db: Database) -> None:
 
 
 def test_usage_is_a_retention_kind() -> None:
-    from costlens.privacy.retention import policies
+    from ccradar.privacy.retention import policies
 
     kinds = {p.kind for p in policies()}
     assert {"usage", "usage_counters", "notifications"} <= kinds

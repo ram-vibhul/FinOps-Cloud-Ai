@@ -7,13 +7,13 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
-from costlens.accounts import service as acc
-from costlens.auth.web import safe_return_to
-from costlens.config import Settings
-from costlens.core.signing import BadSignatureError, Signer
-from costlens.db import Database
-from costlens.jobs import InProcessRunner
-from costlens.main import create_app
+from ccradar.accounts import service as acc
+from ccradar.auth.web import safe_return_to
+from ccradar.config import Settings
+from ccradar.core.signing import BadSignatureError, Signer
+from ccradar.db import Database
+from ccradar.jobs import InProcessRunner
+from ccradar.main import create_app
 from tests.fakes.oidc import CLIENT_ID, CLIENT_SECRET, FakeIdP
 
 
@@ -40,7 +40,7 @@ def start(web: TestClient, return_to: str | None = None) -> str:
     params = {"return_to": return_to} if return_to else {}
     r = web.get("/api/v1/auth/login/google", params=params)
     assert r.status_code == 303
-    assert "costlens_oidc" in r.cookies
+    assert "ccradar_oidc" in r.cookies
     return r.headers["location"]
 
 
@@ -51,7 +51,7 @@ def sign_in(web: TestClient, idp: FakeIdP, return_to: str | None = None, **claim
 
 def logout(web: TestClient):
     return web.post(
-        "/api/v1/auth/logout", headers={"X-CSRF-Token": web.cookies.get("costlens_csrf") or ""}
+        "/api/v1/auth/logout", headers={"X-CSRF-Token": web.cookies.get("ccradar_csrf") or ""}
     )
 
 
@@ -65,7 +65,7 @@ def error_of(response) -> str | None:
 
 
 def test_providers_listed_only_when_configured(web: TestClient) -> None:
-    from costlens.auth.providers import configured_providers
+    from ccradar.auth.providers import configured_providers
 
     assert configured_providers(Settings(_env_file=None)) == {}  # type: ignore[call-arg]
     assert web.get("/api/v1/auth/providers").json() == [{"id": "google", "name": "Google"}]
@@ -85,10 +85,10 @@ def test_full_sign_in_creates_user_and_session(web: TestClient, idp: FakeIdP, db
     assert r.status_code == 303
     assert r.headers["location"] == "/costs?range=30d"
     cookie = r.headers["set-cookie"]
-    assert "costlens_session=" in cookie and "HttpOnly" in cookie and "SameSite=lax" in cookie
-    assert web.cookies.get("costlens_csrf")
+    assert "ccradar_session=" in cookie and "HttpOnly" in cookie and "SameSite=lax" in cookie
+    assert web.cookies.get("ccradar_csrf")
     me = web.get("/api/v1/auth/me").json()
-    assert me["csrf_token"] == web.cookies.get("costlens_csrf")
+    assert me["csrf_token"] == web.cookies.get("ccradar_csrf")
     assert me["user"]["email"] == "asha@example.com"
     assert me["user"]["name"] == "Asha Raman"
     assert me["organizations"] == [] and me["active_organization_id"] is None
@@ -125,10 +125,10 @@ def test_logout_revokes_session(web: TestClient, idp: FakeIdP) -> None:
 
 def test_stolen_cookie_useless_after_logout(web: TestClient, idp: FakeIdP) -> None:
     sign_in(web, idp)
-    token = web.cookies.get("costlens_session") or ""
+    token = web.cookies.get("ccradar_session") or ""
     logout(web)
     web.cookies.clear()
-    web.cookies.set("costlens_session", token)
+    web.cookies.set("ccradar_session", token)
     assert web.get("/api/v1/auth/me").status_code == 401
 
 
@@ -147,9 +147,9 @@ def test_state_mismatch(web: TestClient, idp: FakeIdP) -> None:
 
 def test_missing_or_tampered_state_cookie(web: TestClient, idp: FakeIdP) -> None:
     code, state = idp.authorize(start(web))
-    tampered = (web.cookies.get("costlens_oidc") or "") + "x"
+    tampered = (web.cookies.get("ccradar_oidc") or "") + "x"
     web.cookies.clear()
-    web.cookies.set("costlens_oidc", tampered)
+    web.cookies.set("ccradar_oidc", tampered)
     r = web.get("/api/v1/auth/callback/google", params={"code": code, "state": state})
     assert error_of(r) == "state_expired"
     web.cookies.clear()
@@ -161,7 +161,7 @@ def test_missing_or_tampered_state_cookie(web: TestClient, idp: FakeIdP) -> None
 
 def test_code_cannot_be_replayed(web: TestClient, idp: FakeIdP) -> None:
     code, state = idp.authorize(start(web))
-    cookie = web.cookies.get("costlens_oidc") or ""
+    cookie = web.cookies.get("ccradar_oidc") or ""
     assert (
         web.get("/api/v1/auth/callback/google", params={"code": code, "state": state}).headers[
             "location"
@@ -169,7 +169,7 @@ def test_code_cannot_be_replayed(web: TestClient, idp: FakeIdP) -> None:
         == "/"
     )
     web.cookies.clear()
-    web.cookies.set("costlens_oidc", cookie)
+    web.cookies.set("ccradar_oidc", cookie)
     r = web.get("/api/v1/auth/callback/google", params={"code": code, "state": state})
     assert error_of(r) == "code_exchange_failed"
 
@@ -293,13 +293,13 @@ def test_unknown_provider(web: TestClient) -> None:
 
 
 def test_secure_cookies_on_https(auth_settings: Settings, db: Database, idp: FakeIdP) -> None:
-    auth_settings.base_url = "https://app.costlens.example"
+    auth_settings.base_url = "https://app.ccradar.example"
     app = create_app(auth_settings, db=db, runner=InProcessRunner(), http_client=idp.client())
-    with TestClient(app, base_url="https://app.costlens.example", follow_redirects=False) as c:
+    with TestClient(app, base_url="https://app.ccradar.example", follow_redirects=False) as c:
         r = sign_in(c, idp)
         cookie = r.headers.get_list("set-cookie")
-        session = next(h for h in cookie if "costlens_session" in h)
-        assert session.startswith("__Host-costlens_session=")
+        session = next(h for h in cookie if "ccradar_session" in h)
+        assert session.startswith("__Host-ccradar_session=")
         assert "Secure" in session and "Path=/" in session
         assert c.get("/api/v1/auth/me").status_code == 200
 

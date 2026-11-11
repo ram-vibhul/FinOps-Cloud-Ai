@@ -6,9 +6,9 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-from costlens.costs.ask import SCHEMA
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
+from ccradar.costs.ask import SCHEMA
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
 from tests.helpers import make_org, sign_in_client
 
 

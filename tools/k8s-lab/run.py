@@ -1,7 +1,7 @@
 """Live diagnosis lab: apply each scenario to a kind cluster, wait for the agent to
-report, ask CostLens to investigate, and score the top-ranked cause.
+report, ask CloudCostRadar to investigate, and score the top-ranked cause.
 
-Usage: python tools/k8s-lab/run.py --cluster costlens-lab [--url http://localhost:8000]
+Usage: python tools/k8s-lab/run.py --cluster ccradar-lab [--url http://localhost:8000]
        [--wait 180] [--record lab/history.jsonl]
 """
 
@@ -37,7 +37,7 @@ def expected_of(path: Path) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--cluster", required=True, help="cluster name as connected in CostLens")
+    ap.add_argument("--cluster", required=True, help="cluster name as connected in CloudCostRadar")
     ap.add_argument("--url", default="http://localhost:8000")
     ap.add_argument("--email", default="lab@example.com", help="local sign-in account")
     ap.add_argument("--wait", type=int, default=180, help="seconds for failures to show")

@@ -8,17 +8,17 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.clouds.aws import commitment_inventory as ci
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.models import CloudConnection, Commitment, Contract
+from ccradar.accounts.roles import Role
+from ccradar.clouds.aws import commitment_inventory as ci
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.models import CloudConnection, Commitment, Contract
 from tests.fakes.aws import FakeAws
 from tests.helpers import add_to_org, make_org, sign_in_client
 
-ROLE = "arn:aws:iam::111111111111:role/costlens"
+ROLE = "arn:aws:iam::111111111111:role/ccradar"
 SP_ARN = "arn:aws:savingsplans::111111111111:savingsplan/sp-1"
 
 

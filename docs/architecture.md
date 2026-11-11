@@ -2,7 +2,7 @@
 
 ## One build, three ways to run
 
-The same image serves every deployment, chosen with `COSTLENS_DEPLOYMENT_MODE`:
+The same image serves every deployment, chosen with `CCRADAR_DEPLOYMENT_MODE`:
 
 | Mode | Who runs it | Database | Billing / licence |
 |---|---|---|---|
@@ -21,16 +21,16 @@ browser ──HTTPS──▶ web (FastAPI + the built React UI)
                  migrate (one-shot, owner role)
 ```
 
-- **web** (`costlens serve`): the JSON API under `/api/v1`, the single-page app at `/`,
+- **web** (`ccradar serve`): the JSON API under `/api/v1`, the single-page app at `/`,
   health checks `/healthz` and `/readyz`, metrics `/metrics`, OpenAPI at `/docs`.
-- **worker** (`costlens worker`): background and scheduled jobs on PostgreSQL. With
+- **worker** (`ccradar worker`): background and scheduled jobs on PostgreSQL. With
   SQLite, jobs run inside the web process instead.
-- **migrate** (`costlens migrate`): Alembic migrations with the owner role, then grants the
+- **migrate** (`ccradar migrate`): Alembic migrations with the owner role, then grants the
   runtime role data access only.
 - **agent**: a small read-only Python agent installed in each Kubernetes cluster with a
-  Helm chart (`deploy/helm/costlens-agent`).
+  Helm chart (`deploy/helm/cloudcostradar-agent`).
 
-## Code layout (`backend/src/costlens`)
+## Code layout (`backend/src/ccradar`)
 
 | Package | What it holds |
 |---|---|

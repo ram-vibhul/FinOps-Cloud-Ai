@@ -7,10 +7,10 @@ from decimal import Decimal
 import pytest
 from fastapi.testclient import TestClient
 
-from costlens.accounts.roles import Role
-from costlens.costs.allocation import split_cents
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
+from ccradar.accounts.roles import Role
+from ccradar.costs.allocation import split_cents
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 

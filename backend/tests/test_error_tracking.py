@@ -11,8 +11,8 @@ from sentry_sdk.envelope import Envelope
 from sentry_sdk.transport import Transport
 from sentry_sdk.utils import event_from_exception
 
-from costlens.config import Settings
-from costlens.core import error_tracking
+from ccradar.config import Settings
+from ccradar.core import error_tracking
 
 DSN = "https://publickey@errors.example.invalid/1"
 
@@ -66,7 +66,7 @@ def test_request_details_are_dropped() -> None:
     event = {
         "request": {
             "method": "POST",
-            "url": "https://costlens.example.com/api/v1/x?token=abc",
+            "url": "https://ccradar.example.com/api/v1/x?token=abc",
             "headers": {"Authorization": "Bearer clk_secret", "Cookie": "s=1"},
             "cookies": {"s": "1"},
             "data": {"password": "p"},
@@ -75,17 +75,17 @@ def test_request_details_are_dropped() -> None:
         "extra": {"anything": 1},
     }
     out = error_tracking.scrub(event)
-    assert out["request"] == {"method": "POST", "url": "https://costlens.example.com/api/v1/x"}
+    assert out["request"] == {"method": "POST", "url": "https://ccradar.example.com/api/v1/x"}
     assert "extra" not in out
 
 
 def test_heartbeat(settings: Settings, db, monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     import httpx
 
-    from costlens.core import notify
-    from costlens.core.storage import build_storage
-    from costlens.jobs import system
-    from costlens.jobs.context import JobContext, configure_jobs
+    from ccradar.core import notify
+    from ccradar.core.storage import build_storage
+    from ccradar.jobs import system
+    from ccradar.jobs.context import JobContext, configure_jobs
 
     configure_jobs(JobContext(settings=settings, db=db, storage=build_storage(settings.data_dir)))
     beat = tmp_path / "beat"

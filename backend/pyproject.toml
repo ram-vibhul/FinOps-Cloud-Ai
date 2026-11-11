@@ -1,7 +1,7 @@
 [project]
-name = "costlens"
+name = "ccradar"
 version = "0.1.0"
-description = "CostLens - cloud cost management and Kubernetes operations platform by Yugiverse"
+description = "CloudCostRadar - cloud cost management and Kubernetes operations platform by Yugiverse"
 license = "LicenseRef-Proprietary"
 requires-python = ">=3.13"
 dependencies = [
@@ -21,7 +21,7 @@ dependencies = [
   "pyarrow==26.0.1",
   "reportlab==5.1.0",
   "pyyaml==6.0.3",
-  "sentry-sdk==2.74.0",  # MIT; error tracking, off unless COSTLENS_ERROR_TRACKING_DSN (D.9)
+  "sentry-sdk==2.74.0",  # MIT; error tracking, off unless CCRADAR_ERROR_TRACKING_DSN (D.9)
 ]
 
 [project.optional-dependencies]
@@ -35,7 +35,7 @@ dev = [
 ]
 
 [project.scripts]
-costlens = "costlens.cli:main"
+ccradar = "ccradar.cli:main"
 
 [build-system]
 requires = ["setuptools==84.2.1"]
@@ -45,13 +45,13 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-costlens = ["py.typed", "migrations/script.py.mako", "billing/plans.json"]
+ccradar = ["py.typed", "migrations/script.py.mako", "billing/plans.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["../agent/src"]
 addopts = "-q --strict-markers"
-filterwarnings = ["error::DeprecationWarning:costlens.*"]
+filterwarnings = ["error::DeprecationWarning:ccradar.*"]
 
 [tool.ruff]
 line-length = 100
@@ -79,28 +79,28 @@ ignore = ["PLR0913", "PLR0917", "PLR2004", "PLC0415"]  # lazy imports keep CLI a
 "tests/test_setup.py" = ["E501"]
 "migrations/**" = ["E501"]
 # Detector modules are mostly customer-facing prose (titles, steps, commands).
-"src/costlens/findings/**" = ["E501"]
-"src/costlens/aws_audit/**" = ["E501"]
-"src/costlens/reports/**" = ["E501"]
+"src/ccradar/findings/**" = ["E501"]
+"src/ccradar/aws_audit/**" = ["E501"]
+"src/ccradar/reports/**" = ["E501"]
 # Vendor API connectors: SQL text and request shapes read better unwrapped.
-"src/costlens/connectors/**" = ["E501"]
-"src/costlens/clouds/setup_help.py" = ["E501"]
-"src/costlens/accounts/domains.py" = ["E501"]
-"src/costlens/api/scim.py" = ["E501"]  # SCIM schema literals
-"src/costlens/accounts/elevation.py" = ["E501"]
-"src/costlens/api/elevation.py" = ["E501"]
-"src/costlens/api/partners.py" = ["E501"]
-"src/costlens/accounts/partners.py" = ["E501"]
-"src/costlens/clouds/aws/fixes.py" = ["E501"]
-"src/costlens/api/fixes.py" = ["E501"]
-"src/costlens/jobs/findings.py" = ["E501"]
-"src/costlens/api/mcp.py" = ["E501"]
-"src/costlens/api/custom_roles.py" = ["E501"]
-"src/costlens/accounts/custom_roles.py" = ["E501"]
-"src/costlens/accounts/domain_policy.py" = ["E501"]
-"src/costlens/api/teams.py" = ["E501"]
-"src/costlens/core/images.py" = ["E501"]  # allow-lists
-"src/costlens/api/setup.py" = ["E501"]  # copyable commands and role descriptions
+"src/ccradar/connectors/**" = ["E501"]
+"src/ccradar/clouds/setup_help.py" = ["E501"]
+"src/ccradar/accounts/domains.py" = ["E501"]
+"src/ccradar/api/scim.py" = ["E501"]  # SCIM schema literals
+"src/ccradar/accounts/elevation.py" = ["E501"]
+"src/ccradar/api/elevation.py" = ["E501"]
+"src/ccradar/api/partners.py" = ["E501"]
+"src/ccradar/accounts/partners.py" = ["E501"]
+"src/ccradar/clouds/aws/fixes.py" = ["E501"]
+"src/ccradar/api/fixes.py" = ["E501"]
+"src/ccradar/jobs/findings.py" = ["E501"]
+"src/ccradar/api/mcp.py" = ["E501"]
+"src/ccradar/api/custom_roles.py" = ["E501"]
+"src/ccradar/accounts/custom_roles.py" = ["E501"]
+"src/ccradar/accounts/domain_policy.py" = ["E501"]
+"src/ccradar/api/teams.py" = ["E501"]
+"src/ccradar/core/images.py" = ["E501"]  # allow-lists
+"src/ccradar/api/setup.py" = ["E501"]  # copyable commands and role descriptions
 
 [tool.pyright]
 include = ["src", "tests"]

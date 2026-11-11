@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-"""CostLens licence issuer (B.7). Runs on Yugiverse's own machine only: it is not part of
+"""CloudCostRadar licence issuer (B.7). Runs on Yugiverse's own machine only: it is not part of
 the product, the repository holds no key, and the image never contains this tool.
 
     # once: make the key pair (the private key file is created readable by you only)
-    python issue.py keygen --out ~/costlens-licence.key
-    # -> prints the PUBLIC key to build into backend/src/costlens/billing/licence.py
+    python issue.py keygen --out ~/ccradar-licence.key
+    # -> prints the PUBLIC key to build into backend/src/ccradar/billing/licence.py
 
     # each sale or renewal
-    python issue.py issue --key-file ~/costlens-licence.key \\
+    python issue.py issue --key-file ~/ccradar-licence.key \\
         --customer "Acme Ltd" --plan business --days 365 --grace-days 14 \\
         --limit members=250 --feature partner --out acme.licence
 
     # check a key against a public key
     python issue.py verify --public-key=<base64url> acme.licence   # '=' needed: keys may start with '-'
 
-The private key can also come from the ``COSTLENS_LICENCE_PRIVATE_KEY`` environment
+The private key can also come from the ``CCRADAR_LICENCE_PRIVATE_KEY`` environment
 variable (PEM text), e.g. injected by a secrets manager for one command. Cloud KMS
 signing is not built: none of the major KMS services is set up for Yugiverse yet (Q7).
 
@@ -37,8 +37,8 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PublicKey,
 )
 
-PREFIX = "CLv1"
-ENV_KEY = "COSTLENS_LICENCE_PRIVATE_KEY"
+PREFIX = "CCRv1"
+ENV_KEY = "CCRADAR_LICENCE_PRIVATE_KEY"
 
 
 def b64(data: bytes) -> str:
@@ -127,7 +127,7 @@ def issue(
 def verify(text: str, public_key: str) -> dict:
     prefix, body, sig = text.strip().split(".")
     if prefix != PREFIX:
-        raise SystemExit("not a CostLens licence")
+        raise SystemExit("not a CloudCostRadar licence")
     Ed25519PublicKey.from_public_bytes(unb64(public_key)).verify(unb64(sig), unb64(body))
     return json.loads(unb64(body))
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from costlens.core.redact import redact
+from ccradar.core.redact import redact
 
 # Fake tokens in each provider's format, assembled from pieces so that secret scanners
 # (GitHub push protection) do not mistake this test file for a leak. They are not real.
@@ -86,9 +86,9 @@ def test_personal_data_and_optional_ips() -> None:
 
 def test_agent_copy_of_the_rules_is_identical() -> None:
     """The agent cannot import the backend, so it carries a copy of the rules."""
-    from costlens_agent import redact as agent
+    from ccradar_agent import redact as agent
 
-    from costlens.core import redact as server
+    from ccradar.core import redact as server
 
     def rules(module) -> list[tuple[str, str, str, int]]:
         all_rules = [*module.SECRET_RULES, module.EMAIL, module.PHONE, module.IPV4]
@@ -104,10 +104,10 @@ def test_server_redacts_event_messages_on_ingest(db) -> None:
 
     from sqlalchemy import select
 
-    from costlens.db.base import utcnow
-    from costlens.db.tenant import set_tenant
-    from costlens.k8s.service import ingest_events
-    from costlens.models import K8sCluster, K8sEvent
+    from ccradar.db.base import utcnow
+    from ccradar.db.tenant import set_tenant
+    from ccradar.k8s.service import ingest_events
+    from ccradar.models import K8sCluster, K8sEvent
     from tests.helpers import make_org
 
     org_id, _ = make_org(db, "Acme", "owner@acme.com")

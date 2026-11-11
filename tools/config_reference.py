@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "backend/src/costlens/config.py"
+SOURCE = ROOT / "backend/src/ccradar/config.py"
 OUTPUT = ROOT / "docs/configuration.md"
 FIELD = re.compile(r"^    ([a-z_][a-z0-9_]*): ([^=]+?)(?: = (.+))?$")
 
@@ -66,16 +66,16 @@ def _default(kind: str, default: str) -> str:
 
 def render() -> str:
     rows = [
-        f"| `COSTLENS_{name.upper()}` | {_default(kind, default)} | {text or '—'} |"
+        f"| `CCRADAR_{name.upper()}` | {_default(kind, default)} | {text or '—'} |"
         for name, kind, default, text in fields()
     ]
     return (
         "# Configuration reference\n\n"
-        "Generated from `backend/src/costlens/config.py` by `tools/config_reference.py`; do "
+        "Generated from `backend/src/ccradar/config.py` by `tools/config_reference.py`; do "
         "not edit by hand.\n\n"
-        "Every setting is an environment variable with the `COSTLENS_` prefix (also read "
+        "Every setting is an environment variable with the `CCRADAR_` prefix (also read "
         "from a `.env` file). Secrets are never logged. Outside local mode "
-        "`COSTLENS_SECRET_KEY` and `COSTLENS_ENCRYPTION_KEYS` are required.\n\n"
+        "`CCRADAR_SECRET_KEY` and `CCRADAR_ENCRYPTION_KEYS` are required.\n\n"
         "| Variable | Default | What it does |\n|---|---|---|\n"
         + "\n".join(rows)
         + "\n"

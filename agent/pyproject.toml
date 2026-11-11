@@ -1,7 +1,7 @@
 [project]
-name = "costlens-agent"
+name = "cloudcostradar-agent"
 version = "0.1.0"
-description = "CostLens in-cluster Kubernetes agent (read-only) by Yugiverse"
+description = "CloudCostRadar in-cluster Kubernetes agent (read-only) by Yugiverse"
 license = "LicenseRef-Proprietary"
 requires-python = ">=3.13"
 dependencies = [
@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.scripts]
-costlens-agent = "costlens_agent.main:main"
+cloudcostradar-agent = "ccradar_agent.main:main"
 
 [build-system]
 requires = ["setuptools==84.2.1"]

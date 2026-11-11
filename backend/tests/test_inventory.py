@@ -8,18 +8,18 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.inventory import aws as collectors
-from costlens.inventory import ce_fallback
-from costlens.inventory.aws import Found
-from costlens.inventory.service import collect_aws
-from costlens.models import CloudConnection, CloudResource, CostHourly
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.inventory import aws as collectors
+from ccradar.inventory import ce_fallback
+from ccradar.inventory.aws import Found
+from ccradar.inventory.service import collect_aws
+from ccradar.models import CloudConnection, CloudResource, CostHourly
 from tests.fakes.aws import FakeAws
 from tests.helpers import make_org, sign_in_client
 
-ROLE = "arn:aws:iam::222222222222:role/CostLensReadOnly"
+ROLE = "arn:aws:iam::222222222222:role/CloudCostRadarReadOnly"
 LAUNCH = datetime(2026, 1, 1, tzinfo=UTC)
 
 
@@ -229,7 +229,7 @@ def test_vanished_resources_marked_deleted_only_on_complete_runs(env) -> None:
 
 
 def test_failed_collector_keeps_its_resources(env) -> None:
-    from costlens.inventory.service import upsert
+    from ccradar.inventory.service import upsert
 
     with env["db"].session() as s:
         set_tenant(s, org_id=env["org"])
@@ -296,7 +296,7 @@ def test_ce_fallback() -> None:
 
 
 def test_hourly_capture_from_cur(db: Database) -> None:
-    from costlens.clouds.aws import cur
+    from ccradar.clouds.aws import cur
 
     org_id, _ = make_org(db, "Acme", "o@acme.com")
     now = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
@@ -348,7 +348,7 @@ def test_hourly_api(client: TestClient, db: Database) -> None:
 
 
 def test_demo_inventory(db: Database) -> None:
-    from costlens.demo.seed import ensure_demo, load_all_seeders, seeders
+    from ccradar.demo.seed import ensure_demo, load_all_seeders, seeders
 
     load_all_seeders()
     if "inventory.aws" not in seeders():

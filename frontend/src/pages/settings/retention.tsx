@@ -37,7 +37,7 @@ function RetentionForm({ items, canEdit, onSaved }: {
     <Card>
       <CardHeader>
         <CardTitle>Data retention</CardTitle>
-        <CardDescription>How long CostLens keeps each kind of data. Older data is deleted automatically every night.</CardDescription>
+        <CardDescription>How long CloudCostRadar keeps each kind of data. Older data is deleted automatically every night.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={(e) => void save(e)} className="grid max-w-md gap-4">

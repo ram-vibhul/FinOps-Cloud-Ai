@@ -7,10 +7,10 @@ from decimal import Decimal
 import pytest
 from fastapi.testclient import TestClient
 
-from costlens import estimate
-from costlens.cli import main
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
+from ccradar import estimate
+from ccradar.cli import main
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
 from tests.helpers import make_org, sign_in_client
 
 
@@ -87,7 +87,7 @@ def test_terraform_plan_lines_and_total() -> None:
         sum(x.change for x in e.lines if x.source != "not priced")
     )
     md = estimate.markdown(e)
-    assert md.startswith("### CostLens estimate: +")
+    assert md.startswith("### CloudCostRadar estimate: +")
     assert "| `aws_s3_bucket.logs` | create | | | | not priced |" in md
     assert "1 resource(s) could not be priced" in md
 
@@ -180,7 +180,7 @@ def test_api_uses_bill_prices(client: TestClient, db: Database) -> None:
     assert r.status_code == 200, r.text
     web = next(x for x in r.json()["lines"] if x["address"] == "aws_instance.web")
     assert web["source"] == "bill" and web["after"] == pytest.approx(0.25 * 730 + 0.64)
-    assert r.json()["markdown"].startswith("### CostLens estimate")
+    assert r.json()["markdown"].startswith("### CloudCostRadar estimate")
     bad = c.post(
         "/api/v1/estimates/terraform", content=b"{}", headers={"Content-Type": "application/json"}
     )
@@ -193,7 +193,7 @@ def test_cli_markdown_json_and_fail_above(tmp_path, capsys) -> None:
     plan = tmp_path / "plan.json"
     plan.write_text(json.dumps(PLAN))
     assert main(["estimate", "terraform", str(plan)]) == 0
-    assert capsys.readouterr().out.startswith("### CostLens estimate: +")
+    assert capsys.readouterr().out.startswith("### CloudCostRadar estimate: +")
     prices = tmp_path / "prices.json"
     prices.write_text(json.dumps({"currency": "USD", "prices": {"m5.2xlarge": 0.25}}))
     assert (

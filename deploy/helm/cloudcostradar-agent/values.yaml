@@ -1,0 +1,42 @@
+ccradar:
+  # Address of your CloudCostRadar (SaaS or self-hosted).
+  url: ""
+  clusterName: ""
+  # Cluster token from CloudCostRadar -> Settings -> Kubernetes. Or use existingSecret.
+  token: ""
+  # Name of an existing Secret with key "token" (takes precedence over token).
+  existingSecret: ""
+  # Only for testing against a plain-http CloudCostRadar.
+  allowHttp: false
+  # Secrets, emails and phone numbers are always removed from event messages inside the
+  # cluster. Set true to also remove IP addresses.
+  redactIps: false
+  # Let members fetch pod logs from CloudCostRadar (read-only, redacted in the cluster).
+  # false removes the pods/log permission from the agent entirely.
+  allowLogs: true
+
+# Usage metrics: metrics-server is used by default. Set a Prometheus address to read
+# container CPU/memory from Prometheus instead (falls back to metrics-server on errors).
+prometheus:
+  url: ""  # e.g. http://prometheus-operated.monitoring:9090
+  # Secret with key "token" holding a bearer token, if Prometheus needs one.
+  tokenSecret: ""
+
+image:
+  repository: ghcr.io/ccradar/cloudcostradar-agent
+  tag: ""  # defaults to the chart appVersion
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 256Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}

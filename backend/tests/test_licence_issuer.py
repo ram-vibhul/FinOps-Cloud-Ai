@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from costlens.billing import licence
+from ccradar.billing import licence
 
 TOOL = Path(__file__).resolve().parents[2] / "tools" / "licence-issuer" / "issue.py"
 

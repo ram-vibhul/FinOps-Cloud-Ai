@@ -4,10 +4,10 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from costlens.config import Settings
-from costlens.db import Database
-from costlens.jobs import InProcessRunner
-from costlens.main import create_app
+from ccradar.config import Settings
+from ccradar.db import Database
+from ccradar.jobs import InProcessRunner
+from ccradar.main import create_app
 
 
 def test_healthz(client: TestClient) -> None:
@@ -28,7 +28,7 @@ def test_readyz_reports_unavailable_database(client: TestClient) -> None:
 
 def test_meta_is_public_and_non_sensitive(client: TestClient) -> None:
     body = client.get("/api/v1/meta").json()
-    assert body["product"] == "CostLens"
+    assert body["product"] == "CloudCostRadar"
     assert body["deployment_mode"] == "local"
     assert body["ai_enabled"] is False
     assert "database_url" not in body
@@ -51,7 +51,7 @@ def test_request_id_is_echoed_when_sane(client: TestClient) -> None:
 
 
 def test_openapi_available(client: TestClient) -> None:
-    assert client.get("/openapi.json").json()["info"]["title"] == "CostLens API"
+    assert client.get("/openapi.json").json()["info"]["title"] == "CloudCostRadar API"
 
 
 def test_spa_served_with_fallback(tmp_path: Path, settings: Settings, db: Database) -> None:

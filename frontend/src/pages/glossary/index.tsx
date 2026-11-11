@@ -14,7 +14,7 @@ export function GlossaryPage() {
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Glossary</h1>
-        <p className="text-sm text-muted-foreground">The cloud and FinOps words CostLens uses, in plain English.</p>
+        <p className="text-sm text-muted-foreground">The cloud and FinOps words CloudCostRadar uses, in plain English.</p>
       </div>
       <Input aria-label="Search the glossary" placeholder="Search, e.g. amortised" value={q} onChange={(e) => setQ(e.target.value)} />
       <Card>

@@ -5,11 +5,11 @@ import uuid
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.k8s.otlp import samples
-from costlens.k8s.service import ingest_objects, issue_token
-from costlens.models import K8sCluster, K8sUsage
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.k8s.otlp import samples
+from ccradar.k8s.service import ingest_objects, issue_token
+from ccradar.models import K8sCluster, K8sUsage
 from tests.helpers import make_org
 
 

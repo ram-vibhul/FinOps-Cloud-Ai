@@ -3,17 +3,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: costlens-worker
+  name: ccradar-worker
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: costlens
+      app.kubernetes.io/name: ccradar
       app.kubernetes.io/component: worker
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: costlens
+        app.kubernetes.io/name: ccradar
         app.kubernetes.io/component: worker
     spec:
       automountServiceAccountToken: false
@@ -26,16 +26,16 @@ spec:
           type: RuntimeDefault
       containers:
         - name: worker
-          image: ghcr.io/yugiverse/costlens
+          image: ghcr.io/yugiverse/cloudcostradar
           args: ["worker"]
           envFrom:
             - secretRef:
-                name: costlens-env
+                name: ccradar-env
           env:
-            - { name: COSTLENS_DATA_DIR, value: /data }
+            - { name: CCRADAR_DATA_DIR, value: /data }
           # The heartbeat job records the time every 5 minutes; restart after 15 without.
           livenessProbe:
-            exec: { command: ["costlens", "worker-health"] }
+            exec: { command: ["ccradar", "worker-health"] }
             initialDelaySeconds: 600
             periodSeconds: 60
             failureThreshold: 3
@@ -52,5 +52,5 @@ spec:
             limits: { memory: 2Gi }
       volumes:
         - name: data
-          persistentVolumeClaim: { claimName: costlens-data }
+          persistentVolumeClaim: { claimName: ccradar-data }
         - { name: tmp, emptyDir: {} }

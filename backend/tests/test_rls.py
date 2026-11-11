@@ -1,6 +1,6 @@
 """Tenant isolation enforced by PostgreSQL row-level security.
 
-These tests only run against PostgreSQL (COSTLENS_TEST_DATABASE_URL). The
+These tests only run against PostgreSQL (CCRADAR_TEST_DATABASE_URL). The
 application connection is the non-privileged app role, so RLS really applies.
 """
 
@@ -15,14 +15,14 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, ProgrammingError
 from sqlalchemy.orm import Session
 
-from costlens.accounts import service as acc
-from costlens.accounts.roles import Role
-from costlens.config import DeploymentMode, Settings
-from costlens.db import Database
-from costlens.db.rls import enable_tenant_rls_sql, ident, is_privileged_role, rls_status
-from costlens.db.tenant import current_tenant, set_tenant, tenant_tables
-from costlens.jobs import InProcessRunner
-from costlens.main import create_app
+from ccradar.accounts import service as acc
+from ccradar.accounts.roles import Role
+from ccradar.config import DeploymentMode, Settings
+from ccradar.db import Database
+from ccradar.db.rls import enable_tenant_rls_sql, ident, is_privileged_role, rls_status
+from ccradar.db.tenant import current_tenant, set_tenant, tenant_tables
+from ccradar.jobs import InProcessRunner
+from ccradar.main import create_app
 from tests.conftest import POSTGRES_URL, TEST_ENCRYPTION_KEY
 
 pg_only = pytest.mark.skipif(not POSTGRES_URL, reason="needs PostgreSQL")
@@ -71,7 +71,7 @@ def org_ids(s: Session) -> set[uuid.UUID]:
 def test_every_tenant_table_has_rls(admin_database_url: str, db: Database) -> None:
     if not POSTGRES_URL:
         pytest.skip("needs PostgreSQL")
-    from costlens.db.session import build_engine
+    from ccradar.db.session import build_engine
 
     engine = build_engine(admin_database_url)
     with engine.connect() as conn:
@@ -189,7 +189,7 @@ def test_context_survives_commit_and_is_transaction_local(db: Database, two_orgs
     with db.engine.connect() as conn:  # pooled connection must not leak the setting
         assert conn.execute(text("SELECT count(*) FROM memberships")).scalar() == 0
         assert conn.execute(
-            text("SELECT coalesce(current_setting('costlens.org_id', true), '')")
+            text("SELECT coalesce(current_setting('ccradar.org_id', true), '')")
         ).scalar() in ("", None)
 
 

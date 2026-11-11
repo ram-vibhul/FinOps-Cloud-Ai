@@ -3,14 +3,14 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.findings.registry import FindingIn
-from costlens.findings.service import _store, run
-from costlens.inventory.aws import Found
-from costlens.inventory.service import upsert
-from costlens.models import Finding
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.findings.registry import FindingIn
+from ccradar.findings.service import _store, run
+from ccradar.inventory.aws import Found
+from ccradar.inventory.service import upsert
+from ccradar.models import Finding
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 

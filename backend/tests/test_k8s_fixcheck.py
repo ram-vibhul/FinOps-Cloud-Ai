@@ -6,13 +6,13 @@ from datetime import timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from costlens.accounts.roles import Role
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.k8s.fixcheck import check
-from costlens.k8s.service import ingest_events, ingest_objects
-from costlens.models import K8sCluster, K8sUsage
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.k8s.fixcheck import check
+from ccradar.k8s.service import ingest_events, ingest_objects
+from ccradar.models import K8sCluster, K8sUsage
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 NOW = utcnow().replace(minute=30, second=0, microsecond=0)
@@ -131,7 +131,7 @@ def test_side_effects_are_reported(db: Database) -> None:
 
 
 def test_api_with_change_and_saved_on_investigation(client: TestClient, db: Database) -> None:
-    from costlens.demo.seed import ensure_demo, load_all_seeders
+    from ccradar.demo.seed import ensure_demo, load_all_seeders
 
     load_all_seeders()
     with db.session() as s:

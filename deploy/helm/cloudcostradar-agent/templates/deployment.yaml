@@ -1,0 +1,102 @@
+{{- if not .Values.ccradar.url }}{{ fail "Set ccradar.url to the address of your CloudCostRadar." }}{{ end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "cloudcostradar-agent.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudcostradar-agent
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels: {{- include "cloudcostradar-agent.labels" . | nindent 8 }}
+      annotations:
+        checksum/token: {{ .Values.ccradar.token | sha256sum | trunc 16 }}
+        {{- with .Values.podAnnotations }}{{ toYaml . | nindent 8 }}{{ end }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: agent
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: CCRADAR_URL
+              value: {{ .Values.ccradar.url | quote }}
+            - name: CCRADAR_CLUSTER_NAME
+              value: {{ .Values.ccradar.clusterName | quote }}
+            - name: CCRADAR_TOKEN_FILE
+              value: /var/run/ccradar/token
+            {{- with .Values.prometheus.url }}
+            - name: CCRADAR_PROMETHEUS_URL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- if .Values.prometheus.tokenSecret }}
+            - name: CCRADAR_PROMETHEUS_TOKEN_FILE
+              value: /var/run/prometheus/token
+            {{- end }}
+            {{- if not .Values.ccradar.allowLogs }}
+            - name: CCRADAR_ALLOW_LOGS
+              value: "false"
+            {{- end }}
+            {{- if .Values.ccradar.redactIps }}
+            - name: CCRADAR_REDACT_IPS
+              value: "true"
+            {{- end }}
+            {{- if .Values.ccradar.allowHttp }}
+            - name: CCRADAR_ALLOW_HTTP
+              value: "true"
+            {{- end }}
+          volumeMounts:
+            - name: token
+              mountPath: /var/run/ccradar
+              readOnly: true
+            {{- if .Values.prometheus.tokenSecret }}
+            - name: prometheus-token
+              mountPath: /var/run/prometheus
+              readOnly: true
+            {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: token
+          secret:
+            secretName: {{ include "cloudcostradar-agent.secretName" . }}
+            items:
+              - key: token
+                path: token
+        {{- if .Values.prometheus.tokenSecret }}
+        - name: prometheus-token
+          secret:
+            secretName: {{ .Values.prometheus.tokenSecret }}
+            items:
+              - key: token
+                path: token
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity: {{- toYaml . | nindent 8 }}
+      {{- end }}

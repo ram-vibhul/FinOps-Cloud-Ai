@@ -40,7 +40,7 @@ export function CloseInvestigationCard({ inv, canClose, onClosed }: {
           <p className="flex flex-wrap items-center gap-2">
             Real cause: <span className="font-medium">{label(inv.real_cause)}</span>
             <Badge variant={right ? "default" : "secondary"}>
-              {right ? "CostLens ranked it first" : inv.cause_rank ? `CostLens ranked it #${inv.cause_rank}` : "CostLens missed it"}
+              {right ? "CloudCostRadar ranked it first" : inv.cause_rank ? `CloudCostRadar ranked it #${inv.cause_rank}` : "CloudCostRadar missed it"}
             </Badge>
           </p>
           {inv.cause_note && <p>Why: {inv.cause_note}</p>}
@@ -54,7 +54,7 @@ export function CloseInvestigationCard({ inv, canClose, onClosed }: {
     <Card>
       <CardHeader>
         <CardTitle>Close with the real cause</CardTitle>
-        <CardDescription>Tell CostLens what it really was and what fixed it. This measures and improves its diagnoses.</CardDescription>
+        <CardDescription>Tell CloudCostRadar what it really was and what fixed it. This measures and improves its diagnoses.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={(e) => void close(e)} className="grid gap-3 sm:grid-cols-3 sm:items-end">

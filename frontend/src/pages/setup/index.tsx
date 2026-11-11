@@ -31,11 +31,11 @@ function Steps({ data, compact = false }: { data: SetupChecklist; compact?: bool
 const WORKING: FirstSavings["stage"][] = ["importing", "analysing"];
 const POLL_MS = 10_000;
 const STAGE_TEXT: Record<FirstSavings["stage"], string> = {
-  connect: "Connect a cloud account and CostLens looks for savings straight away.",
+  connect: "Connect a cloud account and CloudCostRadar looks for savings straight away.",
   importing: "Importing your costs. This usually takes a few minutes.",
   analysing: "Costs are in. Looking for savings now…",
   ready: "",
-  none_found: "No savings found yet. CostLens checks again every day as more data arrives.",
+  none_found: "No savings found yet. CloudCostRadar checks again every day as more data arrives.",
 };
 
 /** The first savings of a new organisation, live while the first import runs (9.5). */
@@ -111,14 +111,14 @@ export function SetupPage() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Set up CostLens</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Set up CloudCostRadar</h1>
         <p className="text-sm text-muted-foreground">A few steps to your first savings. Each one ticks itself when it is done.</p>
       </div>
       {d && (
         <Card>
           <CardContent className="grid gap-3 pt-1">
             <meter className="w-full" min={0} max={d.total} value={d.done} aria-label="Setup progress" />
-            <p className="text-sm">{d.done === d.total ? "All set. CostLens keeps looking for savings every day." : `${d.done} of ${d.total} done.`}</p>
+            <p className="text-sm">{d.done === d.total ? "All set. CloudCostRadar keeps looking for savings every day." : `${d.done} of ${d.total} done.`}</p>
             <FirstSavingsPanel />
             <Steps data={d} />
             <Button size="sm" variant="ghost" className="justify-self-start" onClick={() => void data.reload()}>Check again</Button>

@@ -40,7 +40,7 @@ export function BedrockLogsDialog({ connection, onSaved }: { connection: CloudCo
         <Button variant="ghost" size="sm">Bedrock logs</Button>
       </DialogTrigger>
       <DialogContent title="Bedrock spend per app and team"
-        description="Read Bedrock model invocation logs from S3 to split Bedrock spend by app and team. CostLens keeps only token counts and who called; turn off text delivery in the Bedrock logging settings so prompts are never written to the logs. After saving, update the read-only role with the new template (it adds read access to this bucket only).">
+        description="Read Bedrock model invocation logs from S3 to split Bedrock spend by app and team. CloudCostRadar keeps only token counts and who called; turn off text delivery in the Bedrock logging settings so prompts are never written to the logs. After saving, update the read-only role with the new template (it adds read access to this bucket only).">
         <form onSubmit={(e) => void save(e)} className="grid gap-3">
           <div className="grid gap-1"><Label htmlFor="bl-bucket">Log bucket</Label>
             <Input id="bl-bucket" value={bucket} onChange={(e) => setBucket(e.target.value)} placeholder="acme-bedrock-logs (empty turns it off)" /></div>

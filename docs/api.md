@@ -1,6 +1,6 @@
 # Public API
 
-The API behind the CostLens app is public: everything the UI does, you can script.
+The API behind the CloudCostRadar app is public: everything the UI does, you can script.
 Interactive documentation (OpenAPI) is at `<base url>/docs`; the schema at
 `/openapi.json`.
 
@@ -18,7 +18,7 @@ looks like `clk_…`, is shown once, and has a scope:
 Send it as a bearer token:
 
 ```bash
-curl -H "Authorization: Bearer clk_..." https://costlens.example.com/api/v1/costs/summary
+curl -H "Authorization: Bearer clk_..." https://ccradar.example.com/api/v1/costs/summary
 ```
 
 Keys belong to one organisation, can expire, can be revoked, and record when they were
@@ -41,8 +41,8 @@ last used. Requests with a key need no CSRF token.
 
 ## Rate limits
 
-Per key: `COSTLENS_RATE_LIMIT_USER_PER_MINUTE` requests and
-`COSTLENS_RATE_LIMIT_WRITE_PER_MINUTE` changes a minute. Every answer carries
+Per key: `CCRADAR_RATE_LIMIT_USER_PER_MINUTE` requests and
+`CCRADAR_RATE_LIMIT_WRITE_PER_MINUTE` changes a minute. Every answer carries
 `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset`; a `429` adds
 `Retry-After`.
 
@@ -65,8 +65,8 @@ Settings → Notifications → Outgoing webhooks sends events (anomalies, budget
 approvals waiting, imports, …) to your HTTPS endpoint:
 
 - Body: `{"id", "event", "created_at", "org_id", "data": {"title", "text", "link", "severity"}}`.
-- Headers: `X-CostLens-Event`, `X-CostLens-Delivery` (de-duplicate on it) and
-  `X-CostLens-Signature: t=<unix seconds>,v1=<hex>`, where the hex is HMAC-SHA256 with the
+- Headers: `X-CloudCostRadar-Event`, `X-CloudCostRadar-Delivery` (de-duplicate on it) and
+  `X-CloudCostRadar-Signature: t=<unix seconds>,v1=<hex>`, where the hex is HMAC-SHA256 with the
   webhook's secret over `"<t>.<raw body>"`. Reject timestamps older than 5 minutes.
 - A 2xx answer means delivered; otherwise retried after 1 min, 5 min, 30 min, 2 h and 6 h.
 

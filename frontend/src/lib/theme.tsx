@@ -1,7 +1,7 @@
 import { createContext, use, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 export type Theme = "light" | "dark" | "system";
-const STORAGE_KEY = "costlens-theme";
+const STORAGE_KEY = "ccradar-theme";
 
 interface ThemeState {
   theme: Theme;

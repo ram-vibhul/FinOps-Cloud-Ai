@@ -12,10 +12,10 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy import select
 
-from costlens.billing import subscriptions, webhooks
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import Organization, PaymentEvent, Subscription
+from ccradar.billing import subscriptions, webhooks
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import Organization, PaymentEvent, Subscription
 from tests.helpers import make_org
 
 RZP, STRIPE = "rzp-test-secret", "whsec_test"

@@ -5,12 +5,12 @@ from datetime import UTC, date, datetime
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.findings.registry import FindingIn
-from costlens.findings.service import _store
-from costlens.models import Finding, PlannedPurchase
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.findings.registry import FindingIn
+from ccradar.findings.service import _store
+from ccradar.models import Finding, PlannedPurchase
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 
@@ -104,11 +104,11 @@ def test_roi_pack(client: TestClient, db: Database) -> None:
     )
     pdf = o.get("/api/v1/roi/pack.pdf", params=params)
     assert pdf.headers["content-type"] == "application/pdf" and pdf.content.startswith(b"%PDF")
-    assert pdf.headers["content-disposition"].endswith('costlens-roi-2026-09-01-2026-10-31.pdf"')
+    assert pdf.headers["content-disposition"].endswith('ccradar-roi-2026-09-01-2026-10-31.pdf"')
 
 
 def test_month_span() -> None:
-    from costlens.reports.roi import _months
+    from ccradar.reports.roi import _months
 
     assert _months(date(2025, 11, 5), date(2026, 2, 1)) == [
         "2025-11",

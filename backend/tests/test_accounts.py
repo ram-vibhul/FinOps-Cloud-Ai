@@ -8,13 +8,13 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from costlens.accounts import service as acc
-from costlens.accounts.roles import Permission, Role, can_assign, has_permission
-from costlens.core.errors import AppError, ConflictError, NotFoundError, PermissionDeniedError
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import tenant_tables
-from costlens.models import Membership, Organization, User, UserSession
+from ccradar.accounts import service as acc
+from ccradar.accounts.roles import Permission, Role, can_assign, has_permission
+from ccradar.core.errors import AppError, ConflictError, NotFoundError, PermissionDeniedError
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import tenant_tables
+from ccradar.models import Membership, Organization, User, UserSession
 
 
 @pytest.fixture

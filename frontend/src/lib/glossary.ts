@@ -1,11 +1,11 @@
-/** Plain-English meanings of the cloud and FinOps words CostLens uses (9.2). */
+/** Plain-English meanings of the cloud and FinOps words CloudCostRadar uses (9.2). */
 export interface GlossaryEntry { term: string; short: string; long?: string }
 
 export const GLOSSARY: Record<string, GlossaryEntry> = {
   amortised: {
     term: "Amortised cost",
     short: "Cost with up-front payments spread over the months they cover.",
-    long: "If you pay for a one-year commitment in advance, the bill shows it all in one month. Amortised cost spreads it evenly over the year, so each month shows what it really used. CostLens shows amortised cost unless you choose billed cost.",
+    long: "If you pay for a one-year commitment in advance, the bill shows it all in one month. Amortised cost spreads it evenly over the year, so each month shows what it really used. CloudCostRadar shows amortised cost unless you choose billed cost.",
   },
   billed: { term: "Billed cost", short: "What appears on the invoice for the month, including up-front payments on the day they were charged." },
   effective: { term: "Effective cost", short: "Another name for amortised cost: what you really paid for each day's use after discounts." },
@@ -26,7 +26,7 @@ export const GLOSSARY: Record<string, GlossaryEntry> = {
   shared_cost: { term: "Shared costs", short: "Costs that serve many teams (networking, support, security tools) and are split between them by a rule." },
   unit_cost: { term: "Unit cost", short: "Cloud cost divided by something the business counts, such as orders or active users. It shows whether growth is getting more efficient." },
   tag: { term: "Tag", short: "A label on a cloud resource (for example team = payments). Tags let costs be grouped by team, project or environment." },
-  virtual_tag: { term: "Virtual tag", short: "A label CostLens works out from rules, for costs that were never tagged in the cloud." },
+  virtual_tag: { term: "Virtual tag", short: "A label CloudCostRadar works out from rules, for costs that were never tagged in the cloud." },
   rightsizing: { term: "Right-sizing", short: "Moving a server or database to a smaller size that still fits how much it is really used." },
   idle: { term: "Idle resource", short: "Something you pay for that does little or no work: a stopped server's disks, an unused IP address, an empty load balancer." },
   spot: { term: "Spot", short: "Spare cloud capacity sold at a deep discount that the provider can take back at short notice. Good for work that can be interrupted." },

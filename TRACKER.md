@@ -1,4 +1,7 @@
-# CostLens — engineering tracker
+# CloudCostRadar — engineering tracker
+
+*Renamed from CostLens on 2026-11-10 (another product uses costlens.net). Log entries before
+that date use the old name, `COSTLENS_` settings and the `costlens` package.*
 
 Single source of truth for the build: stack, checklist, design notes, open
 questions and the dated log. **Each session: read this file, take the next
@@ -741,12 +744,12 @@ docs/                     Documentation
 
 | # | Question | Blocks | Status |
 |---|---|---|---|
-| Q1 | **Product name** — decided: **CostLens** (2026-11-05). Remaining for you: register costlens.com (no DNS records on 2026-11-05, so likely unregistered; .io and .cloud are taken), trademark search on IP India (classes 9 & 42), USPTO and EUIPO — "lens" is a common product word, so check for similar marks in software/FinOps — and claim the GitHub org and social handles. | nothing (name in use) | decided; checks pending |
+| Q1 | **Product name** — decided: **CloudCostRadar** (2026-11-10; replaced CostLens, because costlens.net is another product). Technical name `ccradar` (settings `CCRADAR_…`, command `ccradar`, Python package), images and Helm chart `cloudcostradar…`. On 2026-11-10 cloudcostradar.com/.net/.io/.ai, the GitHub name and the PyPI/npm names were all free. Remaining for you: buy the .com (and ideally .io/.ai), claim the GitHub organisation, and search IP India (classes 9 and 42) — a descriptive name may be refused or hard to defend. | nothing (name in use) | decided; domain and trademark pending |
 | Q2 | **Plans and prices**: plan names, INR and USD prices, trial length (built as `COSTLENS_TRIAL_DAYS`, 14 for now; SaaS only), limits (cloud spend under management, clusters, users, data retention), annual discount. | B.1, B.3, B.4, B.9 pricing page | open |
 | Q3 | **Payment accounts**: Razorpay and Stripe accounts (business KYC as a sole proprietorship), GSTIN for GST invoices, place of supply rules, invoice numbering format. | B.3, B.4 | open |
 | Q4 | **Transactional email provider** for SaaS (paid service): e.g. Amazon SES, Postmark, Resend — or SMTP only? Self-hosted will use customer SMTP. | 1.9 (SaaS sending) | open |
 | Q5 | **Exchange-rate source** — built with the free **ECB** euro reference rates (≈30 currencies incl. INR, USD; working days, carried over weekends) behind a pluggable provider (`COSTLENS_FX_PROVIDER=ecb\|none`). Confirm ECB is fine, or say if finance needs RBI reference rates (INR) or a paid feed. Fixed monthly finance rates come with 2.17 (manual overrides). | nothing (2.11 done with ECB) | proposed, awaiting confirmation |
-| Q6 | **Legal**: business address, contact emails (legal@, support@, security@), governing law/jurisdiction (suggest Tamil Nadu, India), and lawyer review of LICENSE, EULA, terms, privacy (DPDP Act 2023 + GDPR), DPA, SLA targets, refund policy. | B.10, final LICENSE | open |
+| Q6 | **Legal**: business address, contact emails (legal@, support@, security@) — *contact phone given 2026-11-10: 9566929555 (not yet on the website); mailboxes to come with the domain*, governing law/jurisdiction (suggest Tamil Nadu, India), and lawyer review of LICENSE, EULA, terms, privacy (DPDP Act 2023 + GDPR), DPA, SLA targets, refund policy. | B.10, final LICENSE | open |
 | Q7 | **SaaS hosting design**: AWS region(s) (suggest ap-south-1 Mumbai + us-east-1), ECS Fargate vs EKS, budget. | D.6 | open |
 | Q8 | ~~Docker Desktop was not running in sessions 1 and 2, so the image build and PostgreSQL test run were not verified locally (CI does both). Start Docker if you want them verified next session. **Now also needed for 1.2 (row-level security), which can only be tested on PostgreSQL** — without Docker I can build it but only CI will prove it.~~ Resolved 2026-11-05: Docker running; image, compose and PostgreSQL tests verified. | — | resolved |
 | Q10 | **Google OAuth client for the SaaS** (free): create a Google Cloud project for Yugiverse, configure the OAuth consent screen (app name CostLens, logo, privacy/terms links, support email; Google verification needed for external users) and an OAuth client (Web) with redirect `https://<saas domain>/api/v1/auth/callback/google`. Give me the client ID; the secret goes only into the hosting secrets. Self-hosted customers create their own. | SaaS sign-in go-live | open |
@@ -4452,3 +4455,39 @@ docs/                     Documentation
   created and verified inside the stack. The temporary `.env` used was deleted.
 - Checks: `make check` green (SQLite 802 passed / 18 skipped; agent 30; SDKs 5 + 5;
   frontend 162). `make test-pg` 820 passed.
+
+### 2026-11-10 — Session 9cq: container start-up fix
+- **Bug fixed:** the image did not set `COSTLENS_DATA_DIR`, so the app used `./data`
+  under `/app`, which the non-root user cannot create. The quick-start container
+  (`deploy/compose/local.yaml`) crashed at start; in the full Compose setup, uploaded
+  files and reports would also have gone to the wrong place. The Dockerfile now sets
+  `COSTLENS_DATA_DIR=/data` (the volume); a test guards it. Verified: the rebuilt image
+  starts cleanly in local mode and answers `/readyz`.
+
+### 2026-11-10 — Cost research for the open questions
+- Researched market prices for Q2, Q4, Q6, Q7 and the free items; recommendations were
+  given in the conversation (cheapest-first: one AWS EC2 t4g.small in Mumbai with the
+  bundled Compose stack, Amazon SES for app email, Zoho Mail's free plan for mailboxes,
+  domain at cost on Cloudflare, Udyam registration for the 50% trademark fee). Nothing
+  bought or decided; each question stays open until the owner confirms.
+- Q6: contact phone recorded.
+
+### 2026-11-10 — Session 9cr: renamed to CloudCostRadar
+- Owner's decision: product name **CloudCostRadar**, technical name **ccradar**.
+- Renamed everywhere (596 files and 6 paths), in this order so specific names win:
+  images and chart `ghcr.io/…/cloudcostradar[-agent]`, `cloudcostradar-agent`,
+  `ccradar_agent`, `ccradar_ai` / `ccradar-ai` / `@ccradar/ai`, display name
+  `CloudCostRadar`, settings `CCRADAR_…`, package/CLI/database names `ccradar`, licence
+  prefix `CCRv1`; outgoing webhook headers `X-CloudCostRadar-Event|Delivery|Signature`,
+  incoming alert token header `X-CloudCostRadar-Token`.
+- Paths: `backend/src/ccradar`, `agent/src/ccradar_agent`, `sdk/python/src/ccradar_ai`,
+  `deploy/helm/cloudcostradar-agent`, `deploy/kubernetes/ccradar.env.example`; the local
+  dev database moved to `backend/data/ccradar.db`. Migrations were edited in place
+  (row-level-security function and setting names); nothing is deployed yet, so no
+  upgrade path was needed. The PostgreSQL test container was recreated.
+- Two long messages re-wrapped; notices, configuration reference, website plans and
+  changelog regenerated. Old docker images/volumes named `costlens…` can be removed.
+- Checked: `make check` green (SQLite 803 passed / 18 skipped; agent 30; SDKs 5 + 5;
+  frontend 162). `make test-pg` 821 passed on a fresh database. The rebuilt image runs
+  with `deploy/compose/local.yaml`; the sign-in page and `/api/v1/meta` say
+  CloudCostRadar.

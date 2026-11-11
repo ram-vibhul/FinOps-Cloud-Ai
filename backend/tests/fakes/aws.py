@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from costlens.clouds.aws.client import AwsAccessError, Identity, account_from_arn
+from ccradar.clouds.aws.client import AwsAccessError, Identity, account_from_arn
 
 
 @dataclass
@@ -30,7 +30,9 @@ class FakeAws:
     def assume(self, role_arn: str, external_id: str, session_name: str) -> FakeSession:
         self.calls.append(("assume", (role_arn, external_id, session_name)))
         if self.trusted.get(role_arn) != external_id:
-            raise AwsAccessError("access_denied", "AWS refused to let CostLens assume the role.")
+            raise AwsAccessError(
+                "access_denied", "AWS refused to let CloudCostRadar assume the role."
+            )
         return FakeSession(role_arn, account_from_arn(role_arn))
 
     def identity(self, session: FakeSession) -> Identity:

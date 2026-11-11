@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from costlens.core.csrf import csrf_token
-from costlens.db import Database
+from ccradar.core.csrf import csrf_token
+from ccradar.db import Database
 from tests.helpers import make_org, sign_in_client
 
 SPEC = {
@@ -79,7 +79,7 @@ def test_any_localhost_port_allowed_in_local_mode_only(signed_in: TestClient) ->
 
 
 def test_localhost_not_trusted_outside_local_mode() -> None:
-    from costlens.core.csrf import CSRFMiddleware
+    from ccradar.core.csrf import CSRFMiddleware
 
     async def app(scope, receive, send) -> None:
         return None
@@ -88,19 +88,19 @@ def test_localhost_not_trusted_outside_local_mode() -> None:
         app,
         signing_key="k",
         session_cookie="s",
-        allowed_origins=["https://app.costlens.example"],
+        allowed_origins=["https://app.ccradar.example"],
     )
     assert not mw._origin_allowed("http://localhost:5173")
-    assert mw._origin_allowed("https://app.costlens.example")
+    assert mw._origin_allowed("https://app.ccradar.example")
 
 
 def test_stale_session_cookie_does_not_block_sign_in(client: TestClient, settings) -> None:
     settings.local_login = True
-    client.cookies.set("costlens_session", "stale-token-from-a-deleted-session")
+    client.cookies.set("ccradar_session", "stale-token-from-a-deleted-session")
     r = client.get("/api/v1/auth/me")
     assert r.status_code == 401
-    assert "costlens_session=;" in r.headers.get("set-cookie", "")  # browser told to drop it
-    client.cookies.set("costlens_session", "stale-token-from-a-deleted-session")
+    assert "ccradar_session=;" in r.headers.get("set-cookie", "")  # browser told to drop it
+    client.cookies.set("ccradar_session", "stale-token-from-a-deleted-session")
     assert client.post("/api/v1/auth/local", json={"email": "a@b.com"}).status_code == 204
     evil = client.post(
         "/api/v1/auth/local", json={"email": "a@b.com"}, headers={"Origin": "https://evil.example"}

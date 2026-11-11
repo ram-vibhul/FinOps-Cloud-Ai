@@ -1,10 +1,10 @@
 > **DRAFT — NOT REVIEWED BY A LAWYER. NOT FOR PUBLICATION.** Placeholders are in [SQUARE BRACKETS].
 
-# CostLens Data Processing Agreement
+# CloudCostRadar Data Processing Agreement
 
 Last updated: [DATE]
 
-This Data Processing Agreement ("**DPA**") forms part of the CostLens Terms of Service
+This Data Processing Agreement ("**DPA**") forms part of the CloudCostRadar Terms of Service
 between the Customer and [YUGIVERSE LEGAL ENTITY NAME] ("**Yugiverse**").
 
 ## 1. Roles and scope

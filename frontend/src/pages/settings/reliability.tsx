@@ -206,7 +206,7 @@ export function ReliabilityTab() {
       <CardHeader>
         <CardTitle>Reliability targets</CardTitle>
         <CardDescription>
-          Tell CostLens what each service must keep. Savings suggestions then keep the headroom you ask for, never
+          Tell CloudCostRadar what each service must keep. Savings suggestions then keep the headroom you ask for, never
           resize past the utilisation ceiling, never suggest stopping or deleting critical services, and keep Multi-AZ
           when availability is 99.95% or higher. Targets can only add safety: the built-in 20% headroom and 80% ceiling
           always apply. The most specific target wins.

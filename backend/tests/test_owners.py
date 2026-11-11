@@ -6,16 +6,16 @@ from decimal import Decimal
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.findings.registry import FindingIn
-from costlens.findings.service import _store
-from costlens.inventory.aws import Found
-from costlens.inventory.service import upsert
-from costlens.models import Finding
+from ccradar.accounts.roles import Role
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.findings.registry import FindingIn
+from ccradar.findings.service import _store
+from ccradar.inventory.aws import Found
+from ccradar.inventory.service import upsert
+from ccradar.models import Finding
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 
@@ -90,7 +90,7 @@ def _seed(db: Database):
             billing_period=line.charge_date.replace(day=1),
             lines=[line],
         )
-        from costlens.models import CostLineItem
+        from ccradar.models import CostLineItem
 
         set_tenant(s, org_id=org_id)
         for row in s.scalars(select(CostLineItem).where(CostLineItem.resource_id == "vol-x")):

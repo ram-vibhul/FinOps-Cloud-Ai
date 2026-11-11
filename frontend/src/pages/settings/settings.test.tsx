@@ -32,7 +32,7 @@ function base(extra: Record<string, unknown> = {}) {
     "GET /api/v1/org/notification-channels": [],
     "GET /api/v1/org/outgoing-webhooks": [],
     "GET /api/v1/org/teams": [],
-    "GET /api/v1/org/scim": { enabled: false, token_hint: null, default_role: "member", base_url: "https://costlens.example/scim/v2" },
+    "GET /api/v1/org/scim": { enabled: false, token_hint: null, default_role: "member", base_url: "https://ccradar.example/scim/v2" },
     "GET /api/v1/org/domains": [],
     "GET /api/v1/org/elevated-access": [],
     "GET /api/v1/org/custom-roles": { grantable: ["read", "write", "manage_members", "manage_connections", "manage_settings"], roles: [] },
@@ -139,7 +139,7 @@ describe("settings", () => {
       "GET /api/v1/clusters": [cluster],
       "POST /api/v1/org/webhooks/alerts": { id: "h1", kind: "alertmanager", name: "Prometheus Alertmanager",
         url: "https://c.example/api/v1/hooks/alertmanager/h1", last_received_at: null, secret: "s3",
-        setup: "receivers:\n  - name: costlens\n    webhook_configs:\n      - url: https://c.example/api/v1/hooks/alertmanager/h1" },
+        setup: "receivers:\n  - name: ccradar\n    webhook_configs:\n      - url: https://c.example/api/v1/hooks/alertmanager/h1" },
     }));
     renderRoute("/settings?tab=kubernetes");
     await userEvent.click(await screen.findByRole("button", { name: /Add receiver/ }));
@@ -241,10 +241,10 @@ describe("settings", () => {
 
   it("turns on SCIM and shows the token once", async () => {
     const { calls } = mockApi(base({
-      "POST /api/v1/org/scim": { enabled: true, token_hint: "abc123", default_role: "viewer", base_url: "https://costlens.example/scim/v2", token: "scim_secret_abc123" },
+      "POST /api/v1/org/scim": { enabled: true, token_hint: "abc123", default_role: "viewer", base_url: "https://ccradar.example/scim/v2", token: "scim_secret_abc123" },
     }));
     renderRoute("/settings?tab=sso");
-    expect(await screen.findByText("https://costlens.example/scim/v2")).toBeInTheDocument();
+    expect(await screen.findByText("https://ccradar.example/scim/v2")).toBeInTheDocument();
     await userEvent.selectOptions(screen.getByLabelText("New people join as"), "viewer");
     await userEvent.click(screen.getByRole("button", { name: "Turn on SCIM" }));
     expect(await screen.findByLabelText("SCIM token")).toHaveTextContent("scim_secret_abc123");
@@ -254,7 +254,7 @@ describe("settings", () => {
   it("adds a domain and shows the TXT record to create", async () => {
     let domains: unknown[] = [];
     const d = { id: "d1", domain: "acme.com", verified_at: null, last_checked_at: null, last_error: null,
-      record: { name: "_costlens-verification.acme.com", type: "TXT", value: "costlens-verification=abc" } };
+      record: { name: "_ccradar-verification.acme.com", type: "TXT", value: "ccradar-verification=abc" } };
     const { calls } = mockApi(base({
       "GET /api/v1/org/domains": () => domains,
       "POST /api/v1/org/domains": () => { domains = [d]; return d; },
@@ -264,7 +264,7 @@ describe("settings", () => {
     renderRoute("/settings?tab=members");
     await userEvent.type(await screen.findByLabelText("Domain"), "acme.com");
     await userEvent.click(screen.getByRole("button", { name: "Add domain" }));
-    expect(await screen.findByText("_costlens-verification.acme.com")).toBeInTheDocument();
+    expect(await screen.findByText("_ccradar-verification.acme.com")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Check now" }));
     expect(await screen.findByText("verified")).toBeInTheDocument();
     expect(await screen.findByLabelText("Auto-join role")).toHaveValue("viewer");
@@ -301,11 +301,11 @@ describe("settings", () => {
     renderRoute("/settings?tab=notifications");
     expect(await screen.findByText("No webhooks yet.")).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText("Webhook name"), "SIEM");
-    await userEvent.type(screen.getByLabelText("Endpoint (https://)"), "https://hooks.example.com/costlens");
+    await userEvent.type(screen.getByLabelText("Endpoint (https://)"), "https://hooks.example.com/ccradar");
     await userEvent.click(screen.getByRole("button", { name: "Add webhook" }));
     expect(await screen.findByLabelText("Signing secret")).toHaveTextContent("whsec_abc");
     expect(calls.find((c) => c.method === "POST" && c.path === "/api/v1/org/outgoing-webhooks")?.body).toEqual({
-      name: "SIEM", url: "https://hooks.example.com/costlens" });
+      name: "SIEM", url: "https://hooks.example.com/ccradar" });
     const row = screen.getByText("SIEM").closest("li") as HTMLElement;
     expect(within(row).getByLabelText("Budget alerts")).toBeChecked();
     await userEvent.click(within(row).getByRole("button", { name: "Send test" }));
@@ -338,14 +338,14 @@ describe("settings", () => {
     const cluster = { id: "k1", name: "prod-eu", status: "waiting", agent_version: null, kubernetes_version: null,
       provider: null, node_count: null, last_seen_at: null, created_at: "", token_hint: "abc123", health: "waiting", objects: {} };
     const { calls } = mockApi(base({
-      "POST /api/v1/clusters": { ...cluster, token: "ckt_k1_secret", install_command: "helm upgrade --install costlens-agent x --set costlens.token=ckt_k1_secret" },
+      "POST /api/v1/clusters": { ...cluster, token: "ckt_k1_secret", install_command: "helm upgrade --install cloudcostradar-agent x --set ccradar.token=ckt_k1_secret" },
     }));
     renderRoute("/settings?tab=kubernetes");
     expect(await screen.findByText("No clusters yet")).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText("Cluster name"), "prod-eu");
     await userEvent.click(screen.getByRole("button", { name: /Connect cluster/ }));
     await waitFor(() => expect(calls.find((c) => c.path === "/api/v1/clusters" && c.method === "POST")?.body).toEqual({ name: "prod-eu" }));
-    expect(await screen.findByText(/helm upgrade --install costlens-agent/)).toBeInTheDocument();
+    expect(await screen.findByText(/helm upgrade --install cloudcostradar-agent/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Done" }));
     expect(screen.queryByText(/ckt_k1_secret/)).not.toBeInTheDocument();
   });
@@ -599,7 +599,7 @@ describe("licence", () => {
   const PLAN = { plan: { id: "business", name: "Business" }, source: "chosen", placeholder: true, features: [], limits: [] };
   const LIC = {
     deployment_mode: "self_hosted", state: "grace", problem: null,
-    warning: "Your CostLens licence has expired. Everything keeps working until 23 November 2026; after that this installation moves to the free tier. Nothing is deleted.",
+    warning: "Your CloudCostRadar licence has expired. Everything keeps working until 23 November 2026; after that this installation moves to the free tier. Nothing is deleted.",
     id: "lic-1", customer: "Acme Ltd", plan: "business", expires_at: "2026-11-09T00:00:00Z", days_left: 0,
     grace_ends_at: "2026-11-23T00:00:00Z", grace_days_left: 13, limits: {}, features: [],
   };
@@ -615,10 +615,10 @@ describe("licence", () => {
     expect(await screen.findByText("Licence expired: in its grace period.")).toBeInTheDocument();
     expect(screen.getAllByText(/keeps working until 23 November 2026/).length).toBe(2); // banner and card
     expect(screen.getByText("Acme Ltd")).toBeInTheDocument();
-    await userEvent.type(screen.getByLabelText("Install a licence key"), "CLv1.payload.signature");
+    await userEvent.type(screen.getByLabelText("Install a licence key"), "CCRv1.payload.signature");
     await userEvent.click(screen.getByRole("button", { name: "Install licence" }));
     expect(await screen.findByText("Licence active.")).toBeInTheDocument();
-    expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ key: "CLv1.payload.signature" });
+    expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ key: "CCRv1.payload.signature" });
   });
 
   it("shows nothing outside self-hosted mode", async () => {
@@ -634,7 +634,7 @@ describe("licence", () => {
 
 describe("cloud accounts", () => {
   it("checks that the billing export can be read", async () => {
-    const result = { ok: true, code: "ready", message: "CostLens can read the export: 2 files covering 2026-10, 2026-11.",
+    const result = { ok: true, code: "ready", message: "CloudCostRadar can read the export: 2 files covering 2026-10, 2026-11.",
       checked_at: "2026-11-09T10:00:00Z", files: 2 };
     let conn: Record<string, unknown> = { id: "a1", provider: "aws", name: "Prod", status: "active", external_id: "x", role_arn: "arn",
       account_id: "123456789012", cur_bucket: "acme-cur", cur_prefix: "exports", last_checked_at: null, last_error: null };
@@ -644,7 +644,7 @@ describe("cloud accounts", () => {
     }));
     renderRoute("/settings?tab=clouds");
     await userEvent.click(await screen.findByRole("button", { name: "Check export" }));
-    expect(await screen.findByText(/Billing export: CostLens can read the export/)).toBeInTheDocument();
+    expect(await screen.findByText(/Billing export: CloudCostRadar can read the export/)).toBeInTheDocument();
     expect(calls.some((c) => c.method === "POST" && c.path === "/api/v1/connections/a1/export-check")).toBe(true);
   });
 
@@ -740,11 +740,11 @@ describe("cloud accounts", () => {
   });
 
   it("connects AWS in two steps", async () => {
-    const pending = { id: "c1", provider: "aws", name: "Production", status: "pending", external_id: "costlens-abc",
+    const pending = { id: "c1", provider: "aws", name: "Production", status: "pending", external_id: "ccradar-abc",
       role_arn: null, account_id: null, cur_bucket: null, cur_prefix: null, last_checked_at: null, last_error: null };
     const { calls } = mockApi(base({
       "POST /api/v1/connections/aws": pending,
-      "GET /api/v1/connections/c1/aws-setup": { external_id: "costlens-abc", principal_arn: "arn:p", role_name: "CostLensReadOnly",
+      "GET /api/v1/connections/c1/aws-setup": { external_id: "ccradar-abc", principal_arn: "arn:p", role_name: "CloudCostRadarReadOnly",
         cloudformation: "{}", terraform: "", cli_command: "aws cloudformation deploy ..." },
       "POST /api/v1/connections/c1/verify": { ...pending, status: "active", account_id: "123456789012" },
     }));
@@ -755,12 +755,12 @@ describe("cloud accounts", () => {
     await userEvent.type(within(dialog).getByLabelText("Name"), "Production");
     await userEvent.click(within(dialog).getByRole("button", { name: "Continue" }));
     dialog = await screen.findByRole("dialog", { name: "Create the read-only role" });
-    expect(await within(dialog).findByText("costlens-abc")).toBeInTheDocument();
-    await userEvent.type(within(dialog).getByLabelText("Role ARN"), "arn:aws:iam::123456789012:role/CostLensReadOnly");
+    expect(await within(dialog).findByText("ccradar-abc")).toBeInTheDocument();
+    await userEvent.type(within(dialog).getByLabelText("Role ARN"), "arn:aws:iam::123456789012:role/CloudCostRadarReadOnly");
     await userEvent.click(within(dialog).getByRole("button", { name: "Verify and connect" }));
     await waitFor(() =>
       expect(calls.find((c) => c.path === "/api/v1/connections/c1/verify")?.body).toEqual({
-        role_arn: "arn:aws:iam::123456789012:role/CostLensReadOnly",
+        role_arn: "arn:aws:iam::123456789012:role/CloudCostRadarReadOnly",
       }),
     );
   });

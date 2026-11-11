@@ -8,9 +8,9 @@ from decimal import Decimal
 
 from fastapi.testclient import TestClient
 
-from costlens.costs import focus_export
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
+from ccradar.costs import focus_export
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
 from tests.helpers import make_org, sign_in_client
 
 

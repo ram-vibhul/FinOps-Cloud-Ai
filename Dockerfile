@@ -21,7 +21,7 @@ RUN pip wheel --wheel-dir /wheels .
 
 FROM ${PYTHON_IMAGE} AS runtime
 ARG VERSION=0.0.0-dev
-LABEL org.opencontainers.image.title="CostLens" \
+LABEL org.opencontainers.image.title="CloudCostRadar" \
       org.opencontainers.image.vendor="Yugiverse" \
       org.opencontainers.image.licenses="LicenseRef-Proprietary" \
       org.opencontainers.image.version="${VERSION}"
@@ -29,19 +29,20 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    COSTLENS_UI_DIST_DIR=/app/ui \
-    COSTLENS_DATABASE_URL=sqlite:////data/costlens.db
-# PostgreSQL 17 client tools for `costlens backup` / `costlens restore` (D.8).
+    CCRADAR_UI_DIST_DIR=/app/ui \
+    CCRADAR_DATABASE_URL=sqlite:////data/ccradar.db \
+    CCRADAR_DATA_DIR=/data
+# PostgreSQL 17 client tools for `ccradar backup` / `ccradar restore` (D.8).
 RUN apt-get update \
  && apt-get install -y --no-install-recommends postgresql-client-17 \
  && rm -rf /var/lib/apt/lists/*
-RUN groupadd --system --gid 10001 costlens \
- && useradd --system --uid 10001 --gid costlens --home-dir /app --shell /usr/sbin/nologin costlens \
- && mkdir -p /data /app && chown costlens:costlens /data
+RUN groupadd --system --gid 10001 ccradar \
+ && useradd --system --uid 10001 --gid ccradar --home-dir /app --shell /usr/sbin/nologin ccradar \
+ && mkdir -p /data /app && chown ccradar:ccradar /data
 # Install from the wheels stage without copying the wheels into a layer of their own
 # (a later `rm` would not shrink the image).
 RUN --mount=type=bind,from=wheels,source=/wheels,target=/wheels \
-    pip install --no-index --find-links=/wheels costlens
+    pip install --no-index --find-links=/wheels ccradar
 COPY --from=ui /ui/dist /app/ui
 COPY LICENSE THIRD_PARTY_NOTICES.md /app/
 WORKDIR /app
@@ -50,6 +51,6 @@ VOLUME ["/data"]
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=20s \
   CMD python -c "import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=2)" || exit 1
-COPY --chmod=0755 deploy/docker/entrypoint.sh /usr/local/bin/costlens-entrypoint
-ENTRYPOINT ["costlens-entrypoint"]
+COPY --chmod=0755 deploy/docker/entrypoint.sh /usr/local/bin/ccradar-entrypoint
+ENTRYPOINT ["ccradar-entrypoint"]
 CMD ["web"]

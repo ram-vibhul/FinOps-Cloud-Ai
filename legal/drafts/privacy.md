@@ -1,11 +1,11 @@
 > **DRAFT — NOT REVIEWED BY A LAWYER. NOT FOR PUBLICATION.** Placeholders are in [SQUARE BRACKETS].
 
-# CostLens Privacy Notice
+# CloudCostRadar Privacy Notice
 
 Last updated: [DATE]
 
 This notice explains how [YUGIVERSE LEGAL ENTITY NAME], [ADDRESS] ("**Yugiverse**",
-"**we**") handles personal data for the CostLens website and the hosted CostLens service.
+"**we**") handles personal data for the CloudCostRadar website and the hosted CloudCostRadar service.
 
 ## 1. Our roles
 
@@ -17,7 +17,7 @@ This notice explains how [YUGIVERSE LEGAL ENTITY NAME], [ADDRESS] ("**Yugiverse*
   customer invites): we process it on the customer's behalf under the Data Processing
   Agreement. The customer is the Data Fiduciary/controller; questions about it should go
   to that customer first.
-- **Self-hosted CostLens** runs in the customer's environment. We receive none of its data.
+- **Self-hosted CloudCostRadar** runs in the customer's environment. We receive none of its data.
 
 ## 2. What we collect
 
@@ -76,7 +76,7 @@ may complain to the Data Protection Board of India.
 
 ## 7. Children
 
-CostLens is a business service and is not meant for children.
+CloudCostRadar is a business service and is not meant for children.
 
 ## 8. Security
 

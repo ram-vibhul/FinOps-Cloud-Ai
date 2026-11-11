@@ -8,14 +8,14 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.findings import registry, service
-from costlens.findings.registry import FindingIn
-from costlens.findings.workflow import measure, verify_applied
-from costlens.models import Finding, K8sCluster, K8sCost
+from ccradar.accounts.roles import Role
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.findings import registry, service
+from ccradar.findings.registry import FindingIn
+from ccradar.findings.workflow import measure, verify_applied
+from ccradar.models import Finding, K8sCluster, K8sCost
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 APPLIED = datetime(2026, 11, 15, 10, tzinfo=UTC)

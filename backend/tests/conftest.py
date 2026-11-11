@@ -1,6 +1,6 @@
 """Shared fixtures.
 
-Tests use SQLite by default. Set COSTLENS_TEST_DATABASE_URL to a PostgreSQL URL
+Tests use SQLite by default. Set CCRADAR_TEST_DATABASE_URL to a PostgreSQL URL
 (as CI does) to run the same suite against PostgreSQL; the schema is reset for
 every test. On PostgreSQL that URL is the admin (owner) connection used for
 resets and migrations, and the application runs as a separate non-privileged
@@ -19,16 +19,16 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 
-from costlens.cli import migrate
-from costlens.config import Settings
-from costlens.core.crypto import SecretBox, configure_encryption
-from costlens.db import Database
-from costlens.db.session import build_engine
-from costlens.jobs import InProcessRunner
-from costlens.main import create_app
+from ccradar.cli import migrate
+from ccradar.config import Settings
+from ccradar.core.crypto import SecretBox, configure_encryption
+from ccradar.db import Database
+from ccradar.db.session import build_engine
+from ccradar.jobs import InProcessRunner
+from ccradar.main import create_app
 
-POSTGRES_URL = os.environ.get("COSTLENS_TEST_DATABASE_URL")
-APP_ROLE = "costlens_app_test"
+POSTGRES_URL = os.environ.get("CCRADAR_TEST_DATABASE_URL")
+APP_ROLE = "ccradar_app_test"
 TEST_ENCRYPTION_KEY = Fernet.generate_key().decode()
 APP_PASSWORD = "app-test-password"
 
@@ -54,7 +54,7 @@ def reset_postgres(url: str) -> None:
 def _head_revision() -> str:
     from alembic.script import ScriptDirectory
 
-    from costlens.cli import alembic_config
+    from ccradar.cli import alembic_config
 
     return ScriptDirectory.from_config(alembic_config("sqlite://")).get_current_head() or ""
 

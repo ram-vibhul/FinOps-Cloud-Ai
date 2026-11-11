@@ -57,7 +57,7 @@ export function AlertReceivers({ clusters }: { clusters: K8sCluster[] }) {
       <CardHeader>
         <CardTitle>Start investigations from alerts</CardTitle>
         <CardDescription>
-          When Alertmanager, PagerDuty or Opsgenie fires, CostLens investigates the workload named in the alert and posts the
+          When Alertmanager, PagerDuty or Opsgenie fires, CloudCostRadar investigates the workload named in the alert and posts the
           likely cause to your notification channels. Repeats of the same alert update one investigation; resolved alerts
           close it.
         </CardDescription>

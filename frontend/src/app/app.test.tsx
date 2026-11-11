@@ -14,10 +14,10 @@ describe("app shell", () => {
     mockApi({ "GET /api/v1/auth/me": makeMe(), "GET /api/v1/meta": META, "GET /api/v1/costs/summary": EMPTY_SUMMARY, "GET /api/v1/costs/anomalies": [] });
     renderRoute("/");
     expect(await screen.findByRole("heading", { level: 1, name: "Overview" })).toBeInTheDocument();
-    expect(await screen.findByText(/CostLens 0.1.0 · self-hosted · test/)).toBeInTheDocument();
+    expect(await screen.findByText(/CloudCostRadar 0.1.0 · self-hosted · test/)).toBeInTheDocument();
   });
 
-  it("shows a banner on every page while CostLens can change resources", async () => {
+  it("shows a banner on every page while CloudCostRadar can change resources", async () => {
     const { calls } = mockApi({
       "GET /api/v1/auth/me": makeMe({ role: "admin" }), "GET /api/v1/meta": META, "GET /api/v1/costs/summary": EMPTY_SUMMARY, "GET /api/v1/costs/anomalies": [],
       "GET /api/v1/org/write-access": [{ connection_id: "c1", name: "Prod", account_id: "111111111111", enabled_by: "o@acme.com",
@@ -26,7 +26,7 @@ describe("app shell", () => {
     });
     renderRoute("/");
     const banner = await screen.findByLabelText("Write access");
-    expect(banner).toHaveTextContent("CostLens can change resources in Prod (111111111111): turned on by o@acme.com");
+    expect(banner).toHaveTextContent("CloudCostRadar can change resources in Prod (111111111111): turned on by o@acme.com");
     await userEvent.click(screen.getByRole("button", { name: "Turn off" }));
     await waitFor(() => expect(calls.some((c) => c.method === "DELETE" && c.path === "/api/v1/connections/c1/fixes")).toBe(true));
   });
@@ -47,7 +47,7 @@ describe("app shell", () => {
   it("offers a retry when the server is unreachable", async () => {
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("offline"));
     renderRoute("/");
-    expect(await screen.findByText(/Could not reach CostLens/)).toBeInTheDocument();
+    expect(await screen.findByText(/Could not reach CloudCostRadar/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
 

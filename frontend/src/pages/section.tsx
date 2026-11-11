@@ -10,7 +10,7 @@ export function SectionPage({ item }: { item: NavItem }) {
         <p className="text-sm text-muted-foreground">{item.description}</p>
       </div>
       <EmptyState icon={item.icon} title="Coming soon">
-        This part of CostLens is being built.
+        This part of CloudCostRadar is being built.
       </EmptyState>
     </div>
   );

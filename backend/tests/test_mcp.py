@@ -6,9 +6,9 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.base import utcnow
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.base import utcnow
 from tests.helpers import make_org, sign_in_client
 
 
@@ -77,7 +77,7 @@ def test_handshake_tools_and_calls(client: TestClient, db: Database) -> None:
     ).json()
     assert init["result"]["protocolVersion"] == "2025-06-18"
     assert (
-        init["result"]["serverInfo"]["name"] == "costlens"
+        init["result"]["serverInfo"]["name"] == "ccradar"
         and "read-only" in init["result"]["instructions"]
     )
     assert rpc(client, key, "notifications/initialized", id_=None).status_code == 202
@@ -146,8 +146,8 @@ def test_create_investigation_only_with_permission(client: TestClient, db: Datab
 
     from sqlalchemy import select
 
-    from costlens.db.tenant import set_tenant
-    from costlens.models import AuditEvent, K8sCluster, K8sInvestigation
+    from ccradar.db.tenant import set_tenant
+    from ccradar.models import AuditEvent, K8sCluster, K8sInvestigation
 
     org_id, owner = make_org(db, "Acme", "o@acme.com")
     with db.session() as s:

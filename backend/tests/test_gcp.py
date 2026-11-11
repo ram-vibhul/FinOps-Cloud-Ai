@@ -14,13 +14,13 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.clouds.gcp import costs as gcp_costs
-from costlens.clouds.gcp import recommender
-from costlens.clouds.gcp.client import GcpClient, GcpError, parse_key
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.models import CloudConnection, CostLineItem, ExternalRecommendation
+from ccradar.clouds.gcp import costs as gcp_costs
+from ccradar.clouds.gcp import recommender
+from ccradar.clouds.gcp.client import GcpClient, GcpError, parse_key
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.models import CloudConnection, CostLineItem, ExternalRecommendation
 from tests.helpers import make_org, sign_in_client
 
 _private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -32,7 +32,7 @@ KEY = {
     "project_id": "acme-billing",
     "private_key_id": "k1",
     "private_key": PEM,
-    "client_email": "costlens@acme-billing.iam.gserviceaccount.com",
+    "client_email": "ccradar@acme-billing.iam.gserviceaccount.com",
 }
 VM1 = "projects/web-prod/zones/europe-west1-b/instances/vm-1"
 REC1 = "projects/web-prod/locations/europe-west1-b/recommenders/x/recommendations/r1"

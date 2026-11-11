@@ -1,5 +1,5 @@
-# CostLens platform on Kubernetes (self-hosted), D.5.
-#   1. Copy costlens.env.example to costlens.env and fill it in (never commit it).
+# CloudCostRadar platform on Kubernetes (self-hosted), D.5.
+#   1. Copy ccradar.env.example to ccradar.env and fill it in (never commit it).
 #   2. Set the image tag below and the host in ingress.yaml.
 #   3. kubectl apply -k deploy/kubernetes
 # PostgreSQL 17 runs outside these manifests (a managed database or your own operator),
@@ -7,10 +7,10 @@
 # superuser/BYPASSRLS so row-level security separates organisations.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: costlens
+namespace: ccradar
 labels:
   - pairs:
-      app.kubernetes.io/part-of: costlens
+      app.kubernetes.io/part-of: ccradar
     includeSelectors: false
 resources:
   - namespace.yaml
@@ -21,11 +21,11 @@ resources:
   - network-policy.yaml
   - ingress.yaml
 images:
-  - name: ghcr.io/yugiverse/costlens
+  - name: ghcr.io/yugiverse/cloudcostradar
     newTag: "0.1.0"
 secretGenerator:
-  - name: costlens-env
+  - name: ccradar-env
     envs:
-      - costlens.env
+      - ccradar.env
 generatorOptions:
   disableNameSuffixHash: false

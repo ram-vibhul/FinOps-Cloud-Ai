@@ -1,4 +1,4 @@
-# CostLens
+# CloudCostRadar
 
 Cloud cost management and Kubernetes operations for engineering and finance teams.
 By Yugiverse. Proprietary — see [LICENSE](LICENSE).
@@ -25,10 +25,10 @@ docker compose up -d
 ## Checks
 
 `make check` runs ruff, pyright, pytest, oxlint, tsc, vitest, the UI build and the
-third-party licence check. Set `COSTLENS_TEST_DATABASE_URL=postgresql://…` to run the
+third-party licence check. Set `CCRADAR_TEST_DATABASE_URL=postgresql://…` to run the
 backend tests against PostgreSQL.
 
 ## Configuration
 
-All settings are environment variables prefixed `COSTLENS_` — see
-`backend/src/costlens/config.py` and `.env.example`.
+All settings are environment variables prefixed `CCRADAR_` — see
+`backend/src/ccradar/config.py` and `.env.example`.

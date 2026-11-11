@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.findings.registry import FindingIn
-from costlens.findings.service import _store
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.findings.registry import FindingIn
+from ccradar.findings.service import _store
 from tests.helpers import make_org, sign_in_client
 
 
@@ -67,7 +67,7 @@ def test_plan_buckets(client: TestClient, db: Database) -> None:
         )
         from sqlalchemy import select
 
-        from costlens.models import Finding
+        from ccradar.models import Finding
 
         unsure = s.scalars(select(Finding).where(Finding.detector == "aws.graviton")).one()
         unsure.confidence = "low"

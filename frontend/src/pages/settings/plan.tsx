@@ -183,7 +183,7 @@ function LicenceCard({ onChanged }: { onChanged: () => void }) {
               className="min-h-20 rounded-md border border-input bg-background p-2 font-mono text-xs"
               value={key}
               onChange={(e) => setKey(e.target.value)}
-              placeholder="CLv1.…"
+              placeholder="CCRv1.…"
             />
             <Button className="justify-self-start" disabled={busy || key.trim().length < 10} onClick={() => void install()}>
               Install licence
@@ -252,7 +252,7 @@ export function PlanTab() {
           <CardTitle>{data.plan.name} plan</CardTitle>
           <CardDescription>
             {SOURCE[data.source]}
-            {data.placeholder && " Plan names and limits are provisional."} Over a limit, CostLens stops adding more; it
+            {data.placeholder && " Plan names and limits are provisional."} Over a limit, CloudCostRadar stops adding more; it
             never removes what you already have.
           </CardDescription>
         </CardHeader>

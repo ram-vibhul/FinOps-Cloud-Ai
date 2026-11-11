@@ -4,13 +4,13 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.findings import registry, service
-from costlens.findings.registry import FindingIn, Level
-from costlens.models import Finding
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.findings import registry, service
+from ccradar.findings.registry import FindingIn, Level
+from ccradar.models import Finding
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 CURRENT: dict[str, list[FindingIn] | Exception] = {}
@@ -124,7 +124,7 @@ def test_ranking_discounts_risk_and_effort(db: Database, fake_detectors) -> None
 
 
 def test_api_and_demo(client: TestClient, db: Database) -> None:
-    from costlens.demo.seed import ensure_demo, load_all_seeders
+    from ccradar.demo.seed import ensure_demo, load_all_seeders
 
     load_all_seeders()
     with db.session() as s:

@@ -1,6 +1,6 @@
 > **DRAFT — NOT REVIEWED BY A LAWYER. NOT FOR PUBLICATION.** Placeholders are in [SQUARE BRACKETS].
 
-# CostLens Refund and Cancellation Policy
+# CloudCostRadar Refund and Cancellation Policy
 
 Last updated: [DATE]
 

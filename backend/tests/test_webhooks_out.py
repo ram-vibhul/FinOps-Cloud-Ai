@@ -7,11 +7,11 @@ import httpx
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.core import webhooks_out
-from costlens.core.notify import Message, notify
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import WebhookDelivery
+from ccradar.core import webhooks_out
+from ccradar.core.notify import Message, notify
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import WebhookDelivery
 from tests.conftest import public_resolver
 from tests.helpers import make_org, sign_in_client
 
@@ -60,7 +60,7 @@ def test_events_are_signed_retried_and_marked_failed(  # noqa: PLR0915 - one end
         "/api/v1/org/outgoing-webhooks",
         json={
             "name": "SIEM",
-            "url": "https://hooks.example.com/costlens?token=abc",
+            "url": "https://hooks.example.com/ccradar?token=abc",
             "events": ["budget_alert"],
         },
     )
@@ -74,10 +74,10 @@ def test_events_are_signed_retried_and_marked_failed(  # noqa: PLR0915 - one end
     ping = c.post(f"/api/v1/org/outgoing-webhooks/{hook['id']}/test").json()
     assert ping["status"] == "sent" and ping["event"] == "ping"
     req = receiver.requests[0]
-    assert req.headers["x-costlens-event"] == "ping"
-    assert req.headers["x-costlens-delivery"] == ping["id"]
+    assert req.headers["x-cloudcostradar-event"] == "ping"
+    assert req.headers["x-cloudcostradar-delivery"] == ping["id"]
     now = int(datetime.now(UTC).timestamp())
-    assert webhooks_out.verify(secret, req.content, req.headers["x-costlens-signature"], now)
+    assert webhooks_out.verify(secret, req.content, req.headers["x-cloudcostradar-signature"], now)
 
     # Events reach subscribed webhooks only; failures retry with back-off, then stop.
     with db.session() as s:

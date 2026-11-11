@@ -139,7 +139,7 @@ describe("investigate", () => {
     renderRoute("/kubernetes/investigations/i9");
     await userEvent.type(await screen.findByLabelText("What fixed it (optional)"), "limit 4Gi");
     await userEvent.click(screen.getByRole("button", { name: "Close investigation" }));
-    expect(await screen.findByText("CostLens ranked it first")).toBeInTheDocument();
+    expect(await screen.findByText("CloudCostRadar ranked it first")).toBeInTheDocument();
     expect(calls.find((c) => c.path === "/api/v1/k8s/investigations/i9/close")?.body).toEqual({
       real_cause: "oom", fix_note: "limit 4Gi" });
   });

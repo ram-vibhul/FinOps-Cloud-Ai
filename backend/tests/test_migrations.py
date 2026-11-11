@@ -5,10 +5,10 @@ from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import inspect
 
-from costlens import models  # noqa: F401
-from costlens.cli import alembic_config, migrate
-from costlens.db import Base, Database
-from costlens.db.schema_filter import include_name
+from ccradar import models  # noqa: F401
+from ccradar.cli import alembic_config, migrate
+from ccradar.db import Base, Database
+from ccradar.db.schema_filter import include_name
 
 
 def test_upgrade_and_downgrade(admin_database_url: str) -> None:

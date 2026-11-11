@@ -7,7 +7,7 @@ import { money } from "@/lib/format";
 import { atLeast, useMe } from "@/lib/session";
 import { useLoad } from "@/lib/use-load";
 
-/** Findings CostLens can fix itself, once an owner turns automatic fixes on. */
+/** Findings CloudCostRadar can fix itself, once an owner turns automatic fixes on. */
 export const FIXABLE = new Set(["aws.ebs_unattached", "aws.eip_idle", "aws.ec2_rightsizing"]);
 
 /** Fixes asked for, waiting for approval, and done. Approvals need a second person. */
@@ -31,7 +31,7 @@ export function FixesCard() {
     <Card>
       <CardHeader>
         <CardTitle>Automatic fixes</CardTitle>
-        <CardDescription>Each fix needs a second person to approve it, and is checked again just before CostLens acts.</CardDescription>
+        <CardDescription>Each fix needs a second person to approve it, and is checked again just before CloudCostRadar acts.</CardDescription>
       </CardHeader>
       <CardContent>
         <ul className="grid gap-2 text-sm" aria-label="Automatic fixes">

@@ -8,14 +8,14 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.costs import purchases
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.findings.service import run
-from costlens.models import Commitment, Finding, PlannedPurchase
+from ccradar.accounts.roles import Role
+from ccradar.costs import purchases
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.findings.service import run
+from ccradar.models import Commitment, Finding, PlannedPurchase
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 
@@ -127,7 +127,7 @@ def test_advice_and_detector(db: Database) -> None:
 
 def test_lifecycle_and_verification(client: TestClient, db: Database, monkeypatch) -> None:
     sent: list = []
-    monkeypatch.setattr("costlens.core.notify.notify", lambda db, event, m: sent.append(event) or 0)
+    monkeypatch.setattr("ccradar.core.notify.notify", lambda db, event, m: sent.append(event) or 0)
     org_id, owner = make_org(db, "Acme", "o@acme.com")
     member = add_to_org(db, org_id, "m@acme.com", Role.MEMBER)
     today = utcnow().date()

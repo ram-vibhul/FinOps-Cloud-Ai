@@ -2,13 +2,13 @@
 # Used for self-hosted installs and as the SaaS reference. Copy .env.example to .env first.
 #
 # Two database roles:
-#   costlens      owner; used only by the one-shot `migrate` service
-#   costlens_app  runtime role for web + worker; no superuser/BYPASSRLS, so
+#   ccradar      owner; used only by the one-shot `migrate` service
+#   ccradar_app  runtime role for web + worker; no superuser/BYPASSRLS, so
 #                 PostgreSQL row-level security isolates organisations
-name: costlens
+name: ccradar
 
 x-app: &app
-  image: ${COSTLENS_IMAGE:-ghcr.io/yugiverse/costlens:latest}
+  image: ${CCRADAR_IMAGE:-ghcr.io/yugiverse/cloudcostradar:latest}
   build: .
   restart: unless-stopped
   env_file: .env
@@ -16,8 +16,8 @@ x-app: &app
   volumes:
     - appdata:/data
   environment: &app-env
-    COSTLENS_DATABASE_URL: postgresql://costlens_app:${COSTLENS_DB_APP_PASSWORD:?set COSTLENS_DB_APP_PASSWORD in .env}@db:5432/costlens
-    COSTLENS_SKIP_MIGRATE: "1"
+    CCRADAR_DATABASE_URL: postgresql://ccradar_app:${CCRADAR_DB_APP_PASSWORD:?set CCRADAR_DB_APP_PASSWORD in .env}@db:5432/ccradar
+    CCRADAR_SKIP_MIGRATE: "1"
   depends_on: &app-deps
     db:
       condition: service_healthy
@@ -31,7 +31,7 @@ services:
     restart: "no"
     environment:
       <<: *app-env
-      COSTLENS_MIGRATION_DATABASE_URL: postgresql://costlens:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/costlens
+      CCRADAR_MIGRATION_DATABASE_URL: postgresql://ccradar:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/ccradar
     depends_on:
       db:
         condition: service_healthy
@@ -42,7 +42,7 @@ services:
     <<: *app
     command: ["web"]
     ports:
-      - "${COSTLENS_HTTP_PORT:-8000}:8000"
+      - "${CCRADAR_HTTP_PORT:-8000}:8000"
 
   worker:
     <<: *app
@@ -50,7 +50,7 @@ services:
     # The worker has no HTTP port: its heartbeat job (every 5 minutes) records the time,
     # and this check fails when it has not run for 15 minutes.
     healthcheck:
-      test: ["CMD", "costlens", "worker-health"]
+      test: ["CMD", "ccradar", "worker-health"]
       interval: 60s
       timeout: 10s
       retries: 3
@@ -60,15 +60,15 @@ services:
     image: postgres:17.11-trixie
     restart: unless-stopped
     environment:
-      POSTGRES_USER: costlens
-      POSTGRES_DB: costlens
+      POSTGRES_USER: ccradar
+      POSTGRES_DB: ccradar
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      COSTLENS_DB_APP_PASSWORD: ${COSTLENS_DB_APP_PASSWORD:?set COSTLENS_DB_APP_PASSWORD in .env}
+      CCRADAR_DB_APP_PASSWORD: ${CCRADAR_DB_APP_PASSWORD:?set CCRADAR_DB_APP_PASSWORD in .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./deploy/compose/postgres-init.sh:/docker-entrypoint-initdb.d/10-costlens-app-role.sh:ro
+      - ./deploy/compose/postgres-init.sh:/docker-entrypoint-initdb.d/10-ccradar-app-role.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U costlens -d costlens"]
+      test: ["CMD-SHELL", "pg_isready -U ccradar -d ccradar"]
       interval: 5s
       timeout: 3s
       retries: 20

@@ -6,10 +6,10 @@ from decimal import Decimal
 import pytest
 from fastapi.testclient import TestClient
 
-from costlens.costs import analytics
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
+from ccradar.costs import analytics
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
 from tests.helpers import make_org, sign_in_client
 
 TODAY = date(2026, 11, 15)
@@ -98,7 +98,7 @@ def test_forecast_without_data(db: Database) -> None:
 
 
 def test_summary_api(client: TestClient, org, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("costlens.api.costs._today", lambda: TODAY)
+    monkeypatch.setattr("ccradar.api.costs._today", lambda: TODAY)
     c = sign_in_client(client, org["db"], org["owner"], org["org"])
     s = c.get("/api/v1/costs/summary").json()
     assert s["currency"] == "USD" and s["data_through"] == "2026-11-14"
@@ -126,7 +126,7 @@ def test_daily_series_with_other(client: TestClient, org) -> None:
 
 
 def test_monthly_series(client: TestClient, org, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("costlens.api.costs._today", lambda: TODAY)
+    monkeypatch.setattr("ccradar.api.costs._today", lambda: TODAY)
     c = sign_in_client(client, org["db"], org["owner"], org["org"])
     r = c.get("/api/v1/costs/monthly", params={"months": 3}).json()
     assert r["periods"] == ["2026-09", "2026-10", "2026-11"]

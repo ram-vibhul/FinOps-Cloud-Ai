@@ -7,15 +7,15 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.core.email import MemorySender
-from costlens.costs import anomalies
-from costlens.costs.alerts import pending_alert
-from costlens.costs.anomalies import AlertSettings, detect
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import CostAnomaly
+from ccradar.accounts.roles import Role
+from ccradar.core.email import MemorySender
+from ccradar.costs import anomalies
+from ccradar.costs.alerts import pending_alert
+from ccradar.costs.anomalies import AlertSettings, detect
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import CostAnomaly
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 END = date(2026, 11, 14)
@@ -134,16 +134,16 @@ def test_alert_email_to_owners_and_admins_once(db: Database) -> None:
     load(db, org_id, series_lines(spike_day=END, spike=900))
     with db.session() as s:
         detect(s, org_id)
-        emails = pending_alert(s, org_id, "https://app.costlens.example")
+        emails = pending_alert(s, org_id, "https://app.ccradar.example")
     assert sorted(e.to for e in emails) == ["admin@acme.com", "owner@acme.com"]
     assert "unusual cost increase" in emails[0].subject
-    assert "Redshift" in emails[0].text and "https://app.costlens.example/costs" in emails[0].text
+    assert "Redshift" in emails[0].text and "https://app.ccradar.example/costs" in emails[0].text
     with db.session() as s:
         assert pending_alert(s, org_id, "x") == []  # already notified
 
 
 def test_alerts_can_be_disabled(db: Database) -> None:
-    from costlens.models import Organization
+    from ccradar.models import Organization
 
     org_id, _ = make_org(db, "Acme", "owner@acme.com")
     with db.session() as s:
@@ -200,8 +200,8 @@ def test_api_list_update_and_settings(client: TestClient, db: Database) -> None:
 def test_file_import_triggers_detection_and_alert(
     client: TestClient, db: Database, settings
 ) -> None:
-    from costlens.core.email import configure_email
-    from costlens.jobs import load_all_jobs
+    from ccradar.core.email import configure_email
+    from ccradar.jobs import load_all_jobs
 
     load_all_jobs()
     outbox = MemorySender()
@@ -228,7 +228,7 @@ def test_file_import_triggers_detection_and_alert(
 
 
 def test_demo_flags_the_redshift_spike(db: Database) -> None:
-    from costlens.demo.seed import ensure_demo, load_all_seeders, seeders
+    from ccradar.demo.seed import ensure_demo, load_all_seeders, seeders
 
     load_all_seeders()
     if "costs.anomalies" not in seeders():

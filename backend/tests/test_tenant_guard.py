@@ -9,11 +9,11 @@ import pytest
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session, aliased
 
-from costlens.accounts import service as acc
-from costlens.accounts.roles import Role
-from costlens.db import Database
-from costlens.db.tenant import SKIP_GUARD_OPTION, TenantIsolationError, set_tenant
-from costlens.models import Membership, Organization, User
+from ccradar.accounts import service as acc
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
+from ccradar.db.tenant import SKIP_GUARD_OPTION, TenantIsolationError, set_tenant
+from ccradar.models import Membership, Organization, User
 from tests.conftest import POSTGRES_URL
 
 

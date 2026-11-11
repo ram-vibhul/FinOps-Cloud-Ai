@@ -7,14 +7,14 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.findings import kept
-from costlens.findings.registry import FindingIn
-from costlens.findings.service import _store
-from costlens.models import Finding, FindingEvent
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.findings import kept
+from ccradar.findings.registry import FindingIn
+from ccradar.findings.service import _store
+from ccradar.models import Finding, FindingEvent
 from tests.helpers import make_org, sign_in_client
 
 

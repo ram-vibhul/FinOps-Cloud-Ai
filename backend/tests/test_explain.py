@@ -6,12 +6,12 @@ from decimal import Decimal
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.costs.anomalies import detect
-from costlens.costs.explain import explain
-from costlens.costs.ingest import CostLine
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import ChangeEvent, CostAnomaly, Organization
+from ccradar.costs.anomalies import detect
+from ccradar.costs.explain import explain
+from ccradar.costs.ingest import CostLine
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import ChangeEvent, CostAnomaly, Organization
 from tests.helpers import make_org, sign_in_client
 from tests.test_anomalies import END, load, series_lines
 
@@ -116,7 +116,7 @@ def test_ai_failure_falls_back_to_template(client: TestClient, db: Database) -> 
 
 
 def test_alert_email_includes_explanation(db: Database) -> None:
-    from costlens.costs.alerts import pending_alert
+    from ccradar.costs.alerts import pending_alert
 
     org_id, _ = make_org(db, "Acme", "owner@acme.com")
     load(db, org_id, spike_lines())
@@ -133,7 +133,7 @@ def test_anthropic_writer_with_fake_client(settings) -> None:
     import httpx2
     from pydantic import SecretStr
 
-    from costlens.ai.writer import AnthropicWriter
+    from ccradar.ai.writer import AnthropicWriter
 
     writer = AnthropicWriter(
         settings.model_copy(update={"anthropic_api_key": SecretStr("test-key")})
@@ -175,7 +175,7 @@ def test_anthropic_writer_with_fake_client(settings) -> None:
 
 
 def test_demo_redshift_spike_is_explained(db: Database) -> None:
-    from costlens.demo.seed import ensure_demo, load_all_seeders
+    from ccradar.demo.seed import ensure_demo, load_all_seeders
 
     load_all_seeders()
     with db.session() as s:

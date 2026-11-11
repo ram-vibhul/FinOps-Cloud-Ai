@@ -8,15 +8,15 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.k8s import quantity
-from costlens.k8s.allocation import allocate, due_clusters
-from costlens.k8s.service import ingest_objects
-from costlens.models import K8sCluster, K8sCost
+from ccradar.accounts.roles import Role
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.k8s import quantity
+from ccradar.k8s.allocation import allocate, due_clusters
+from ccradar.k8s.service import ingest_objects
+from ccradar.models import K8sCluster, K8sCost
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 HOUR = datetime(2026, 11, 4, 10, tzinfo=UTC)
@@ -267,8 +267,8 @@ def test_silent_clusters_are_not_allocated(db: Database) -> None:
 
 
 def test_allocation_job(db: Database, settings) -> None:
-    from costlens.jobs.context import JobContext, configure_jobs
-    from costlens.jobs.k8s import allocate_costs
+    from ccradar.jobs.context import JobContext, configure_jobs
+    from ccradar.jobs.k8s import allocate_costs
 
     org_id, _ = make_org(db, "Acme", "owner@acme.com")
     setup(db, org_id)
@@ -278,8 +278,8 @@ def test_allocation_job(db: Database, settings) -> None:
 
 
 def test_demo_cluster_has_costs_idle_and_a_crash_loop(client: TestClient, db: Database) -> None:
-    from costlens.demo.seed import ensure_demo, load_all_seeders, seeders
-    from costlens.models import K8sEvent
+    from ccradar.demo.seed import ensure_demo, load_all_seeders, seeders
+    from ccradar.models import K8sEvent
 
     load_all_seeders()
     if "k8s.cluster" not in seeders():
@@ -300,7 +300,7 @@ def test_demo_cluster_has_costs_idle_and_a_crash_loop(client: TestClient, db: Da
 
 
 def test_custom_prices_node_fee_spot_and_currency(client: TestClient, db: Database) -> None:
-    from costlens.costs import fx
+    from ccradar.costs import fx
 
     org_id, owner = make_org(db, "OnPrem", "ops@onprem.example")
     with db.session() as s:

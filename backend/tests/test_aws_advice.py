@@ -5,17 +5,17 @@ from typing import Any
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.clouds.aws import advice
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.findings.registry import FindingIn
-from costlens.findings.service import _store, run
-from costlens.models import CloudConnection, ExternalRecommendation, Finding
+from ccradar.clouds.aws import advice
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.findings.registry import FindingIn
+from ccradar.findings.service import _store, run
+from ccradar.models import CloudConnection, ExternalRecommendation, Finding
 from tests.fakes.aws import FakeAws
 from tests.helpers import make_org, sign_in_client
 
-ROLE = "arn:aws:iam::111111111111:role/costlens"
+ROLE = "arn:aws:iam::111111111111:role/ccradar"
 
 
 class OptIn(Exception):

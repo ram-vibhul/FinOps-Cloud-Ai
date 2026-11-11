@@ -6,10 +6,10 @@ from datetime import UTC, datetime
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts.roles import Role
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import AuditEvent, Membership, OrgDomain
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import AuditEvent, Membership, OrgDomain
 from tests.helpers import make_org, sign_in_client
 
 

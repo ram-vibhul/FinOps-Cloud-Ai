@@ -66,7 +66,7 @@ export function PoliciesTab() {
       <Card>
         <CardHeader>
           <CardTitle>Policies</CardTitle>
-          <CardDescription>Rules every resource should follow. CostLens checks them every morning and lists what breaks them.</CardDescription>
+          <CardDescription>Rules every resource should follow. CloudCostRadar checks them every morning and lists what breaks them.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           {isAdmin && !adding && <div><Button onClick={() => setAdding(true)}><Plus /> Add policy</Button></div>}

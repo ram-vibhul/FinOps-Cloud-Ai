@@ -6,16 +6,16 @@ from decimal import Decimal
 
 from fastapi.testclient import TestClient
 
-from costlens.accounts.roles import Role
-from costlens.costs import governance
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.inventory.aws import Found
-from costlens.inventory.service import upsert
-from costlens.k8s.service import ingest_objects
-from costlens.models import K8sCluster
+from ccradar.accounts.roles import Role
+from ccradar.costs import governance
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.inventory.aws import Found
+from ccradar.inventory.service import upsert
+from ccradar.k8s.service import ingest_objects
+from ccradar.models import K8sCluster
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 EC2 = "Amazon EC2"

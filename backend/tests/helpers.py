@@ -7,12 +7,12 @@ from dataclasses import dataclass
 
 from fastapi.testclient import TestClient
 
-from costlens.accounts import service as acc
-from costlens.accounts.roles import Role
-from costlens.core.csrf import csrf_token
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import Membership, User
+from ccradar.accounts import service as acc
+from ccradar.accounts.roles import Role
+from ccradar.core.csrf import csrf_token
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import Membership, User
 
 
 @dataclass
@@ -61,6 +61,6 @@ def sign_in_client(
 ) -> TestClient:
     token = session_for(db, user_id, org_id)
     client.cookies.clear()
-    client.cookies.set("costlens_session", token)
+    client.cookies.set("ccradar_session", token)
     client.headers["X-CSRF-Token"] = csrf_token(client.app.state.signing_key, token)  # type: ignore[attr-defined]
     return client

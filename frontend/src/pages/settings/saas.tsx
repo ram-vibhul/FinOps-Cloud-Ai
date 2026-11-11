@@ -16,7 +16,7 @@ const SPECS: Record<SaasProvider, { label: string; help: string; fields: Field[]
     help: "Uses key-pair sign-in for a user whose role can read SNOWFLAKE.ORGANIZATION_USAGE (for example ORGADMIN).",
     fields: [
       { key: "account", label: "Account identifier", placeholder: "myorg-myaccount" },
-      { key: "user", label: "User", placeholder: "COSTLENS" },
+      { key: "user", label: "User", placeholder: "CCRADAR" },
       { key: "private_key", label: "Private key (PEM, unencrypted)", secret: true, multiline: true },
       { key: "warehouse", label: "Warehouse", optional: true },
       { key: "role", label: "Role", optional: true },

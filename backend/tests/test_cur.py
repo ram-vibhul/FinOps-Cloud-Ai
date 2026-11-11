@@ -9,14 +9,14 @@ import pyarrow.parquet as pq
 import pytest
 from sqlalchemy import func, select
 
-from costlens.clouds.aws import cur
-from costlens.db import Database
-from costlens.db.tenant import set_tenant
-from costlens.models import CloudConnection, CostDaily, CostLineItem
+from ccradar.clouds.aws import cur
+from ccradar.db import Database
+from ccradar.db.tenant import set_tenant
+from ccradar.models import CloudConnection, CostDaily, CostLineItem
 from tests.fakes.aws import FakeAws, FakeS3
 from tests.helpers import make_org
 
-ROLE = "arn:aws:iam::111111111111:role/CostLensReadOnly"
+ROLE = "arn:aws:iam::111111111111:role/CloudCostRadarReadOnly"
 BUCKET, PREFIX = "acme-billing", "exports"
 
 
@@ -106,7 +106,7 @@ def parquet(rows: list[dict]) -> bytes:
 
 
 def key(period: str, name: str) -> str:
-    return f"{PREFIX}/costlens/data/BILLING_PERIOD={period}/{name}.parquet"
+    return f"{PREFIX}/ccradar/data/BILLING_PERIOD={period}/{name}.parquet"
 
 
 @pytest.fixture
@@ -153,7 +153,7 @@ def test_hourly_rows_become_daily_lines(env) -> None:
     rows = [cur_row(h) for h in range(24)] + [cur_row(h, day=4) for h in range(10)]
     env["s3"].put(BUCKET, key("2026-11", "part-0"), parquet(rows[:20]))
     env["s3"].put(BUCKET, key("2026-11", "part-1"), parquet(rows[20:]))
-    env["s3"].put(BUCKET, f"{PREFIX}/costlens/metadata/BILLING_PERIOD=2026-11/manifest.json", b"{}")
+    env["s3"].put(BUCKET, f"{PREFIX}/ccradar/metadata/BILLING_PERIOD=2026-11/manifest.json", b"{}")
     [run_] = run(env)
     assert run_.rows == 2
     first, second = lines(env)
@@ -234,7 +234,7 @@ def test_unchanged_files_skipped_changed_reimported(env) -> None:
 def test_previous_months_and_other_prefixes(env) -> None:
     env["s3"].put(BUCKET, key("2026-10", "part-0"), parquet([cur_row(1, day=15)]))
     env["s3"].put(
-        BUCKET, "other/costlens/data/BILLING_PERIOD=2026-11/x.parquet", parquet([cur_row(1)])
+        BUCKET, "other/ccradar/data/BILLING_PERIOD=2026-11/x.parquet", parquet([cur_row(1)])
     )
     runs = run(env)
     assert [r.billing_period for r in runs] == [date(2026, 10, 1)]

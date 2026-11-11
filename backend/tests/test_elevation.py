@@ -5,12 +5,12 @@ from datetime import timedelta
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from costlens.accounts import elevation
-from costlens.accounts.roles import Role
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.models import AuditEvent, ElevatedAccess
+from ccradar.accounts import elevation
+from ccradar.accounts.roles import Role
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.models import AuditEvent, ElevatedAccess
 from tests.helpers import add_to_org, make_org, sign_in_client
 
 
@@ -90,7 +90,7 @@ def test_cannot_approve_own_or_grant_self(db: Database) -> None:
         set_tenant(s, org_id=org_id)
         import pytest
 
-        from costlens.core.errors import PermissionDeniedError
+        from ccradar.core.errors import PermissionDeniedError
 
         with pytest.raises(PermissionDeniedError):
             elevation.grant(s, org_id, owner, Role.OWNER, owner, Role.OWNER, 30, "self")

@@ -7,17 +7,17 @@ from typing import Any
 import pytest
 from sqlalchemy import select
 
-from costlens.aws_audit.service import run_audit
-from costlens.costs.ingest import CostLine, replace_billing_period
-from costlens.db import Database
-from costlens.db.base import utcnow
-from costlens.db.tenant import set_tenant
-from costlens.findings.aws_compute import eks_support
-from costlens.findings.service import run
-from costlens.inventory import aws_compute as c
-from costlens.inventory.aws import Found
-from costlens.inventory.service import upsert
-from costlens.models import AuditResult, Finding
+from ccradar.aws_audit.service import run_audit
+from ccradar.costs.ingest import CostLine, replace_billing_period
+from ccradar.db import Database
+from ccradar.db.base import utcnow
+from ccradar.db.tenant import set_tenant
+from ccradar.findings.aws_compute import eks_support
+from ccradar.findings.service import run
+from ccradar.inventory import aws_compute as c
+from ccradar.inventory.aws import Found
+from ccradar.inventory.service import upsert
+from ccradar.models import AuditResult, Finding
 from tests.helpers import make_org
 from tests.test_rightsizing_aws import add_metrics
 
