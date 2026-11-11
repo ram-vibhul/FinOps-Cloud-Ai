@@ -30,7 +30,7 @@ dev = [
   # tests exercise the agent's code, so it is needed here but not in the platform image.
   "kubernetes==37.0.1",
   "pytest==9.2.0",
-  "ruff==0.17.3",
+  "ruff==0.17.4",
   "pyright==1.1.414",
 ]
 
