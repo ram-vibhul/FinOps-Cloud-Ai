@@ -1,7 +1,7 @@
 # Developer shortcuts. Backend venv lives in backend/.venv.
 PY := backend/.venv/bin
 
-.PHONY: setup dev-api dev-ui test test-pg pg-stop lint build check notices image
+.PHONY: setup dev-api dev-ui test test-pg pg-stop lint build check notices image smoke e2e
 
 setup:
 	python3 -m venv backend/.venv
@@ -29,6 +29,9 @@ test:
 	cd sdk/python && ../../$(PY)/pytest -q -p no:cacheprovider
 	cd sdk/typescript && node --test test/*.test.ts
 	cd frontend && npm test
+	@if command -v go >/dev/null; then cd integrations/terraform-provider-ccradar && \
+	  test -z "$$(gofmt -l .)" && go vet ./... && go test ./...; \
+	else echo "go not installed: skipping the Terraform provider tests"; fi
 
 # Backend tests against a throwaway PostgreSQL 17 container (needs Docker).
 PG_TEST_URL := postgresql://ccradar:ccradar@localhost:55432/ccradar_test
@@ -51,6 +54,7 @@ check: lint test build
 	$(PY)/python tools/website_plans.py --check
 	$(PY)/python tools/config_reference.py --check
 	$(PY)/python tools/changelog.py --check
+	$(PY)/python tools/help_centre.py --check
 
 notices:
 	$(PY)/python tools/third_party_notices.py
@@ -58,3 +62,11 @@ notices:
 image:
 	docker build -t ccradar:dev .
 	docker build -f agent/Dockerfile -t cloudcostradar-agent:dev .
+
+# Release smoke test: the whole Compose stack from a fresh image (run before each release).
+smoke:
+	tools/smoke.sh
+
+# Browser tests against a real backend (sign-in, demo, Radar, connect flow).
+e2e: build
+	cd frontend && npx playwright test

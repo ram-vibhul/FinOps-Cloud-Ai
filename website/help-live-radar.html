@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Live Radar · CloudCostRadar</title>
+  <meta name="description" content="See what each infrastructure change costs minutes after it is made, before the bill shows it.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header>
+    <a class="logo" href="index.html">CloudCostRadar</a>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="index.html">Product</a></li>
+        <li><a href="pricing.html">Pricing</a></li>
+        <li><a href="getting-started.html">Getting started</a></li>
+        <li><a href="help.html" aria-current="page">Help</a></li>
+        <li><a href="security.html">Security</a></li>
+        <li><a href="support.html">Support</a></li>
+      </ul>
+    </nav>
+  </header>
+  <main id="main">
+    <p><a href="help.html">Help</a></p>
+    <h1>Live Radar</h1>
+    <p class="lead">See what each infrastructure change costs minutes after it is made, before the bill shows it.</p>
+<h2>What it shows</h2>
+<ul><li>Radar reads your AWS accounts' CloudTrail every 10 minutes, and Azure Activity Logs and Google Cloud audit logs every 15. Launches, resizes, deletions, pauses and scaling of servers, databases, disks, load balancers, gateways, Redshift and Auto Scaling groups are priced as a monthly run rate.</li><li>Prices come from your own bill where it has them, otherwise from list prices for the region. Each row says which.</li><li><strong>Not in the bill yet</strong> adds up the changes made after the last day of billing data.</li></ul>
+<h2>Alerts</h2>
+<ul><li>Costly changes (100 a month or more, adjustable in <strong>Settings → General</strong>) are sent to the inbox, email, Slack or Teams, with buttons to open the change or mark it as expected.</li><li>If a change will push a budget over this month, the budget's owners are told straight away.</li><li>If a change breaks one of your policies (for example a denied instance type or region), that is flagged too.</li></ul>
+<h2>Undo and expected changes</h2>
+<ul><li><strong>How to undo</strong> shows the AWS CLI command and console link that reverse a change. CloudCostRadar never runs it for you: check it first.</li><li><strong>Mark as expected</strong> records that a change was planned, and who said so.</li></ul>
+<h2>How accurate is it?</h2>
+<ul><li>Once the bill covers a few days after a change, Radar measures what the resource really cost and shows it next to the estimate. The accuracy of all measured changes is shown under the list.</li></ul>
+  </main>
+  <footer>
+    <p>CloudCostRadar is made by Yugiverse. <a href="security.html">Security</a> · <a href="support.html">Support</a> · <a href="changelog.html">What's new</a></p>
+  </footer>
+</body>
+</html>

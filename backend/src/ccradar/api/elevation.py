@@ -5,13 +5,14 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from ccradar.accounts import elevation
 from ccradar.accounts.roles import Permission, Role, has_permission
 from ccradar.api.deps import SessionDep, require
+from ccradar.api.paging import Cursor, keyset, page
 from ccradar.auth.web import AuthContext
 from ccradar.core.errors import NotFoundError
 from ccradar.core.notify import Message, notify
@@ -68,12 +69,20 @@ def _get(db: SessionDep, gid: uuid.UUID) -> ElevatedAccess:
 
 
 @router.get("")
-def list_access(auth: Reader, db: SessionDep) -> list[dict[str, Any]]:
+def list_access(
+    auth: Reader,
+    db: SessionDep,
+    response: Response,
+    cursor: Cursor = None,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+) -> list[dict[str, Any]]:
     elevation.expire(db)
-    q = select(ElevatedAccess).order_by(ElevatedAccess.created_at.desc()).limit(100)
+    q = select(ElevatedAccess)
     if not has_permission(_member_role(db, auth), Permission.MANAGE_MEMBERS):
         q = q.where(ElevatedAccess.user_id == auth.user.id)
-    return [_out(db, g) for g in db.scalars(q)]
+    cols = (ElevatedAccess.created_at, ElevatedAccess.id)
+    rows = db.scalars(keyset(q, cursor, *cols).limit(limit + 1)).all()
+    return [_out(db, g) for g in page(rows, limit, response, *cols)]
 
 
 @router.post("", status_code=201)

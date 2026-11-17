@@ -41,7 +41,18 @@ def azure(
         Role(
             "Reader",
             f"/subscriptions/{subscription}",
-            "Read Azure Advisor recommendations for this subscription.",
+            "Read Azure Advisor recommendations and the Activity Log (Live Radar) "
+            "for this subscription.",
+        ),
+        Role(
+            "Reservations Reader",
+            "/providers/Microsoft.Capacity",
+            "Optional: list reservations, their utilisation and end dates.",
+        ),
+        Role(
+            "Savings plan Reader",
+            "/providers/Microsoft.BillingBenefits",
+            "Optional: list savings plans, their utilisation and end dates.",
         ),
     ]
     commands = [
@@ -49,6 +60,11 @@ def azure(
         f"az ad sp create-for-rbac --name {SA_NAME} --role 'Cost Management Reader' --scopes {_q(scope)}",
         "# 2. Reader on each subscription for Azure Advisor",
         f"az role assignment create --assignee <appId> --role Reader --scope {_q('/subscriptions/' + subscription)}",
+    ]
+    commands += [
+        "# Optional: reservations and savings plans (tenant level; needs a tenant admin)",
+        "az role assignment create --assignee <appId> --role 'Reservations Reader' --scope /providers/Microsoft.Capacity",
+        "az role assignment create --assignee <appId> --role 'Savings plan Reader' --scope /providers/Microsoft.BillingBenefits",
     ]
     if storage_account and container:
         rg = resource_group or "<resource-group>"
@@ -107,6 +123,16 @@ def gcp(
             "each project with Compute Engine spend",
             "Read commitment (CUD) recommendations.",
         ),
+        Role(
+            "roles/compute.viewer",
+            "each project with Compute Engine spend",
+            "List disks, external addresses and committed use discounts.",
+        ),
+        Role(
+            "roles/logging.viewer",
+            "each project with Compute Engine spend",
+            "Read Admin Activity audit logs: who changed what, priced by Live Radar.",
+        ),
     ]
     commands = [
         f"gcloud iam service-accounts create {SA_NAME} --project {_q(project)} --display-name 'CloudCostRadar (read-only)'",
@@ -114,7 +140,12 @@ def gcp(
         f"gcloud projects add-iam-policy-binding {_q(project)} --member={_q(member)} --role=roles/bigquery.jobUser",
     ]
     for p in recommender_projects or ["<project-id>"]:
-        for role in ("roles/recommender.computeViewer", "roles/recommender.projectCudViewer"):
+        for role in (
+            "roles/recommender.computeViewer",
+            "roles/recommender.projectCudViewer",
+            "roles/logging.viewer",
+            "roles/compute.viewer",
+        ):
             commands.append(
                 f"gcloud projects add-iam-policy-binding {_q(p)} --member={_q(member)} --role={role}"
             )

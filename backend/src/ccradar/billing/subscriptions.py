@@ -19,6 +19,7 @@ import calendar
 from datetime import datetime, timedelta
 from typing import Any
 
+from sqlalchemy import event as sa_event
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -314,3 +315,14 @@ def roll(db: Session, now: datetime | None = None, grace_days: int = 14) -> dict
     db.flush()
     counts.update(dunning(db, now, grace_days))
     return counts
+
+
+@sa_event.listens_for(Session, "after_flush")
+def _forget_cached_plans(db: Session, _context: Any) -> None:
+    """Saved changes to plans, subscriptions or the licence invalidate cached plans (11.12)."""
+    from ccradar.billing.plans import forget_plans
+    from ccradar.models import InstanceSetting
+
+    touched = (*db.new, *db.dirty, *db.deleted)
+    if any(isinstance(o, (Subscription, Organization, InstanceSetting)) for o in touched):
+        forget_plans(db)

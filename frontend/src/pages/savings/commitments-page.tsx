@@ -220,13 +220,13 @@ export function CommitmentsPage() {
         <div>
           <p className="text-sm text-muted-foreground"><Link to="/savings" className="underline underline-offset-4">Savings</Link> /</p>
           <h1 className="text-2xl font-semibold tracking-tight">Commitments</h1>
-          <p className="text-sm text-muted-foreground">Every Savings Plan, reservation and negotiated contract, soonest to end first.</p>
+          <p className="text-sm text-muted-foreground">Every Savings Plan, reservation, committed use discount and negotiated contract, soonest to end first.</p>
         </div>
-        {canRefresh && <Button variant="outline" disabled={busy} onClick={() => void refresh()}><RefreshCw /> Refresh from AWS</Button>}
+        {canRefresh && <Button variant="outline" disabled={busy} onClick={() => void refresh()}><RefreshCw /> Refresh</Button>}
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Savings Plans and reservations</CardTitle>
+          <CardTitle>Savings Plans, reservations and committed use discounts</CardTitle>
           <CardDescription>CloudCostRadar alerts your notification channels 90, 30 and 7 days before each one ends.</CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto">

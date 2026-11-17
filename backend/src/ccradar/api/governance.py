@@ -5,14 +5,14 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Query, Request, Response
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 
 from ccradar.accounts.roles import Permission
 from ccradar.api.deps import SessionDep, require
 from ccradar.auth.web import AuthContext
-from ccradar.core.errors import NotFoundError
+from ccradar.core.errors import AppError, NotFoundError
 from ccradar.costs import governance
 from ccradar.db.base import utcnow
 from ccradar.models import Organization, Policy, PolicyViolation
@@ -25,7 +25,13 @@ Admin = Annotated[AuthContext, require(Permission.MANAGE_SETTINGS)]
 
 class PolicyIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
-    kind: Literal["required_tags", "allowed_regions", "denied_instance_types", "k8s_requests"]
+    kind: Literal[
+        "required_tags",
+        "allowed_regions",
+        "denied_instance_types",
+        "k8s_requests",
+        "max_monthly_increase",
+    ]
     params: dict[str, Any] = Field(default_factory=dict)
     resource_types: list[str] = Field(default_factory=list, max_length=30)
     severity: Literal["info", "warning", "critical"] = "warning"
@@ -40,6 +46,11 @@ class PolicyIn(BaseModel):
         }.get(self.kind)
         if need and not (isinstance(self.params.get(need), list) and self.params[need]):
             raise ValueError(f"params.{need} must list at least one value")
+        amount = self.params.get("amount")
+        if self.kind == "max_monthly_increase" and not (
+            isinstance(amount, int | float) and not isinstance(amount, bool) and amount > 0
+        ):
+            raise ValueError("params.amount must be a positive number")
         return self
 
 
@@ -60,6 +71,58 @@ def _run(db: SessionDep, auth: AuthContext) -> dict[str, int]:
 @router.get("/policies")
 def list_policies(auth: Reader, db: SessionDep) -> list[dict[str, Any]]:
     return governance.summary(db)
+
+
+@router.get("/policies.yaml")
+def export_policies(auth: Reader, db: SessionDep) -> Response:
+    """Every policy as YAML, to keep in a repository (11.41)."""
+    from ccradar.costs.policy_code import policies_yaml
+
+    return Response(policies_yaml(db), media_type="application/yaml")
+
+
+@router.put("/policies.yaml")
+async def import_policies(
+    request: Request, auth: Admin, db: SessionDep, prune: bool = False
+) -> dict[str, Any]:
+    """Create or update policies by name from YAML; ``prune`` deletes the ones not listed."""
+    import yaml
+    from pydantic import ValidationError
+
+    body = await request.body()
+    if len(body) > 200_000:
+        raise AppError("The file is too large (200 KB at most).", code="file_too_large")
+    try:
+        doc = yaml.safe_load(body) or {}
+        items = [PolicyIn.model_validate(x) for x in doc.get("policies") or []]
+    except (yaml.YAMLError, AttributeError, TypeError) as exc:
+        raise AppError("Send YAML with a list under policies:.", code="bad_yaml") from exc
+    except ValidationError as exc:
+        raise AppError(
+            f"A policy is not valid: {exc.errors()[0]['msg']}", code="bad_policy"
+        ) from exc
+    names = [x.name for x in items]
+    if len(set(names)) != len(names):
+        raise AppError("Two policies have the same name.", code="duplicate_name")
+    existing = {p.name: p for p in db.scalars(select(Policy))}
+    created = updated = deleted = 0
+    for item in items:
+        p = existing.get(item.name)
+        if p is None:
+            db.add(Policy(org_id=auth.org_id, **item.model_dump()))
+            created += 1
+        else:
+            for field, value in item.model_dump().items():
+                setattr(p, field, value)
+            updated += 1
+    if prune:
+        for name, p in existing.items():
+            if name not in names:
+                db.delete(p)
+                deleted += 1
+    db.flush()
+    _run(db, auth)
+    return {"created": created, "updated": updated, "deleted": deleted}
 
 
 @router.post("/policies", status_code=201)

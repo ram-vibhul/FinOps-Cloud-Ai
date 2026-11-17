@@ -11,7 +11,7 @@ x-app: &app
   image: ${CCRADAR_IMAGE:-ghcr.io/yugiverse/cloudcostradar:latest}
   build: .
   restart: unless-stopped
-  env_file: .env
+  env_file: ${CCRADAR_ENV_FILE:-.env}  # the smoke test points this at a throw-away file
   # Shared by web and worker: uploaded cost files and generated reports live here.
   volumes:
     - appdata:/data

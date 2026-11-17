@@ -17,6 +17,7 @@ CloudCostRadar than the one restoring it is refused."""
 
 from __future__ import annotations
 
+import contextlib
 import io
 import json
 import os
@@ -116,7 +117,7 @@ def _add_bytes(tar: tarfile.TarFile, name: str, data: bytes) -> None:
     tar.addfile(info, io.BytesIO(data))
 
 
-def create(settings: Settings, out: Path) -> dict[str, Any]:
+def _create_plain(settings: Settings, out: Path) -> dict[str, Any]:
     """Write a backup to ``out`` and return its manifest."""
     url = owner_url(settings)
     kind = _kind(url)
@@ -178,7 +179,7 @@ def _members(tar: tarfile.TarFile) -> list[tarfile.TarInfo]:
     return safe
 
 
-def verify(path: Path) -> dict[str, Any]:
+def _verify_plain(path: Path) -> dict[str, Any]:
     """Read the manifest and check the database inside can be read."""
     with tarfile.open(path, "r:gz") as tar, tempfile.TemporaryDirectory() as tmp:
         names = {m.name for m in _members(tar)}
@@ -237,12 +238,12 @@ def _replace_postgres(url: str, dump: Path) -> None:
     )
 
 
-def restore(settings: Settings, path: Path, *, safety_copy: bool = True) -> dict[str, Any]:
+def _restore_plain(settings: Settings, path: Path, *, safety_copy: bool) -> dict[str, Any]:
     """Replace the database and files with the backup's, then migrate. First writes a
     safety backup of the current data to ``<data dir>/pre-restore-<time>.tar.gz``."""
     from ccradar.cli import migrate
 
-    manifest = verify(path)
+    manifest = _verify_plain(path)
     url = owner_url(settings)
     kind = _kind(url)
     if manifest["database"] != kind:
@@ -250,7 +251,7 @@ def restore(settings: Settings, path: Path, *, safety_copy: bool = True) -> dict
     files_dir = Path(settings.data_dir) / "files"
     if safety_copy:
         stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
-        create(settings, Path(settings.data_dir) / f"pre-restore-{stamp}.tar.gz")
+        _create_plain(settings, Path(settings.data_dir) / f"pre-restore-{stamp}.tar.gz")
     with tarfile.open(path, "r:gz") as tar, tempfile.TemporaryDirectory() as tmp:
         members = _members(tar)
         tar.extractall(tmp, members=members, filter="data")
@@ -274,3 +275,87 @@ def restore(settings: Settings, path: Path, *, safety_copy: bool = True) -> dict
     role = runtime_user if runtime_user and runtime_user != make_url(url).username else None
     migrate(url, app_role=role)  # upgrades an older backup and re-grants the runtime role
     return manifest
+
+
+# --- public API: optional encryption and object storage (11.6) ----------------------------
+
+
+def create(
+    settings: Settings, out: Path | str, *, passphrase: str | None = None, client: Any = None
+) -> dict[str, Any]:
+    """Write a backup to a file or ``s3://bucket/key``, encrypted when a passphrase is given."""
+    from ccradar import backup_crypto as bc
+
+    location = str(out)
+    remote = bc.is_remote(location)
+    with tempfile.TemporaryDirectory() as tmp:
+        plain = Path(tmp) / "backup.tar.gz"
+        manifest = _create_plain(settings, plain)
+        manifest["encrypted"] = passphrase is not None
+        final = plain
+        if passphrase is not None:
+            final = Path(tmp) / "backup.enc"
+            with final.open("wb") as f:
+                bc.encrypt_file(plain, f, passphrase)
+        if remote:
+            bc.upload(final, location, endpoint_url=settings.storage_endpoint_url,
+                      region=settings.aws_region, client=client)  # fmt: skip
+        else:
+            target = Path(location)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            partial = target.with_name(target.name + ".partial")
+            fd = os.open(partial, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "wb") as f, final.open("rb") as src:
+                shutil.copyfileobj(src, f)
+            partial.replace(target)
+    return manifest
+
+
+@contextlib.contextmanager
+def _plain_copy(
+    location: Path | str, passphrase: str | None, settings: Settings | None, client: Any
+) -> Any:
+    from ccradar import backup_crypto as bc
+
+    with bc.local_copy(
+        str(location),
+        endpoint_url=settings.storage_endpoint_url if settings else None,
+        region=settings.aws_region if settings else None,
+        client=client,
+    ) as path:
+        if not bc.is_encrypted(path):
+            yield path, False
+            return
+        if passphrase is None:
+            raise BackupError(f"this backup is encrypted: set {bc.PASSPHRASE_ENV}")
+        with tempfile.TemporaryDirectory() as tmp:
+            plain = Path(tmp) / "backup.tar.gz"
+            try:
+                with plain.open("wb") as f:
+                    bc.decrypt_file(path, f, passphrase)
+            except bc.BackupCryptoError as exc:
+                raise BackupError(str(exc)) from exc
+            yield plain, True
+
+
+def verify(
+    location: Path | str,
+    *,
+    passphrase: str | None = None,
+    settings: Settings | None = None,
+    client: Any = None,
+) -> dict[str, Any]:
+    with _plain_copy(location, passphrase, settings, client) as (path, encrypted):
+        return {**_verify_plain(path), "encrypted": encrypted}
+
+
+def restore(
+    settings: Settings,
+    location: Path | str,
+    *,
+    safety_copy: bool = True,
+    passphrase: str | None = None,
+    client: Any = None,
+) -> dict[str, Any]:
+    with _plain_copy(location, passphrase, settings, client) as (path, _):
+        return _restore_plain(settings, path, safety_copy=safety_copy)

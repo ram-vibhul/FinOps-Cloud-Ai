@@ -18,7 +18,13 @@ SUB = "33333333-3333-3333-3333-333333333333"
 def test_azure_commands_use_the_scope_and_container() -> None:
     out = setup_help.azure(f"/subscriptions/{SUB}", "costexports", "billing", "rg-finops")
     roles = [r["role"] for r in out["roles"]]
-    assert roles == ["Cost Management Reader", "Reader", "Storage Blob Data Reader"]
+    assert roles == [
+        "Cost Management Reader",
+        "Reader",
+        "Reservations Reader",
+        "Savings plan Reader",
+        "Storage Blob Data Reader",
+    ]
     text = "\n".join(out["commands"])
     assert f"--scopes '/subscriptions/{SUB}'" in text
     assert "storageAccounts/costexports/blobServices/default/containers/billing" in text

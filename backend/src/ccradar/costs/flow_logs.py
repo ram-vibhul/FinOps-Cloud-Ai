@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import gzip
 import ipaddress
+import logging
 import uuid
 from collections import defaultdict
 from collections.abc import Iterable, Iterator
@@ -33,6 +34,8 @@ from ccradar.costs.network import CATEGORIES, network_costs
 from ccradar.db.base import utcnow
 from ccradar.inventory.aws import _pages, _tags
 from ccradar.models import CloudResource, K8sCluster, K8sObject, NetworkAttribution
+
+log = logging.getLogger(__name__)
 
 DEFAULT_FIELDS = [
     "version", "account-id", "interface-id", "srcaddr", "dstaddr", "srcport", "dstport",
@@ -406,6 +409,7 @@ def collect(
             ]
         except Exception as error:
             errors[f"ec2:{region}"] = type(error).__name__
+            log.info("network interfaces in %s unavailable: %s", region, type(error).__name__)
     for source in settings.get("sources") or []:
         try:
             if source.get("type") == "s3":
@@ -427,6 +431,7 @@ def collect(
                     lines += list(cloudwatch_lines(logs, source["log_group"], day))
         except Exception as error:
             errors[str(source.get("bucket") or source.get("log_group"))] = type(error).__name__
+            log.info("flow log source unreadable: %s", type(error).__name__)
     set_tenant(db, org_id=conn.org_id)
     result = run(db, conn.org_id, currency, lines, enis)
     conn.settings = {

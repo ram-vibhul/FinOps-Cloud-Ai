@@ -22,9 +22,12 @@ from ccradar.api import (
     anomalies,
     api_keys,
     audit,
+    audit_streams,
     auth,
     aws_audit,
+    benchmarks,
     budgets,
+    carbon,
     changes,
     clusters,
     commitments,
@@ -69,6 +72,7 @@ from ccradar.api import (
     unit_metrics,
     vtags,
     webhooks_out,
+    whatif,
     work,
 )
 from ccradar.api import (
@@ -149,7 +153,12 @@ def create_app(
     database = db or Database(settings.database_url, echo=settings.database_echo)
     configure_encryption(build_secret_box(settings))
     configure_email(email or build_sender(settings))
-    storage = build_storage(settings.data_dir)
+    storage = build_storage(
+        settings.data_dir,
+        settings.storage_url,
+        settings.storage_endpoint_url,
+        settings.aws_region,
+    )
     configure_jobs(JobContext(settings=settings, db=database, storage=storage))
 
     @asynccontextmanager
@@ -284,6 +293,10 @@ def create_app(
         unit_metrics,
         notifications,
         k8s_tasks,
+        whatif,
+        carbon,
+        benchmarks,
+        audit_streams,
     ):
         app.include_router(module.router)
     if settings.ui_dist_dir:

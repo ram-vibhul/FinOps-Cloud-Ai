@@ -249,7 +249,11 @@ export interface SetupHelp {
   };
 }
 
-export type SaasProvider = "snowflake" | "databricks" | "datadog" | "mongodb_atlas";
+export type SaasProvider =
+  | "snowflake" | "databricks" | "datadog" | "mongodb_atlas" | "openai" | "anthropic" | "github" | "confluent"
+  | "vercel" | "cloudflare" | "digitalocean" | "linode" | "newrelic"
+  | "fastly" | "elastic" | "grafana" | "oracle" | "alibaba" | "hetzner" | "twilio" | "sentry"
+  | "okta" | "slack" | "zoom" | "pagerduty" | "atlassian";
 
 export interface GcpCreate {
   name: string; service_account_key: string; table: string; query_project?: string; detailed: boolean;
@@ -395,6 +399,27 @@ export interface AlertSettings {
   same_day_warnings?: boolean;
   same_day_over_pct?: number;
   weekly_digest_email?: boolean;
+  radar_alerts?: boolean;
+  radar_min_monthly?: number;
+}
+
+export interface RadarItem {
+  id: string; occurred_at: string; title: string; actor: string; account: string | null; region: string | null;
+  service: string | null; monthly: number; label: string | null; source: "bill" | "list price"; in_bill: boolean;
+  undo?: RadarUndo | null;
+  expected?: RadarExpected | null;
+  measured?: { monthly: number; estimate: number; error_pct: number | null; days: number; through: string } | null;
+  policy?: { policy: string; kind: string; severity: string; resource: string; detail: string }[];
+}
+export interface RadarAccuracy { measured: number; median_error_pct: number; within_pct: number; share_within: number }
+export interface RadarExpected { by: string; at: string; note: string | null }
+export interface RadarUndo { text: string; command?: string; console?: string }
+export interface RadarScan { connection: string; at: string | null; complete: boolean; problems: string[] }
+export interface RadarFeed {
+  scans?: RadarScan[];
+  currency: string; hours: number; billed_through: string | null; added_monthly: number; removed_monthly: number;
+  net_monthly: number; not_in_bill_monthly: number; unpriced: number; items: RadarItem[];
+  accuracy?: RadarAccuracy | null;
 }
 
 export interface EarlyWarning {
@@ -439,7 +464,7 @@ export interface ExploreGroup {
 
 export interface ExploreResult extends CostSeries {
   group_by: string[];
-  source: "daily" | "line_items";
+  source: "daily" | "line_items" | "tag_rollup";
   group_count: number;
   groups: ExploreGroup[];
 }
@@ -796,6 +821,19 @@ export interface OutgoingWebhook {
   last_status: number | null; last_error: string | null; secret: string | null;
 }
 
+export type AuditStreamKind = "splunk_hec" | "sentinel" | "datadog" | "syslog" | "webhook";
+
+export interface AuditStream {
+  id: string; name: string; kind: AuditStreamKind; kind_label: string; settings: Record<string, string | number>;
+  has_secret: boolean; enabled: boolean; sent_total: number; position: string | null; failures: number;
+  next_attempt_at: string | null; last_sent_at: string | null; last_status: number | null; last_error: string | null;
+  signing_secret: string | null;
+}
+
+export interface AuditStreamIn {
+  name: string; kind: AuditStreamKind; settings: Record<string, string | number>; secret?: string; start: "now" | "all";
+}
+
 export interface WebhookDeliveryRow {
   id: string; event: string; status: "pending" | "sent" | "failed"; attempts: number; last_status: number | null;
   last_error: string | null; created_at: string; delivered_at: string | null; next_attempt_at: string | null;
@@ -818,6 +856,53 @@ export interface ElevatedAccessRow {
   id: string; user_id: string; user: string | null; role: string; minutes: number; reason: string;
   status: "requested" | "active" | "denied" | "revoked" | "expired"; decided_by: string | null; starts_at: string | null; expires_at: string | null; created_at: string;
 }
+export interface Mover { dimension: string; key: string; label: string; now: number; before: number; change: number }
+export interface Investigation {
+  currency: string; start: string; end: string; now: number; before: number; change: number;
+  drivers: Mover[]; within: Record<string, Mover[]>; top_service: string | null; summary: string; worded_by_ai: boolean;
+  changes: { id: string; occurred_at: string; title: string; actor: string | null; source: string; monthly: number | null }[];
+  anomalies: { id: string; day: string; key: string; dimension: string; impact: number }[];
+  fixes: { id: string; title: string; savings_monthly: number; detector: string; resource_id: string | null }[];
+}
+
+export interface DashboardWidget { view_id: string; title: string; chart: "bar" | "line" | "table"; query: ExploreQuery }
+export interface Dashboard { id: string; name: string; shared: boolean; mine: boolean; widgets: DashboardWidget[] }
+export interface DashboardIn { name: string; shared: boolean; widgets: { view_id: string; chart: "bar" | "line" | "table" }[] }
+
+export interface CarbonReport {
+  unit: string; total_kg: number; measured_share: number | null; method: string;
+  months: { month: string; from_usage: number; from_spend: number }[];
+  by_service: { name: string; kg: number }[]; by_region: { name: string; kg: number }[];
+}
+
+export type BenchmarkKey = "effective_savings_rate" | "waste_pct" | "allocated_pct" | "vcpu_hour_cost";
+export interface Benchmarks {
+  opted_in: boolean; sample?: boolean; month: string; size_band: string; min_peers: number;
+  definitions: Record<BenchmarkKey, { label: string; unit: string; better: "higher" | "lower" }>;
+  mine: Record<BenchmarkKey, number | null>;
+  peers: { scope: string; organisations: number;
+    metrics: Record<BenchmarkKey, { n: number; p25?: number; median?: number; p75?: number }> } | null;
+}
+
+export type WhatIfLever = "graviton" | "schedule" | "rightsizing" | "waste" | "other";
+export interface WhatIf {
+  currency: string; base_monthly: number; levers_monthly: number; total_monthly: number; after_monthly: number;
+  saving_pct: number | null;
+  levers: { id: WhatIfLever; label: string; count: number; monthly: number; chosen: boolean }[];
+  commitment: { monthly: number; reason?: string; term?: string; discount?: number; covers_monthly?: number; hourly_commitment?: number } | null;
+}
+
+export interface StopSchedule {
+  id: string; connection_id: string; name: string; region: string; instance_ids: string[]; timezone: string;
+  days: number[]; stop_at: string; start_at: string; status: "requested" | "approved" | "paused" | "rejected";
+  savings_monthly: number; requested_by: string | null; approved_by: string | null; stopped_now: string[];
+  log: { at: string; action: "stop" | "start"; done?: string[]; skipped?: Record<string, string>; error?: string }[];
+}
+export interface StopScheduleIn {
+  connection_id: string; name: string; region: string; instance_ids: string[]; timezone: string;
+  days: number[]; stop_at: string; start_at: string;
+}
+
 export interface FixRow {
   id: string; finding_id: string | null; finding: string | null; action: string; label: string; resource_id: string; region: string;
   savings_monthly: number; status: string; requested_by: string | null; approved_by: string | null; executed_at: string | null;
@@ -1342,6 +1427,11 @@ export const api = {
   importFile: (id: string, settings: ImportSettings) =>
     apiFetch<FileImport>(`/api/v1/imports/files/${id}/import`, { method: "POST", ...json(settings) }),
   deleteFileImport: (id: string) => apiFetch<null>(`/api/v1/imports/files/${id}`, { method: "DELETE" }),
+  radar: (hours = 24) => apiFetch<RadarFeed>(`/api/v1/radar?hours=${hours}`),
+  radarExpected: (id: string, expected: boolean, note?: string) =>
+    apiFetch<{ id: string; expected: RadarExpected | null }>(`/api/v1/radar/${encodeURIComponent(id)}/expected`, {
+      method: "PUT", ...json({ expected, note }),
+    }),
   costSummary: (q: CostQuery = {}) => apiFetch<CostSummary>(`/api/v1/costs/summary${costQuery(q)}`),
   costProviders: (q: CostQuery = {}) => apiFetch<ProvidersView>(`/api/v1/costs/providers${costQuery(q)}`),
   costDaily: (q: CostQuery = {}) => apiFetch<CostSeries>(`/api/v1/costs/daily${costQuery(q)}`),
@@ -1376,6 +1466,17 @@ export const api = {
   openFindingLink: (id: string, integrationId: string) =>
     apiFetch<FindingLink>(`/api/v1/findings/${id}/links`, { method: "POST", ...json({ integration_id: integrationId }) }),
   outgoingWebhooks: () => apiFetch<OutgoingWebhook[]>("/api/v1/org/outgoing-webhooks"),
+  auditStreams: () => apiFetch<AuditStream[]>("/api/v1/org/audit-streams"),
+  createAuditStream: (body: AuditStreamIn) =>
+    apiFetch<AuditStream>("/api/v1/org/audit-streams", { method: "POST", ...json(body) }),
+  updateAuditStream: (id: string, body: { name?: string; enabled?: boolean; secret?: string }) =>
+    apiFetch<AuditStream>(`/api/v1/org/audit-streams/${id}`, { method: "PATCH", ...json(body) }),
+  deleteAuditStream: (id: string) => apiFetch<null>(`/api/v1/org/audit-streams/${id}`, { method: "DELETE" }),
+  testAuditStream: (id: string) =>
+    apiFetch<{ ok: boolean; error: string | null }>(`/api/v1/org/audit-streams/${id}/test`, { method: "POST" }),
+  sendAuditStreamNow: (id: string) => apiFetch<AuditStream>(`/api/v1/org/audit-streams/${id}/send-now`, { method: "POST" }),
+  rotateAuditStream: (id: string) =>
+    apiFetch<AuditStream>(`/api/v1/org/audit-streams/${id}/rotate-signing-secret`, { method: "POST" }),
   createOutgoingWebhook: (body: { name: string; url: string; events?: string[] }) =>
     apiFetch<OutgoingWebhook>("/api/v1/org/outgoing-webhooks", { method: "POST", ...json(body) }),
   updateOutgoingWebhook: (id: string, body: { enabled?: boolean; name?: string; events?: string[] }) =>
@@ -1410,6 +1511,21 @@ export const api = {
   joinPartner: (code: string) => apiFetch<null>("/api/v1/org/partner", { method: "POST", ...json({ code }) }),
   leavePartner: () => apiFetch<null>("/api/v1/org/partner", { method: "DELETE" }),
   fixes: () => apiFetch<FixRow[]>("/api/v1/fixes"),
+  schedules: () => apiFetch<StopSchedule[]>("/api/v1/schedules"),
+  investigate: (days: number) => apiFetch<Investigation>("/api/v1/costs/investigate", { method: "POST", ...json({ days }) }),
+  dashboards: () => apiFetch<Dashboard[]>("/api/v1/dashboards"),
+  createDashboard: (body: DashboardIn) => apiFetch<Dashboard>("/api/v1/dashboards", { method: "POST", ...json(body) }),
+  deleteDashboard: (id: string) => apiFetch<null>(`/api/v1/dashboards/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  carbon: (months = 6) => apiFetch<CarbonReport>(`/api/v1/carbon?months=${months}`),
+  benchmarks: () => apiFetch<Benchmarks>("/api/v1/benchmarks"),
+  setBenchmarkOptIn: (opted_in: boolean) =>
+    apiFetch<Benchmarks>("/api/v1/benchmarks/opt-in", { method: "PUT", ...json({ opted_in }) }),
+  whatIf: (levers: WhatIfLever[], savingsPlan: { term: "1yr" | "3yr" } | null) =>
+    apiFetch<WhatIf>("/api/v1/what-if", { method: "POST", ...json({ levers, savings_plan: savingsPlan }) }),
+  requestSchedule: (body: StopScheduleIn) => apiFetch<StopSchedule>("/api/v1/schedules", { method: "POST", ...json(body) }),
+  changeSchedule: (id: string, action: "approve" | "pause" | "resume" | "reject") =>
+    apiFetch<StopSchedule>(`/api/v1/schedules/${encodeURIComponent(id)}/${action}`, { method: "POST" }),
+  deleteSchedule: (id: string) => apiFetch<null>(`/api/v1/schedules/${encodeURIComponent(id)}`, { method: "DELETE" }),
   writeAccess: () => apiFetch<WriteAccess[]>("/api/v1/org/write-access"),
   buyPurchase: (id: string) => apiFetch<FixRow>(`/api/v1/purchases/${id}/buy`, { method: "POST" }),
   requestFix: (findingId: string) => apiFetch<FixRow>(`/api/v1/findings/${findingId}/fix`, { method: "POST" }),

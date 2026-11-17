@@ -1,5 +1,4 @@
 import { CheckCircle2, Circle, Loader2, PiggyBank } from "lucide-react";
-import { useEffect } from "react";
 import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +6,7 @@ import { api, type FirstSavings, type SetupChecklist } from "@/lib/api";
 import { money } from "@/lib/format";
 import { activeOrg, atLeast, useMe } from "@/lib/session";
 import { useLoad } from "@/lib/use-load";
+import { usePoll } from "@/lib/use-poll";
 
 function Steps({ data, compact = false }: { data: SetupChecklist; compact?: boolean }) {
   return (
@@ -43,11 +43,7 @@ export function FirstSavingsPanel() {
   const me = useMe();
   const { data, reload } = useLoad(() => api.firstSavings(), [me.active_organization_id]);
   const working = data ? WORKING.includes(data.stage) : false;
-  useEffect(() => {
-    if (!working) return;
-    const timer = setInterval(() => void reload(), POLL_MS);
-    return () => clearInterval(timer);
-  }, [working, reload]);
+  usePoll(() => void reload(), POLL_MS, working);
   if (!data || data.stage === "connect") return null;
   return (
     <section aria-label="First savings" className="rounded-md border bg-primary/5 p-3">

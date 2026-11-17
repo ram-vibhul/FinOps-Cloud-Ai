@@ -11,10 +11,11 @@ from sqlalchemy import select
 
 from ccradar.clouds.aws import cost_explorer, cur
 from ccradar.clouds.aws.client import AwsGateway, Boto3Gateway
+from ccradar.db.base import utcnow
 from ccradar.db.tenant import set_tenant
 from ccradar.jobs.context import job_context
 from ccradar.jobs.registry import job
-from ccradar.models import CloudConnection
+from ccradar.models import AuditStream, CloudConnection
 
 _gateway: AwsGateway | None = None
 
@@ -239,16 +240,19 @@ def detect_all_anomalies() -> int:
 
 
 @job("changes.import_cloudtrail", queue="imports", retry=1)
-def import_cloudtrail(connection_id: str) -> int:
+def import_cloudtrail(connection_id: str, hours: int = 3) -> int:
     from ccradar.changes.cloudtrail import import_connection
 
     ctx = job_context()
     with ctx.db.session() as session:
-        return import_connection(session, gateway(), uuid.UUID(connection_id))
+        return import_connection(session, gateway(), uuid.UUID(connection_id), hours=hours)
 
 
-@job("changes.schedule_cloudtrail", queue="maintenance", cron="5 * * * *")
+@job("changes.schedule_cloudtrail", queue="maintenance", cron="*/10 * * * *")
 def schedule_cloudtrail() -> int:
+    """Every 10 minutes (Live Radar, 10.1): read each AWS account's recent change events,
+    price them and alert on costly ones. Each run looks back 3 hours; events already
+    seen are updated, not duplicated."""
     from ccradar.jobs.runner import build_runner
 
     ctx = job_context()
@@ -426,6 +430,29 @@ def deliver_webhooks() -> int:
         return deliver_due(session, http, resolver)
 
 
+@job("audit.stream", queue="maintenance", cron="* * * * *")
+def stream_audit_logs() -> int:
+    """Every minute: send new audit events to each organisation's SIEM streams (11.42)."""
+    from ccradar.audit import streams
+    from ccradar.core.notify import outbound
+
+    http, resolver = outbound()
+    transport = streams.Transport(http=http, resolver=resolver)
+    ctx = job_context()
+    now = utcnow()
+    with ctx.db.session() as session:
+        set_tenant(session, bypass=True)
+        due = [(s.id, s.org_id) for s in streams.due(session, now)]
+    sent = 0
+    for stream_id, org_id in due:
+        with ctx.db.session() as session:
+            set_tenant(session, org_id=org_id)
+            stream = session.get(AuditStream, stream_id)
+            if stream is not None:
+                sent += streams.run_stream(session, stream, transport, now)
+    return sent
+
+
 @job("costs.import_azure", queue="imports", retry=3)
 @_watched
 def import_azure(connection_id: str, months: int = 2) -> int:
@@ -517,3 +544,74 @@ def expire_elevations() -> int:
     with ctx.db.session() as session:
         set_tenant(session, bypass=True)
         return expire(session)
+
+
+@job("radar.reconcile", queue="default", cron="40 6 * * *")
+def reconcile_radar() -> int:
+    """Daily: compare Radar estimates with the bill once it covers the days after (11.27)."""
+    from ccradar.changes.reconcile import reconcile
+    from ccradar.models import Organization
+
+    ctx = job_context()
+    with ctx.db.session() as session:
+        set_tenant(session, bypass=True)
+        orgs = list(session.scalars(select(Organization.id).where(Organization.is_demo.is_(False))))
+    measured = 0
+    for org_id in orgs:
+        with ctx.db.session() as session:
+            set_tenant(session, org_id=org_id)
+            measured += reconcile(session, org_id)
+    return measured
+
+
+@job("changes.import_other_clouds", queue="imports", retry=1)
+def import_other_clouds(connection_id: str) -> int:
+    """Live Radar for one Azure or Google Cloud connection (10.2)."""
+    import uuid as _uuid
+
+    from ccradar.changes.other_clouds import import_connection
+
+    with job_context().db.session() as session:
+        return import_connection(session, _uuid.UUID(connection_id))
+
+
+@job("changes.schedule_other_clouds", queue="maintenance", cron="*/15 * * * *")
+def schedule_other_clouds() -> int:
+    """Every 15 minutes: read Azure Activity Logs and Google Cloud audit logs (10.2)."""
+    from ccradar.jobs.runner import build_runner
+
+    ctx = job_context()
+    with ctx.db.session() as session:
+        set_tenant(session, bypass=True)
+        ids = session.scalars(
+            select(CloudConnection.id).where(
+                CloudConnection.provider.in_(("azure", "gcp")),
+                CloudConnection.status == "active",
+            )
+        ).all()
+    runner = build_runner(ctx.settings)
+    for connection_id in ids:
+        runner.enqueue("changes.import_other_clouds", connection_id=str(connection_id))
+    return len(ids)
+
+
+@job("benchmarks.refresh", queue="maintenance", cron="40 7 * * *")
+def refresh_benchmarks() -> int:
+    """Refresh each opted-in organisation's benchmark sample (11.40)."""
+    from ccradar.costs import benchmarks
+    from ccradar.models import BenchmarkSample, Organization
+
+    ctx = job_context()
+    with ctx.db.session() as session:
+        set_tenant(session, bypass=True)
+        orgs = [
+            o.id
+            for o in session.scalars(select(Organization).where(Organization.is_demo.is_(False)))
+            if benchmarks.opted_in(o)
+        ]
+        shared = set(session.scalars(select(BenchmarkSample.org_id)))
+    for org_id in set(orgs) | shared:  # shared but no longer opted in: removed
+        with ctx.db.session() as session:
+            set_tenant(session, org_id=org_id)
+            benchmarks.refresh(session, org_id)
+    return len(orgs)

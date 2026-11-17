@@ -50,6 +50,10 @@ class AlertSettings(BaseModel):
     same_day_over_pct: float = Field(default=30.0, ge=5, le=1000)
     # Weekly digest (6.1): also email it to owners and admins (channels subscribe per event).
     weekly_digest_email: bool = False
+    # Live Radar (10.1): alert when one change adds at least this much to the monthly
+    # run rate (in the org's currency), minutes after it is made.
+    radar_alerts: bool = True
+    radar_min_monthly: float = Field(default=100.0, ge=0, le=10_000_000)
 
 
 def alert_settings(org: Organization) -> AlertSettings:

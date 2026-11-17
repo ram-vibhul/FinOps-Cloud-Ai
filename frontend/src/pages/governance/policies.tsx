@@ -19,6 +19,7 @@ const KINDS = {
   allowed_regions: { label: "Allowed regions", param: "regions", hint: "eu-west-1, eu-central-1" },
   denied_instance_types: { label: "Denied instance types", param: "patterns", hint: "x1e.*, p4d.*" },
   k8s_requests: { label: "Kubernetes containers must set requests", param: null, hint: "" },
+  max_monthly_increase: { label: "Largest monthly increase in one plan", param: "amount", hint: "1000" },
 } as const;
 const SEVERITY = { info: "secondary", warning: "warning", critical: "destructive" } as const;
 
@@ -37,7 +38,8 @@ export function PoliciesTab() {
   async function save(event: FormEvent) {
     event.preventDefault();
     const param = KINDS[kind].param;
-    const params = param ? { [param]: values.split(",").map((v) => v.trim()).filter(Boolean) } : {};
+    const list = values.split(",").map((v) => v.trim()).filter(Boolean);
+    const params = !param ? {} : param === "amount" ? { amount: Number(values) } : { [param]: list };
     try {
       const p = await api.createGovPolicy({ name: name.trim(), kind, params, severity });
       toast.success(`Policy saved: ${p.open} violation(s) found.`);
@@ -66,7 +68,12 @@ export function PoliciesTab() {
       <Card>
         <CardHeader>
           <CardTitle>Policies</CardTitle>
-          <CardDescription>Rules every resource should follow. CloudCostRadar checks them every morning and lists what breaks them.</CardDescription>
+          <CardDescription>
+            Rules every resource should follow. CloudCostRadar checks them every morning, on every change Radar sees, and on
+            Terraform plans in CI (critical ones fail the check). Keep them in your repository:{" "}
+            <a href="/api/v1/governance/policies.yaml" download="policies.yaml" className="underline underline-offset-4">download as YAML</a>, and send changes back
+            with <code>PUT /api/v1/governance/policies.yaml</code>.
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           {isAdmin && !adding && <div><Button onClick={() => setAdding(true)}><Plus /> Add policy</Button></div>}
@@ -84,7 +91,7 @@ export function PoliciesTab() {
               </div>
               {KINDS[kind].param && (
                 <div className="grid gap-1">
-                  <Label htmlFor="pol-values">Values (comma-separated)</Label>
+                  <Label htmlFor="pol-values">{KINDS[kind].param === "amount" ? "Amount a month" : "Values (comma-separated)"}</Label>
                   <Input id="pol-values" required value={values} placeholder={KINDS[kind].hint} onChange={(e) => setValues(e.target.value)} />
                 </div>
               )}

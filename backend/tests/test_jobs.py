@@ -96,6 +96,34 @@ def test_procrastinate_worker_runs_deferred_job_on_postgres(
     assert calls == [7]
 
 
+@pytest.mark.skipif(not POSTGRES_URL, reason="needs CCRADAR_TEST_DATABASE_URL (PostgreSQL)")
+def test_procrastinate_worker_runs_a_scheduled_job_on_postgres(
+    admin_database_url: str, database_url: str
+) -> None:
+    """The real worker runs a scheduled job the way the scheduler calls it: with a
+    ``timestamp`` keyword. Before 0.4/0.5 every scheduled job failed here."""
+    import asyncio
+
+    from ccradar.jobs.runner import build_procrastinate_app, run_worker_async
+    from tests.conftest import migrate_for_tests
+
+    migrate_for_tests(admin_database_url)
+    reg = JobRegistry()
+    calls: list[str] = []
+
+    @job("pg_tick", cron="*/5 * * * *", into=reg)
+    def pg_tick() -> None:
+        calls.append("tick")
+
+    app = build_procrastinate_app(database_url)
+    runner = ProcrastinateRunner(app, reg)
+    with app.open():
+        runner._tasks["pg_tick"].defer(timestamp=1794278400)  # as the periodic deferrer does
+    asyncio.run(run_worker_async(app, wait=False))
+    # Ours, plus usually one from the worker's own scheduler: all must have succeeded.
+    assert calls and set(calls) == {"tick"}
+
+
 def test_every_job_module_registers() -> None:
     """Guards against registration imports being removed by an automatic clean-up."""
     from ccradar.jobs import load_all_jobs, registry

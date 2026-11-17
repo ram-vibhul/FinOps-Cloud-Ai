@@ -28,6 +28,7 @@ Audience = Literal["all", "admins", "self"]
 
 # kind -> (label shown in preferences, who receives it)
 EVENTS: dict[str, tuple[str, Audience]] = {
+    "live_change": ("Costly changes as they happen (Live Radar)", "all"),
     "cost_anomaly": ("Unusual cost increases", "all"),
     "budget_alert": ("Budget alerts", "all"),
     "early_warning": ("Early warnings of overspend", "all"),

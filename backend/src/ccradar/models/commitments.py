@@ -34,7 +34,8 @@ class CommitmentSnapshot(TenantMixin, UUIDPrimaryKey, Base):
 
 
 class Commitment(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
-    """One Savings Plan or reservation as AWS describes it (refreshed daily)."""
+    """One Savings Plan, reservation or committed use discount as the cloud describes it
+    (refreshed daily)."""
 
     __tablename__ = "commitments"
     __table_args__ = (UniqueConstraint("org_id", "kind", "commitment_id"),)
@@ -43,6 +44,7 @@ class Commitment(TenantMixin, UUIDPrimaryKey, Timestamps, Base):
         Uuid, ForeignKey("cloud_connections.id", ondelete="CASCADE")
     )
     # savings_plan | ec2_ri | rds_ri | elasticache_ri | opensearch_ri | redshift_ri
+    # | azure_reservation | azure_savings_plan | gcp_cud
     kind: Mapped[str] = mapped_column(String(30))
     commitment_id: Mapped[str] = mapped_column(String(300))
     account_id: Mapped[str | None] = mapped_column(String(32))

@@ -60,7 +60,8 @@ frontend checks, licence and generated-file checks, and an image smoke test.
 
 ## Releasing
 
-1. Update the version, write `release-notes/<version>.md` (change its first line from
+1. Run `make smoke` (the whole Compose stack from a fresh image: readiness, healthy
+   worker, every scheduled job succeeding, backup). Then update the version, write `release-notes/<version>.md` (change its first line from
    `unreleased` to the date), run `tools/changelog.py`, and make sure CI is green.
 2. Push a tag `vMAJOR.MINOR.PATCH`.
 3. `.github/workflows/release.yml` builds multi-architecture images (amd64, arm64),

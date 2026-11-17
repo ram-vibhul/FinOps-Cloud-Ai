@@ -74,6 +74,70 @@ def converted(amount: Any, currency_col: Any, day_col: Any, display: str, org_co
     )
 
 
+def needs_conversion(db: Session, org_id: uuid.UUID, start: date, end: date, display: str) -> bool:
+    """Whether any cost in ``start..end`` is in another currency than ``display``; read
+    from the small daily rollup, so line-level queries can skip conversion entirely."""
+    daily = Base.metadata.tables["cost_daily"]
+    other = db.scalar(
+        select(daily.c.billing_currency)
+        .where(
+            daily.c.org_id == org_id,
+            daily.c.charge_date >= start,
+            daily.c.charge_date <= end,
+            daily.c.billing_currency != display,
+        )
+        .limit(1)
+    )
+    return other is not None
+
+
+def summed_then_converted(
+    table: Any,
+    amount: Any,
+    where: list[Any],
+    keys: list[Any],
+    display: str,
+    *,
+    convert: bool = True,
+    by_day: bool = True,
+) -> tuple[Any, list[Any], Any]:
+    """Sum ``amount`` per day, currency and ``keys`` first, then convert those sums:
+    the same totals as converting every line (a rate is per day and currency), but the
+    rate lookups run once per group instead of once per line, and the line scan stays
+    a plain aggregate PostgreSQL can hash and run in parallel (11.18: a 30-day query on
+    a 5-million-line bill went from 0.65 s to about 0.15 s).
+
+    Returns the subquery, its key columns (same labels, same order) and the converted
+    amount, to group the outer query by. With ``convert=False`` (everything is already in
+    ``display``, see :func:`needs_conversion`) the sums are used as they are, and the
+    day is kept only when ``by_day`` asks for it."""
+    if not convert:
+        cols = [table.c.charge_date] if by_day else []
+        inner = (
+            select(*cols, *keys, func.sum(amount).label("amount"))
+            .where(*where)
+            .group_by(*cols, *keys)
+            .subquery()
+        )
+        return inner, [inner.c[k.name] for k in keys], inner.c.amount
+    inner = (
+        select(
+            table.c.org_id,
+            table.c.charge_date,
+            table.c.billing_currency,
+            *keys,
+            func.sum(amount).label("amount"),
+        )
+        .where(*where)
+        .group_by(table.c.org_id, table.c.charge_date, table.c.billing_currency, *keys)
+        .subquery()
+    )
+    value = converted(
+        inner.c.amount, inner.c.billing_currency, inner.c.charge_date, display, inner.c.org_id
+    )
+    return inner, [inner.c[k.name] for k in keys], value
+
+
 def parse_ecb(xml: str) -> dict[date, dict[str, Decimal]]:
     """Parse the ECB feed with a strict pattern (no XML parser: nothing to exploit)."""
     out: dict[date, dict[str, Decimal]] = {}

@@ -31,6 +31,7 @@ function base(extra: Record<string, unknown> = {}) {
     "GET /api/v1/clusters": [],
     "GET /api/v1/org/notification-channels": [],
     "GET /api/v1/org/outgoing-webhooks": [],
+    "GET /api/v1/org/audit-streams": [],
     "GET /api/v1/org/teams": [],
     "GET /api/v1/org/scim": { enabled: false, token_hint: null, default_role: "member", base_url: "https://ccradar.example/scim/v2" },
     "GET /api/v1/org/domains": [],
@@ -310,6 +311,38 @@ describe("settings", () => {
     expect(within(row).getByLabelText("Budget alerts")).toBeChecked();
     await userEvent.click(within(row).getByRole("button", { name: "Send test" }));
     await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/org/outgoing-webhooks/h1/test")).toBe(true));
+  });
+
+  it("streams the audit log to Microsoft Sentinel and shows the signing secret once", async () => {
+    const stream = { id: "s1", name: "Sentinel", kind: "sentinel", kind_label: "Microsoft Sentinel", settings: {},
+      has_secret: true, enabled: true, sent_total: 0, position: null, failures: 0, next_attempt_at: null,
+      last_sent_at: null, last_status: null, last_error: null, signing_secret: null };
+    let items: unknown[] = [];
+    const { calls } = mockApi(base({
+      "GET /api/v1/org/audit-streams": () => items,
+      "POST /api/v1/org/audit-streams": () => { items = [stream]; return { ...stream, signing_secret: "whsec_sig" }; },
+      "POST /api/v1/org/audit-streams/s1/test": { ok: false, error: "answered 403" },
+    }));
+    renderRoute("/settings?tab=audit");
+    expect(await screen.findByText("No streams yet.")).toBeInTheDocument();
+    const form = screen.getByRole("form", { name: "Add a stream" });
+    await userEvent.selectOptions(within(form).getByLabelText("Destination"), "sentinel");
+    await userEvent.type(within(form).getByLabelText("Name"), "Sentinel");
+    await userEvent.type(within(form).getByLabelText("Tenant ID"), "11111111-1111-1111-1111-111111111111");
+    await userEvent.type(within(form).getByLabelText("App (client) ID"), "22222222-2222-2222-2222-222222222222");
+    await userEvent.type(within(form).getByLabelText("Data collection endpoint"), "https://a.ingest.monitor.azure.com");
+    await userEvent.type(within(form).getByLabelText("Data collection rule immutable ID"), "dcr-abc");
+    await userEvent.type(within(form).getByLabelText("Stream name"), "Custom-Audit_CL");
+    await userEvent.type(within(form).getByLabelText("Client secret"), "s3cret");
+    await userEvent.click(within(form).getByRole("button", { name: "Add stream" }));
+    expect(await screen.findByLabelText("Signing secret")).toHaveTextContent("whsec_sig");
+    expect(calls.find((c) => c.method === "POST" && c.path === "/api/v1/org/audit-streams")?.body).toEqual({
+      name: "Sentinel", kind: "sentinel", secret: "s3cret", start: "now",
+      settings: { tenant_id: "11111111-1111-1111-1111-111111111111", client_id: "22222222-2222-2222-2222-222222222222",
+        endpoint: "https://a.ingest.monitor.azure.com", dcr_id: "dcr-abc", stream: "Custom-Audit_CL" } });
+    const row = (await screen.findByText("Microsoft Sentinel", { selector: "li *" })).closest("li") as HTMLElement;
+    await userEvent.click(within(row).getByRole("button", { name: "Send test" }));
+    await waitFor(() => expect(calls.some((c) => c.path === "/api/v1/org/audit-streams/s1/test")).toBe(true));
   });
 
   it("adds a GitHub integration for pull requests", async () => {

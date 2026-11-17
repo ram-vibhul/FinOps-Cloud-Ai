@@ -22,7 +22,7 @@ from sqlalchemy import Table, func, literal, select
 from sqlalchemy.orm import Session
 
 from ccradar.core.errors import AppError
-from ccradar.costs.fx import converted
+from ccradar.costs.fx import needs_conversion, summed_then_converted
 from ccradar.db.base import Base
 from ccradar.models import Organization
 
@@ -87,7 +87,22 @@ def _needs_lines(dims: list[str]) -> bool:
     return any(d not in ROLLUP_DIMENSIONS for d in dims)
 
 
+def _tag_rollup_dim(dims: list[str], filters: dict[str, list[str]]) -> str | None:
+    """The one tag dimension when the per-tag daily rollup can answer the query (11.18):
+    exactly one tag or virtual tag among the groupings and filters, everything else a
+    rollup dimension, and no filter asking for untagged cost."""
+    tags = {d for d in dims if d.startswith(("tag:", "vtag:"))}
+    if len(tags) != 1 or any(d not in ROLLUP_DIMENSIONS for d in dims if d not in tags):
+        return None
+    (dim,) = tags
+    if UNTAGGED in filters.get(dim, []):
+        return None
+    return dim
+
+
 def _expr(table: Table, dim: str) -> Any:
+    if table.name == "cost_daily_tags" and dim.startswith(("tag:", "vtag:")):
+        return table.c.tag_value
     if dim.startswith("tag:"):
         return table.c.tags[dim[4:]].as_string()
     if dim.startswith("vtag:"):
@@ -109,45 +124,27 @@ def explore(db: Session, org_id: uuid.UUID, q: ExploreQuery) -> dict[str, Any]:
     currency = q.currency or (org.default_currency if org else "USD")
     group_by = [_resolve(d, aliases) for d in q.group_by]
     filters = {_resolve(d, aliases): v for d, v in q.filters.items()}
-    use_lines = _needs_lines(group_by + list(filters))
-    table = Base.metadata.tables["cost_line_items" if use_lines else "cost_daily"]
-    raw = table.c.effective_cost if q.metric == "effective" else table.c.billed_cost
-    amount = converted(raw, table.c.billing_currency, table.c.charge_date, currency, table.c.org_id)
-    where = [
-        table.c.org_id == org_id,
-        table.c.charge_date >= q.start,
-        table.c.charge_date <= q.end,
-    ]
-    where += _filter_clauses(table, filters)
+    dims = group_by + list(filters)
+    tag_dim = _tag_rollup_dim(dims, filters)
+    use_lines = tag_dim is None and _needs_lines(dims)
+    length = (q.end - q.start).days + 1
+    convert = needs_conversion(db, org_id, q.start - timedelta(days=length), q.end, currency)
 
-    keys = [_expr(table, d).label(f"g{i}") for i, d in enumerate(group_by)]
-    period: Any = literal("all")
-    if q.granularity == "day":
-        period = table.c.charge_date
-    elif q.granularity == "month":
-        period = func.extract("year", table.c.charge_date) * 100 + func.extract(
-            "month", table.c.charge_date
-        )
-    rows = db.execute(
-        select(period.label("p"), *keys, func.sum(amount)).where(*where).group_by(period, *keys)
-    ).all()
+    def grouped(start: date, end: date, granularity: str) -> list[tuple[str, tuple, float]]:
+        return _grouped(db, org_id, q.metric, filters, group_by, tag_dim, use_lines,
+                        start, end, granularity, currency, convert)  # fmt: skip
 
     totals: dict[tuple[str, ...], float] = defaultdict(float)
     cells: dict[tuple[str, tuple[str, ...]], float] = defaultdict(float)
-    for row in rows:
-        p = row[0]
-        if q.granularity == "day":
-            p = p.isoformat()
-        elif q.granularity == "month":
-            p = f"{int(p) // 100:04d}-{int(p) % 100:02d}"
-        if row[-1] is None:  # nothing convertible to the display currency (no rate)
-            continue
-        group = tuple(_label(d, row[1 + i]) for i, d in enumerate(group_by))
-        value = float(row[-1])
+    for p, values, value in grouped(q.start, q.end, q.granularity):
+        group = tuple(_label(d, values[i]) for i, d in enumerate(group_by))
         totals[group] += value
-        cells[(str(p), group)] += value
+        cells[(p, group)] += value
 
-    previous = _previous_totals(db, table, amount, where, keys, group_by, q)
+    prev_end, prev_start = q.start - timedelta(days=1), q.start - timedelta(days=length)
+    previous: dict[tuple[str, ...], float] = defaultdict(float)
+    for _, values, value in grouped(prev_start, prev_end, "total"):
+        previous[tuple(_label(d, values[i]) for i, d in enumerate(group_by))] += value
     grand = sum(totals.values())
     ranked = sorted(totals, key=lambda g: -abs(totals[g]))
     groups = [
@@ -188,12 +185,15 @@ def explore(db: Session, org_id: uuid.UUID, q: ExploreQuery) -> dict[str, Any]:
             )
     _label_accounts(db, group_by, groups, series)
     if use_lines and "resource" in group_by:
-        _attach_resource_details(db, table, where, groups, group_by.index("resource"))
+        lines = Base.metadata.tables["cost_line_items"]
+        where = [lines.c.org_id == org_id, lines.c.charge_date >= q.start]
+        where += [lines.c.charge_date <= q.end, *_filter_clauses(lines, filters)]
+        _attach_resource_details(db, lines, where, groups, group_by.index("resource"))
     return {
         "currency": currency,
         "metric": q.metric,
         "group_by": q.group_by,
-        "source": "line_items" if use_lines else "daily",
+        "source": "line_items" if use_lines else ("tag_rollup" if tag_dim else "daily"),
         "total": round(grand, 2),
         "group_count": len(totals),
         "groups": groups,
@@ -216,24 +216,92 @@ def _filter_clauses(table: Table, filters: dict[str, list[str]]) -> list[Any]:
     return out
 
 
-def _previous_totals(
+def _grouped(
     db: Session,
-    table: Table,
-    amount: Any,
-    where: list[Any],
-    keys: list[Any],
+    org_id: uuid.UUID,
+    metric: str,
+    filters: dict[str, list[str]],
     group_by: list[str],
-    q: ExploreQuery,
-) -> dict[tuple[str, ...], float]:
-    length = (q.end - q.start).days + 1
-    prev_end, prev_start = q.start - timedelta(days=1), q.start - timedelta(days=length)
-    base = [w for w in where if "charge_date" not in str(w)]
-    rows = db.execute(
-        select(*keys, func.sum(amount))
-        .where(*base, table.c.charge_date >= prev_start, table.c.charge_date <= prev_end)
-        .group_by(*keys)
-    ).all()
-    return {tuple(_label(d, r[i]) for i, d in enumerate(group_by)): float(r[-1] or 0) for r in rows}
+    tag_dim: str | None,
+    use_lines: bool,
+    start: date,
+    end: date,
+    granularity: str,
+    currency: str,
+    convert: bool,
+) -> list[tuple[str, tuple, float]]:
+    """(period, raw group values, amount) rows, untagged cost included."""
+    name = "cost_line_items" if use_lines else "cost_daily"
+    if tag_dim is not None:
+        name = "cost_daily_tags"
+    rows = _rows(db, org_id, name, metric, filters, group_by, start, end, granularity,
+                 currency, convert, tag_dim)  # fmt: skip
+    if tag_dim is None or tag_dim in filters:
+        return rows
+    # Lines without the tag are not in the per-tag rollup: they are the daily total
+    # less the tagged cost, per period and other grouping.
+    others = [d for d in group_by if d != tag_dim]
+    totals = _rows(db, org_id, "cost_daily", metric, filters, others, start, end,
+                   granularity, currency, convert, None)  # fmt: skip
+    position = group_by.index(tag_dim) if tag_dim in group_by else None
+    tagged: dict[tuple, float] = defaultdict(float)
+    for p, values, amount in rows:
+        rest = tuple(v for i, v in enumerate(values) if i != position)
+        tagged[(p, rest)] += amount
+    for p, rest, amount in totals:
+        left = amount - tagged.get((p, rest), 0.0)
+        if position is not None and abs(left) >= 0.005:
+            values = list(rest)
+            values.insert(position, None)
+            rows.append((p, tuple(values), left))
+    return rows
+
+
+def _rows(
+    db: Session,
+    org_id: uuid.UUID,
+    table_name: str,
+    metric: str,
+    filters: dict[str, list[str]],
+    group_by: list[str],
+    start: date,
+    end: date,
+    granularity: str,
+    currency: str,
+    convert: bool,
+    tag_dim: str | None,
+) -> list[tuple[str, tuple, float]]:
+    """Sum per period and grouping from one table, converted to ``currency``."""
+    table = Base.metadata.tables[table_name]
+    raw = table.c.effective_cost if metric == "effective" else table.c.billed_cost
+    where = [table.c.org_id == org_id, table.c.charge_date >= start, table.c.charge_date <= end]
+    where += _filter_clauses(table, filters)
+    if tag_dim is not None:
+        where.append(table.c.tag_key == tag_dim)
+    keys = [_expr(table, d).label(f"g{i}") for i, d in enumerate(group_by)]
+    sub, outer_keys, amount = summed_then_converted(
+        table, raw, where, keys, currency, convert=convert, by_day=granularity != "total"
+    )
+    period: Any = literal("all")
+    if granularity == "day":
+        period = sub.c.charge_date
+    elif granularity == "month":
+        period = func.extract("year", sub.c.charge_date) * 100 + func.extract(
+            "month", sub.c.charge_date
+        )
+    out = []
+    for row in db.execute(
+        select(period.label("p"), *outer_keys, func.sum(amount)).group_by(period, *outer_keys)
+    ):
+        if row[-1] is None:  # nothing convertible to the display currency (no rate)
+            continue
+        p = row[0]
+        if granularity == "day":
+            p = p.isoformat() if hasattr(p, "isoformat") else str(p)
+        elif granularity == "month":
+            p = f"{int(p) // 100:04d}-{int(p) % 100:02d}"
+        out.append((str(p), tuple(row[1:-1]), float(row[-1])))
+    return out
 
 
 def _label_accounts(

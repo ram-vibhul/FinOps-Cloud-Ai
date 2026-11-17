@@ -31,6 +31,7 @@ FEATURES = {
     "work_integrations": "Tickets and pull requests",
     "sso": "Single sign-on",
     "scim": "User provisioning (SCIM)",
+    "audit_streaming": "Audit-log streaming to a SIEM",
     "custom_roles": "Custom roles",
     "mcp": "AI assistant access (MCP)",
     "auto_fixes": "Automatic fixes",

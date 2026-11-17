@@ -10,6 +10,7 @@ skipped; the rest still import."""
 
 from __future__ import annotations
 
+import logging
 import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass, field
@@ -24,6 +25,8 @@ from ccradar.db.tenant import set_tenant
 from ccradar.inventory.aws import _pages
 from ccradar.inventory.aws_compute import _code
 from ccradar.models import CloudConnection, ExternalRecommendation
+
+log = logging.getLogger(__name__)
 
 SOURCES = {
     "cost_optimization_hub": "AWS Cost Optimization Hub",
@@ -243,6 +246,7 @@ def collect(
             found += job()
         except Exception as error:
             errors[name] = _code(error) or type(error).__name__
+            log.info("advice source %s unavailable: %s", name, errors[name])
     set_tenant(db, org_id=org_id)
     now = utcnow()
     succeeded = {a.source for a in found} | {

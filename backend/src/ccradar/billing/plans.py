@@ -34,6 +34,7 @@ FEATURES: dict[str, str] = {
     "work_integrations": "Tickets and pull requests",
     "sso": "Single sign-on",
     "scim": "User provisioning (SCIM)",
+    "audit_streaming": "Audit-log streaming to a SIEM",
     "custom_roles": "Custom roles",
     "mcp": "AI assistant access (MCP)",
     "auto_fixes": "Automatic fixes",
@@ -116,9 +117,41 @@ def catalogue(settings: Settings) -> Catalogue:
     return load(settings.plans_file)
 
 
+CACHE_KEY = "ccradar.plan_cache"
+
+
 def plan_for(org: Organization, settings: Settings) -> Plan:
+    """The plan in force, cached per database session (11.12). The cache is ignored when
+    the organisation or a subscription has unsaved changes in the session, so a change
+    made earlier in the same request is always seen."""
     if settings.deployment_mode is DeploymentMode.LOCAL or org.is_demo:
         return UNLIMITED
+    from sqlalchemy.orm import object_session
+
+    from ccradar.models import Subscription
+
+    db = object_session(org)
+    if db is None:
+        return _plan_for(org, settings)
+    changing = org in db.dirty or any(
+        isinstance(o, Subscription) for o in (*db.new, *db.dirty, *db.deleted)
+    )
+    cache: dict[Any, Plan] = db.info.setdefault(CACHE_KEY, {})
+    key = (org.id, settings.deployment_mode, settings.plans_file)
+    if not changing and key in cache:
+        return cache[key]
+    plan = _plan_for(org, settings)
+    if not changing:
+        cache[key] = plan
+    return plan
+
+
+def forget_plans(db: Any) -> None:
+    """Drop cached plans (after subscriptions or licences change)."""
+    db.info.pop(CACHE_KEY, None)
+
+
+def _plan_for(org: Organization, settings: Settings) -> Plan:
     cat = catalogue(settings)
     chosen = cat.get((org.settings or {}).get("plan"))  # set by hand (support, tests)
     if settings.deployment_mode is DeploymentMode.SELF_HOSTED:

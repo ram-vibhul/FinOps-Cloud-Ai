@@ -108,12 +108,21 @@ async def run_worker_async(app: Any, *, wait: bool = True) -> None:
         await app.run_worker_async(wait=wait, install_signal_handlers=wait)
 
 
+_SHARED: dict[str, ProcrastinateRunner] = {}
+
+
 def build_runner(settings: Settings) -> JobRunner:
+    """The runner for these settings. The Procrastinate one is shared per database: it
+    was built and opened afresh on every call, which opened a new connection for each
+    notification email and each job deferred from inside a job (11.13)."""
     from ccradar.jobs import load_all_jobs
 
     load_all_jobs()
     if settings.run_jobs_in_process:
         return InProcessRunner()
-    app = build_procrastinate_app(settings.database_url)
-    app.open()
-    return ProcrastinateRunner(app)
+    runner = _SHARED.get(settings.database_url)
+    if runner is None:
+        app = build_procrastinate_app(settings.database_url)
+        app.open()
+        runner = _SHARED.setdefault(settings.database_url, ProcrastinateRunner(app))
+    return runner

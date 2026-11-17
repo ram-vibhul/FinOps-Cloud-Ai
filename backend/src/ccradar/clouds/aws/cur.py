@@ -21,7 +21,6 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
-import pyarrow.parquet as pq
 from sqlalchemy.orm import Session
 
 from ccradar.clouds.aws.client import AwsAccessError, AwsGateway
@@ -250,6 +249,8 @@ def aggregate(
 
 
 def read_parquet(path: str, *, all_columns: bool = False) -> Iterator[list[dict[str, Any]]]:
+    import pyarrow.parquet as pq  # heavy: loaded only when a CUR file is read
+
     parquet = pq.ParquetFile(path)
     present = None if all_columns else [c for c in COLUMNS if c in parquet.schema_arrow.names]
     for batch in parquet.iter_batches(batch_size=BATCH_ROWS, columns=present):

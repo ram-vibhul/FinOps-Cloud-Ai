@@ -3,11 +3,14 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from ccradar.inventory.aws import MAX_PAGES, Found, _pages, _tags
+
+log = logging.getLogger(__name__)
 
 ECR_KEEP_NEWEST = 10  # images per repository we never count as stale
 ECR_STALE_DAYS = 180
@@ -180,6 +183,8 @@ def ecr_repositories(client: Any, region: str, now: datetime | None = None) -> I
                 lifecycle: bool | None = True
             except Exception as error:
                 lifecycle = False if _code(error) == "LifecyclePolicyNotFoundException" else None
+                if lifecycle is None:
+                    log.debug("ECR lifecycle for %s unknown: %s", name, _code(error))
             yield Found(
                 "Amazon EC2 Container Registry (ECR)",
                 "ecr_repository",

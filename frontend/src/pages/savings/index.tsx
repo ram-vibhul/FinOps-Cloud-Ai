@@ -13,6 +13,8 @@ import { activeOrg, atLeast, useMe } from "@/lib/session";
 import { useLoad } from "@/lib/use-load";
 import { CommitmentsCard } from "./commitments";
 import { FixesCard } from "./fixes";
+import { SchedulesCard } from "./schedules";
+import { WhatIfCard } from "./whatif";
 import { KeptCard } from "./kept";
 import { QuickWinsCard } from "./plan";
 import { RulesCard } from "./rules";
@@ -217,7 +219,9 @@ export function SavingsPage() {
         </div>
       )}
       <QuickWinsCard reloadKey={data.data} />
+      <WhatIfCard />
       <FixesCard />
+      <SchedulesCard />
       <KeptCard />
       <CommitmentsCard canRefresh={atLeast(me.role, "admin") && !activeOrg(me)?.is_demo} />
       {d && d.items.length === 0 ? (

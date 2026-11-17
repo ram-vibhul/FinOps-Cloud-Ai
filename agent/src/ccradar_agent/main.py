@@ -222,18 +222,19 @@ def main() -> int:
     except (ConfigError, OSError) as error:
         log.error("%s", error)
         return 2
-    from kubernetes import client
-    from kubernetes import config as kube_config
-
-    kube_config.load_incluster_config()
-    api_client = client.ApiClient()
     from ccradar_agent.collect import default_listers
+    from ccradar_agent.kube import Kube, KubeError, identity
 
+    try:
+        kube = Kube.in_cluster()
+    except (KubeError, OSError) as error:
+        log.error("%s", error)
+        return 2
     agent = Agent(
         CloudCostRadarApi(config),
-        Collector(default_listers(api_client), api_client.sanitize_for_serialization),
-        lambda: client.VersionApi(api_client).get_code().git_version,
-        task_api=default_task_api(api_client),
+        Collector(default_listers(kube), identity),
+        kube.version,
+        task_api=default_task_api(kube),
         prometheus=prometheus_from_env(dict(os.environ)),
     )
     stopping = False

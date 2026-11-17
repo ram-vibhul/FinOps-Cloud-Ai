@@ -12,10 +12,14 @@ the rest of the day; AI summaries fall back to plain wording (or refuse a questi
 
 from __future__ import annotations
 
+import threading
+import time
 import uuid
+from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Any
 
+from sqlalchemy import event as sa_event
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -63,7 +67,9 @@ def counted(db: Session, metric: str, since: date, until: date | None = None) ->
 
 
 def api_calls_today(db: Session) -> int:
-    return counted(db, "api_calls", utcnow().date())
+    org_id = current_tenant(db).org_id
+    pending = unsaved_api_calls(org_id) if org_id else 0
+    return counted(db, "api_calls", utcnow().date()) + pending
 
 
 def ai_summaries_this_month(db: Session) -> int:
@@ -81,17 +87,91 @@ def _limit(db: Session, settings: Settings, key: str) -> tuple[int | None, str]:
     return plan.limit(key), plan.name
 
 
+@dataclass
+class _Batch:
+    """API calls of one organisation on one day, counted in this process (11.14)."""
+
+    saved: int = 0  # the committed count in the database when last read or written
+    pending: int = 0  # counted here, not yet written
+    inflight: int = 0  # written in a transaction that has not committed yet
+    last_write: float = field(default_factory=time.monotonic)
+
+
+_BATCHES: dict[tuple[uuid.UUID, date], _Batch] = {}
+_LOCK = threading.Lock()
+FLUSH_EVERY = 20  # calls
+FLUSH_SECONDS = 30.0
+
+
+WRITES_KEY = "ccradar.metering_writes"
+
+
+def _write(db: Session, org_id: uuid.UUID, day: date, batch: _Batch) -> None:
+    """Add this process's unsaved calls to the database. They are only taken off the
+    in-memory count once the request's transaction commits; if it rolls back (a refused
+    or failed request), they stay pending and go out with the next write."""
+    batch.last_write = time.monotonic()
+    if not batch.pending:
+        return
+    amount = batch.pending
+    batch.pending, batch.inflight = 0, batch.inflight + amount
+    total = bump(db, org_id, "api_calls", by=amount, day=day)
+    db.info.setdefault(WRITES_KEY, []).append((batch, amount, total))
+
+
+@sa_event.listens_for(Session, "after_commit")
+def _writes_committed(db: Session) -> None:
+    writes = db.info.pop(WRITES_KEY, None)
+    if writes:
+        with _LOCK:
+            for batch, amount, total in writes:
+                batch.inflight -= amount
+                batch.saved = max(batch.saved, total)
+
+
+@sa_event.listens_for(Session, "after_rollback")
+def _writes_rolled_back(db: Session) -> None:
+    writes = db.info.pop(WRITES_KEY, None)
+    if writes:
+        with _LOCK:
+            for batch, amount, _ in writes:  # nothing was saved: back to pending
+                batch.inflight -= amount
+                batch.pending += amount
+
+
 def record_api_call(db: Session, settings: Settings, org_id: uuid.UUID) -> None:
-    """Count one API-key request; refuse it when today's limit is used up."""
-    used = bump(db, org_id, "api_calls")
+    """Count one API-key request; refuse it when today's limit is used up.
+
+    Counts are kept in this process and written every ``FLUSH_EVERY`` calls or
+    ``FLUSH_SECONDS`` seconds instead of on every request (11.14). The limit is checked
+    against the saved count plus this process's unsaved calls; with several processes an
+    organisation can pass its daily limit by at most ``FLUSH_EVERY`` calls per process."""
+    day = utcnow().date()
     limit, plan = _limit(db, settings, "api_calls_daily")
-    if limit is not None and used > limit:
+    with _LOCK:
+        for key in [k for k in _BATCHES if k[1] != day]:
+            del _BATCHES[key]  # yesterday's batches were written by their last flush
+        batch = _BATCHES.get((org_id, day))
+        if batch is None:
+            batch = _BATCHES[(org_id, day)] = _Batch(saved=counted(db, "api_calls", day, day))
+        over = limit is not None and batch.saved + batch.inflight + batch.pending >= limit
+        if not over:
+            batch.pending += 1
+            if batch.pending >= FLUSH_EVERY or time.monotonic() - batch.last_write >= FLUSH_SECONDS:
+                _write(db, org_id, day, batch)
+    if over:
         raise AppError(
             f"The {plan} plan allows {limit:,} API calls a day. The count starts again at "
             "midnight UTC.",
             status=429,
             code="plan_limit",
         )
+
+
+def unsaved_api_calls(org_id: uuid.UUID) -> int:
+    with _LOCK:
+        batch = _BATCHES.get((org_id, utcnow().date()))
+        return batch.pending if batch else 0
 
 
 def use_ai(db: Session, settings: Settings, *, strict: bool = False) -> bool:

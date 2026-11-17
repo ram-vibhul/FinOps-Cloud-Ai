@@ -84,7 +84,7 @@ All allow commercial closed-source use. Full transitive list: `THIRD_PARTY_NOTIC
 - [x] 1.9 Email invitations (token, expiry, accept flow); email sender abstraction (SMTP + fake) — SMTP works with any provider; SaaS provider choice still Q4
 - [x] 1.10 Organisation switcher, roles management UI, member removal, ownership transfer
 - [x] 1.11 Audit log of every change (who, what, before/after, IP, request id) + UI with filters + export
-- [~] 1.12 Demo organisation with realistic generated data (multi-account AWS, K8s, anomalies, findings), read-only, resettable — *framework done (join, read-only, reset, deterministic seeders); every feature from section 2 on must register a `@demo_seeder` for its data*
+- [x] 1.12 Demo organisation with realistic generated data (multi-account AWS, K8s, anomalies, findings), read-only, resettable — *every page has data (2026-11-17): AWS, Azure, Google Cloud and six SaaS bills, hourly costs, AI usage, budgets, policies, virtual tags, shared costs, teams, unit costs, closed months with invoices, reports, dashboards, reliability targets, finding progress, a planned purchase, network attribution, PromQL metrics, a saved investigation and sample peer benchmarks; new features still add a `@demo_seeder`*
 - [x] 1.13 Sign-in, onboarding and account UI pages
 - [x] 1.14 Privacy rights (DPDP Act 2023, GDPR): self-service export of a user's and an organisation's data (JSON/CSV archive via background job, expiring download link); user account deletion and organisation deletion with grace period, cascade over all tenant tables + stored files, audit record kept without personal data
 - [x] 1.15 Data retention settings per organisation (raw cost lines, resource usage, K8s events/logs, audit log — within plan limits) + scheduled purge job; tests prove nothing older than the setting survives
@@ -212,6 +212,75 @@ All allow commercial closed-source use. Full transitive list: `THIRD_PARTY_NOTIC
 - [x] 9.3 Responsive + accessibility audit (keyboard, contrast, screen reader), light/dark polish
 - [x] 9.4 In-app notification centre: per-user inbox (alerts, finished/failed imports, approvals waiting, invitations), unread badge, mark read, per-type preferences; one notification service that also fans out to email/Slack/Teams
 - [x] 9.5 (I) Onboarding that shows the first savings quickly, a trial countdown, and a live check that the billing export bucket is readable
+
+### 10. Differentiators
+- [x] 10.1 **Live Radar** (differentiator, not unique: DoiT also alerts from CloudTrail within minutes — see 11.0): price every costly AWS change minutes after it is made (who, what, monthly run-rate change), show what is not in the bill yet, and alert above a threshold
+- [x] 10.2 Live Radar for Azure (Activity Log) and Google Cloud (Audit Logs)
+- [x] 10.3 Live Radar follow-ups: price Auto Scaling and Redshift changes (rest of 10.3 is split into 11.x below)
+
+### 11. Review of 2026-11-12 (owner-approved plan)
+*From the code and competitor review. Items marked (not checked) were not measured.*
+
+**0. Positioning**
+- [x] 11.0 Live Radar is not unique: DoiT reads CloudTrail and alerts within minutes. Position Radar as "the price and owner of every change" (per-change price, who made it, the customer's own rates); soften website and release-note wording
+
+**1. Bugs and risks**
+- [x] 11.1 Run the Compose smoke test locally before each release (`make smoke`), and add a test that runs the real PostgreSQL worker
+- [ ] 11.2 Enforce the "cloud spend under management" limit — BLOCKED(Q2): decide what happens above it (warn, block new connections, or prompt an upgrade)
+- [x] 11.3 Rate limits on Kubernetes (not checked): the manifest trusts forwarded headers from anyone (`*`); restrict to the ingress controller's range
+- [x] 11.4 Radar can miss changes in busy accounts (max 250 events per region, 6 regions): page back to the previous scan's time; show "scan incomplete" when cut short
+- [x] 11.5 Radar prices ignore the region (list prices are US East): add per-region price data
+- [x] 11.6 Backups: optional encryption and direct upload to object storage
+- [x] 11.7 S3-compatible storage for uploaded files (removes the shared-volume need on Kubernetes)
+- [x] 11.8 Monthly job that creates cost-table partitions (today only at migration time)
+- [x] 11.9 Browser end-to-end tests (Playwright): sign in, demo, Radar, connect flow
+- [x] 11.10 Review the 31 broad `except Exception` handlers; each must log enough to diagnose
+
+**2. Optimizations**
+- [x] 11.11 Frontend bundle (main 570 KB, charts 560 KB): split by page; load charts only where used
+- [x] 11.12 Cache the plan lookup per request (licence check + subscription read)
+- [x] 11.13 Notification fan-out in a background job for large organisations
+- [x] 11.14 Batch API-key metering writes
+- [x] 11.15 Radar: load the account's inventory once per scan
+- [x] 11.16 Polling (bell, Radar): pause when the tab is hidden, or move to server-sent events
+- [x] 11.17 Cursor paging on the list APIs that grow (about 30 return everything or cap at 200–500)
+- [x] 11.18 Load test with a 50-million-row bill (not checked); add indexes where it shows
+- [~] 11.19 Image size 839 MB (Parquet library ~155 MB) — *pyarrow loads only when a Parquet file is read, unused pyarrow parts are removed in the image (about 70 MB), and the agent image no longer carries the Kubernetes client library (about 127 MB); sizes are estimated, not yet measured from a new build. Splitting web and worker images is not done*
+
+**3. Gaps against competitors**
+- [~] 11.20 More integrations (Vantage has about 30–40; we have 3 clouds, 4 SaaS, AI spend) — see 11.29 — *now 3 clouds, Kubernetes and 26 services, each labelled alpha or beta (adds Oracle Cloud, Alibaba Cloud, Twilio as beta; Hetzner, Sentry, Okta, Slack, Zoom, PagerDuty, Atlassian Jira as alpha estimates; MongoDB Atlas per service) plus a Terraform provider. None is "stable" until checked on a live account. Fivetran and dbt Cloud: no public cost/usage API, not built*
+- [x] 11.21 In-app AI agent that investigates and proposes fixes (Vantage, Finout, AWS FinOps Agent) — see 11.32
+- [x] 11.22 Azure and Google Cloud depth: own detectors, inventory, commitments, Radar — see 10.2, 11.28
+- [~] 11.23 Terraform provider and configuration as code (Vantage) — *provider built and tested (budgets, policies, virtual tags); publishing to the Registry BLOCKED(owner): public repository and signing key*
+- [x] 11.24 Custom dashboards (Vantage, CloudZero)
+- [ ] 11.25 AWS Marketplace listing — BLOCKED(Q2, Q7)
+- [x] 11.26 Carbon reporting
+
+**4. Enhancements**
+- [x] 11.27 Radar reconciliation: estimate vs actual per change once the bill arrives; publish the accuracy
+- [x] 11.28 Azure and Google Cloud detectors: idle disks, unattached IPs, oversized VMs, reservations and committed-use discounts
+- [x] 11.29 More SaaS connectors, cheapest first: GitHub, Cloudflare, OpenAI and Anthropic billing APIs, Confluent, New Relic — *all done: GitHub, OpenAI, Anthropic, Confluent, Cloudflare (alpha billable-usage API) and New Relic (usage priced with the customer's rates)*
+- [x] 11.30 Radar "undo" help: the command or console link to reverse a costly change
+- [x] 11.31 Radar in chat: Slack/Teams messages with "expected" and "investigate" buttons
+- [x] 11.33 Budget guardrails: warn when a live change will push a team over its budget this month
+- [x] 11.34 Pull-request cost comments: package the estimator as a GitHub Action
+- [x] 11.35 Scheduled stop/start for non-production, with approval, through the fixes role
+- [x] 11.36 Help centre with user-facing guides
+- [~] 11.37 Languages and Indian number formats (not checked) — *number formats done; translation framework done; English only for now (owner, 2026-11-13); a draft Hindi navigation is kept unoffered until reviewed*
+
+**5. New features**
+- [x] 11.32 Investigating agent: "why did cost rise?" with evidence via the MCP tools, then a proposed fix for approval
+- [ ] 11.38 India edition: GST-aware bills, input-credit view, INR-first reports, AWS India invoices — BLOCKED(Q3) for GST details
+- [x] 11.39 What-if planner (Graviton, 1-year plan…) on the customer's own rates
+- [x] 11.40 Peer benchmarks (anonymous unit costs and waste) — *opt-in, ratios only, shown from 5 organisations; figures appear as customers opt in*
+- [x] 11.41 Policy as code: block or flag costly changes before deploy, tied to Radar
+- [~] 11.42 Enterprise trust: SOC 2 / ISO 27001 (BLOCKED: paid audit, ask owner), audit-log streaming to a SIEM, security page with real contacts (Q6) — *SIEM streaming done (Splunk HEC, Microsoft Sentinel, Datadog Logs, syslog over TLS, signed webhook); SOC 2/ISO and the security page contacts still BLOCKED*
+
+**6. Business items blocking launch** (already open questions)
+- [ ] 11.43 Prices and plans (Q2), then Razorpay and Stripe (Q3) — BLOCKED(Q2, Q3)
+- [ ] 11.44 Domain, mailboxes and trademark for CloudCostRadar — BLOCKED(owner)
+- [ ] 11.45 Lawyer review of the drafts — BLOCKED(Q6)
+- [ ] 11.46 Hosting (Q7) and the licence signing key (Q14) — BLOCKED(Q7, Q14)
 
 ### B. Business
 - [x] B.1 Plans, entitlements and limits engine (data-driven; prices BLOCKED(Q2)) — *engine done with placeholder plans; real names, limits and prices wait for Q2*
@@ -4491,3 +4560,627 @@ docs/                     Documentation
   frontend 162). `make test-pg` 821 passed on a fresh database. The rebuilt image runs
   with `deploy/compose/local.yaml`; the sign-in page and `/api/v1/meta` say
   CloudCostRadar.
+
+### 2026-11-11 — Session 9cs: 10.1 Live Radar (the differentiator)
+- Owner asked for a USP. Chosen: **Live Radar**. Bills arrive 24–48 hours late and most
+  cost tools work from the bill; CloudCostRadar prices each costly change minutes after
+  it is made. It builds on the CloudTrail import (2.x) and the estimator (6.3) and fits
+  the product's name.
+- `changes/radar.py`:
+  - `assess()` prices 20 kinds of event from the event's own request and response:
+    EC2 launch (type × count, Spot), start/stop/terminate and resize, volumes
+    (create/modify/delete), NAT gateways, public IPv4 addresses, RDS (create, modify
+    class or Multi-AZ, delete), load balancers, ElastiCache, EKS clusters and node groups.
+    Deletions and resizes use the inventory's last known configuration; if it is not
+    known the change is left unpriced (never guessed). Failed calls are ignored.
+  - Prices: the organisation's own hourly rates from its bill where it has them
+    (`source: bill`), else list prices; shown in the organisation's currency.
+  - The impact is kept on the change event; a later re-read keeps the first price.
+  - `alert()`: new event `live_change` (inbox, email choice, Slack/Teams, webhooks) when
+    one change adds at least `radar_min_monthly` (default 100) to the monthly run rate;
+    once per change; at most 5 messages per scan plus a summary. Settings:
+    `radar_alerts`, `radar_min_monthly` in the alert settings.
+  - `feed()` / `GET /api/v1/radar?hours=24`: priced changes newest first, totals added,
+    removed, net, and "not in the bill yet" (changes on or after the last day of
+    billing data: the day of a change is only partly billed), plus how many changes could not be priced.
+- The CloudTrail scan now runs every 10 minutes (was hourly) with a 3-hour look-back.
+- UI: a **Radar** page in the main navigation (tiles, feed with who/what/where/price and
+  "Not in the bill yet", 24 h / 3 d / 7 d, refreshes every minute) and the alert
+  threshold in Settings → General. The demo organisation has five live changes.
+- Website, release notes and API docs mention it.
+- Limits, stated plainly: AWS only (10.2), estimates not measurements, Auto Scaling and
+  Redshift changes are not priced yet (10.3); CloudTrail itself can lag a few minutes.
+- Tests: `test_radar.py` (pricing of each kind, inventory-based deletions/resizes, own
+  rates and currency, failed and odd events, scan → alert once → feed, first price
+  kept, threshold and switch, demo) and frontend tests.
+- Checks: `make check` green (SQLite 809 passed / 18 skipped; agent 30; SDKs 5 + 5;
+  frontend 165). `make test-pg` 827 passed.
+
+### 2026-11-12 — Session 9ct: Live Radar checked in the running app; time-zone fix
+- Ran the rebuilt image (`deploy/compose/local.yaml`), signed in locally and opened
+  Radar on the demo organisation: tiles, feed and "Not in the bill yet" all render.
+- **Bug fixed (local/SQLite mode):** SQLite returns times without a zone, so the API
+  sent them without one and browsers read them as local time: ages were off by the
+  viewer's UTC offset (a change 2 hours old showed "7 h ago" in India). Loaded model
+  times are now marked UTC at the database layer (`db/base.py`, load and refresh
+  events), which fixes every page at once; PostgreSQL was never affected.
+- A change now counts as "in the bill" only when billing data exists for a later day
+  (the day of the change is only partly billed); the demo keeps its three newest
+  changes within today so it always shows some not yet billed.
+- Checks: `make check` green (SQLite 810 passed / 18 skipped; frontend 165).
+  `make test-pg` 828 passed.
+
+### 2026-11-12 — Session 9cu: review plan added; 11.0, 11.1, 11.3, 11.4, 11.8, 11.15
+- The owner-approved review plan is section 11 (46 items; business ones BLOCKED).
+- **11.0** Positioning: Live Radar is not unique (DoiT alerts from CloudTrail within
+  minutes). Website card, release note and the Radar page now lead with "the price and
+  owner of every change" (per-change price, who made it, the customer's own rates).
+- **11.1** `make smoke` / `tools/smoke.sh`: the whole Compose stack from a fresh image in
+  its own project with a throw-away settings file (`CCRADAR_ENV_FILE`; your `.env` is
+  never touched): ready, web app served, heartbeat job ran, no scheduled job failed,
+  worker healthy, backup created and verified; cleans up. CI uses the same script; the
+  release guide says to run it first. Passed locally. New PostgreSQL test runs a
+  *scheduled* job through the real worker with the scheduler's `timestamp` argument; it
+  fails when the 0.5 fix is removed.
+- **11.3** Kubernetes: forwarded client addresses are trusted only from private ranges
+  (was `*`, which let any pod fake its IP past the rate limits); checked that uvicorn
+  honours the ranges; a test forbids `*` and public ranges.
+- **11.4** Radar scan: pages up to 2,000 write events per region (was 250) across the 10
+  busiest regions (was 6, unordered); each scan resumes where the last complete one
+  ended (10-minute overlap for late events, at most 24 h back). A cut-short scan
+  (too many events, throttling, more regions) is recorded as incomplete and the next
+  one resumes from the same point, so nothing is skipped; the Radar page says which
+  account may be missing changes. A test caught and fixed a drift where each retry
+  moved the start 10 minutes earlier.
+- **11.15** Radar loads the inventory once per resource type per scan (was one query per
+  event); a test counts the queries.
+- **11.8** Migration 0064: `ccradar_add_cost_partition(month)`, a SECURITY DEFINER
+  function owned by the migration role that creates exactly one monthly partition of
+  `cost_line_items` within last month to 24 months ahead, with the tenant policy and no
+  direct access for the caller. Monthly job `costs.ensure_partitions` keeps 12 months
+  ahead, so installs that are not upgraded no longer fill the DEFAULT partition. The
+  runtime role still cannot create tables (tested).
+- Checks: `make check` green (SQLite 813 passed / 21 skipped; agent 30; SDKs 5 + 5;
+  frontend 166). `make test-pg` 834 passed. `make smoke` passed.
+
+### 2026-11-12 — Session 9cv: 11.5 regional prices, 11.6 encrypted backups, 11.7 S3 storage
+- **11.5** `tools/aws_region_prices.py` reads AWS's public on-demand Linux EC2 price
+  files (about 0.5 MB per region, the ones aws.amazon.com/ec2/pricing loads) and writes
+  each region's median price ratio to US East into `ccradar/data/aws_region_factors.json`
+  (22 regions; e.g. ap-south-1 1.032, eu-central-1 1.198, sa-east-1 1.593). Radar
+  multiplies list prices by the event's region factor; the customer's own bill rates are
+  already regional and are never adjusted. Refresh the file a few times a year. The
+  Terraform/Kubernetes estimator still uses US East list prices (region not known from
+  a plan).
+- **11.7** `S3Storage`: uploaded cost files and generated files can live in AWS S3 or
+  any S3-compatible store (`CCRADAR_STORAGE_URL=s3://bucket/prefix`,
+  `CCRADAR_STORAGE_ENDPOINT_URL` for MinIO/R2…), with server-side encryption and the same
+  safe-key rules; credentials from the standard AWS chain. Kubernetes then needs no
+  ReadWriteMany volume (docs updated).
+- **11.6** `ccradar backup create DEST --encrypt`: AES-256-GCM in 4 MB chunks with a
+  scrypt key from `CCRADAR_BACKUP_PASSPHRASE` (never a command-line argument; at least
+  12 characters); each chunk authenticates its position and "last" flag, so cut-short,
+  reordered or altered files are refused. Any backup location can be a file or
+  `s3://bucket/key` (uploaded with server-side encryption); `verify` and `restore` read
+  either, decrypting when needed. `docs/backup.md` updated.
+- Tests: region factors and own-rate behaviour (test_radar); `test_backup_crypto.py`
+  (round trip incl. empty file, wrong passphrase, truncation, flipped byte, passphrase
+  rules, encrypted backup to fake S3 and back, CLI, S3 storage, setting validation).
+- Checks: `make check` green (SQLite 820 passed / 21 skipped; frontend 166).
+  `make test-pg` 841 passed.
+
+### 2026-11-12 — Session 9cw: 11.9 browser tests, 11.10 error handlers
+- **11.9** Playwright 1.64.1 (Apache-2.0, dev only; Chromium headless shell ~99 MB in
+  the user cache). `frontend/e2e/server.sh` starts a real backend on a throw-away
+  SQLite database with the built app, local sign-in and the demo; tests run in an
+  India-time browser so time-zone bugs show: sign in → explore demo → Costs chart;
+  Radar rows, "Not in the bill yet" and an honest age for the newest change;
+  create an organisation → connect AWS → CloudFormation step with the connection's
+  external id. `make e2e` (builds first); new CI job "Browser tests". 3 passed locally
+  in about 8 s. Vitest now only collects `src/**`; `e2e/` is type-checked.
+- **11.10** Reviewed all 31 broad `except Exception` handlers. Fine as they were: the
+  ones that log the stack, record the error where the customer sees it, or re-raise.
+  Fixed: detector failures now log the stack trace; two swallowed utilisation lookups,
+  metric collection, flow-log discovery, Savings Plans/RI inventory, advice sources and
+  flow-log sources now log what failed; database readiness logs why; unreadable uploads
+  log the parser's reason; failed scheduled reports log the stack; optional ECR and S3
+  lookups log at debug. No behaviour changed.
+- Checks: `make check` green (SQLite 820 passed / 21 skipped; frontend 166).
+  `make test-pg` 841 passed. `npm run e2e` 3 passed.
+
+### 2026-11-12 — Session 9cx: 11.11 bundle, 11.12 plan cache, 11.14 metering, 11.16 polling
+- **11.11** Every page now loads on demand (Overview, Settings, Setup, Radar, Notifications,
+  Glossary, Welcome and the invite pages joined the rest). First-load script 572 → 480 KB
+  (147 KB compressed); measured with a source-map script: what remains is React
+  (~200 KB), the router (~93 KB), UI primitives and ~45 KB of app shell. ECharts was
+  already imported module by module; its 548 KB (184 KB compressed) chunk loads only on
+  chart pages. Settings is its own 152 KB chunk.
+- **11.12** `plan_for` is cached per database session, bypassed while the organisation or
+  any subscription has unsaved changes and cleared after any flush that touches them;
+  licence signature checks are remembered per key text (built-in keys in the cache key).
+  Test: four repeat lookups make no queries; activating and ending a subscription in the
+  same session is seen at once.
+- **11.14** API-key calls are counted in memory and written every 20 calls or 30 s per
+  organisation (was one write per request). Writes come off the in-memory count only
+  when the request commits; if it rolls back they go back to pending (tests caught two
+  flaws in the first version: lost counts on a refused request, and repeated re-writes
+  before commit). Limits use saved + in-flight + pending; with several processes an
+  organisation can pass its daily limit by at most 20 calls per process.
+- **11.16** `usePoll`: the bell, Radar and the first-savings panel poll only while the tab
+  is visible and refresh at once when it comes back (fake-timer tests).
+- Checks: `make check` green (SQLite 822 passed / 21 skipped; frontend 168).
+  `make test-pg` 843 passed. `npm run e2e` 3 passed.
+
+### 2026-11-12 — Session 9cy: 11.13 notification fan-out, 11.17 cursor paging
+- **11.13** With a separate worker (PostgreSQL), `notify()` no longer delivers inline:
+  it records the notification on the session and queues one `notifications.fan_out`
+  job when the transaction commits. That job writes everyone's inbox rows, queues their
+  emails, posts to Slack/Teams and queues outgoing webhooks. A rolled-back change now
+  notifies nobody (before, Slack had already been posted). The job does not retry, so
+  posts are never repeated. SQLite, tests and scripts still deliver inline.
+  Found while doing this: `build_runner` opened a new Procrastinate connection on every
+  call, so each notification email and each job deferred from a job opened one. The
+  runner is now shared per database. Test: nothing is queued before commit; rollback
+  drops it; the job fills the inbox of everyone concerned.
+- **11.17** `api/paging.py`: keyset cursors (the sort values of the last row plus its
+  id) in an `X-Next-Cursor` header, passed back as `?cursor=`. Lists stay plain arrays,
+  so the app and SDKs are unchanged. Added to changes (was fixed at 200), anomalies,
+  fixes, access requests, file imports, AWS audit runs, Kubernetes investigations and
+  webhook deliveries, each with `limit`. The audit log already had cursors and the
+  inbox has `before`. Not covered: the resources list sorts by 30-day cost in Python
+  over at most 5,000 rows, so paging it needs that cost in the database first (goes
+  with 11.18). Tests: pages have no gaps or repeats when rows share a time, page order
+  matches the unpaged order, and bad cursors are refused with `invalid_cursor`.
+  docs/api.md describes it.
+- Checks: `make check` green (SQLite 826 passed / 21 skipped; frontend 168).
+  `make test-pg` 847 passed.
+
+### 2026-11-12 — Session 9cz: 11.29 connectors, 11.30 undo, 11.31 chat buttons, 11.33 guardrails, 11.34 PR comments
+- **11.29** Four more read-only SaaS connectors, each tested against a fake vendor:
+  - OpenAI: `/v1/organization/costs`, daily by project and line item, admin key, paged.
+  - Anthropic: `/v1/organizations/cost_report`, daily by workspace and description,
+    in cents. Admin API key. Checked against the current API reference; the endpoint is
+    marked legacy in favour of the new Analytics API, so move to that later.
+  - GitHub: `/organizations/{org}/settings/billing/usage`, the enhanced billing
+    platform. Net of discounts; the gross amount is kept as list cost; per repository.
+  - Confluent Cloud: `/billing/v1/costs`, daily per resource and environment, finished
+    days only, paged.
+
+  All four are in Settings with help text. Not done: Cloudflare (no costs API) and New
+  Relic (needs its GraphQL API); 11.20 stays open as the broader target.
+- **11.30** Radar "How to undo": for a change that added cost, the AWS CLI command that
+  reverses it (terminate, stop, type back, delete with a final snapshot…) and a console
+  link. It is shown for a person to check, copy and run; we never run it.
+  - Identifiers must look like the resource (`i-`, `vol-`, `nat-`, `eipalloc-`, an ELB
+    ARN), regions must look like regions, and every value is shell-quoted, so a crafted
+    name in a CloudTrail record cannot become another command.
+  - Volumes that grew get advice, not a command (EBS cannot shrink).
+- **11.31** Chat buttons for Radar alerts in Slack and Teams: "Open" and "Mark as
+  expected". Incoming webhooks cannot receive clicks, so the buttons open the Radar.
+  - The linked change is highlighted. Following "expected" asks a signed-in writer to
+    confirm (`PUT /api/v1/radar/{id}/expected`, viewers refused); the item shows an
+    "Expected" badge, and a CloudTrail re-read keeps the mark.
+  - **Bug found and fixed:** 22 notifications used app-relative links ("/radar") as
+    Slack/Teams button URLs. Slack refuses those, so those channel posts failed. Links
+    are now made absolute from `CCRADAR_BASE_URL`; with no base URL, the buttons are
+    left out instead of breaking the post.
+- **11.33** Budget guardrails. When Radar prices new changes, each budget they match
+  (provider, account, region or service; budgets filtered on tags or teams are skipped,
+  not guessed) gets the changes' cost for the rest of its period added to its forecast.
+  When that is what pushes the forecast over the amount, a `budget_alert` names who
+  made the changes. It runs even when Radar alerts are switched off.
+- **11.34** `integrations/github-action`: a composite Action that posts the plan (or
+  Kubernetes manifests) to `/api/v1/estimates/...` with an organisation API key.
+  - Prices come from the bill on the server.
+  - It writes the job summary and outputs and keeps one marked pull-request comment
+    up to date; `fail-above` can fail the check.
+  - Inputs reach the script only through environment variables (no script injection);
+    plain http is allowed only for localhost.
+  - Tested against a local fake server. It is not published to the Marketplace (that
+    needs a public repository: owner decision).
+
+### 2026-11-12 — Session 9da: 11.35 office-hours schedules
+- **11.35** Non-production servers can be stopped at night and at weekends.
+  - **Request and approval:** a member requests a schedule (AWS account, region, up
+    to 50 instance IDs, stop and start times, time zone, days). An administrator
+    approves it, which needs automatic fixes on for that account and the `auto_fixes`
+    plan feature. Schedules can be paused, rejected, asked for again, or deleted.
+  - **Running:** `fixes.run_schedules` runs every 5 minutes through the fixes role and
+    acts at most once a day per schedule. It skips an action more than two hours late
+    (a worker that was down overnight does not stop servers in the morning).
+  - **Guards, checked right before acting:** not `ccradar-protect`, not in an Auto
+    Scaling group, in the expected state. Only instances CloudCostRadar stopped are
+    started again, so a server someone stopped on purpose stays stopped.
+  - **Records:** the last 30 actions (done, skipped with the reason, or the AWS error)
+    are kept on the schedule and shown in Savings → Office hours. The model is audited.
+  - **Role change:** the fixes role template adds `ec2:StartInstances`. Roles made from
+    the older template need their stack updated; docs/security.md says so.
+  - **Tests:** API rights; the stop–start cycle with protected, Auto Scaling and
+    already-stopped servers; time zone, days and lateness; paused schedules; the UI
+    request and approval.
+
+### 2026-11-12 — Session 9db: 11.27 Radar reconciliation
+- **11.27** A daily job (`radar.reconcile`, 06:40 UTC) measures each priced change that
+  added cost and names a resource, once the bill covers 2 to 7 full days after it.
+  - **Measure:** the average daily cost of the bill lines for that resource (exact
+    ID, or an ARN ending in it) times 30.4, compared with the estimate. A launch of
+    several servers compares one server against the per-server estimate. A change is
+    measured again until it has 7 billed days.
+  - **Not measured:** removals (nothing left to bill), changes with no resource, and
+    lines in another currency.
+  - **Shown:** the Radar feed gives each change's measured monthly cost and error, and
+    an accuracy summary (number measured, median error, share within 25%) under the
+    feed.
+  - Test: ID and ARN-suffix matching, a resource not in the bill, a change without a
+    resource, the per-server split, re-runs, and the summary values.
+
+### 2026-11-12 — Session 9dc: 11.37 number formats, 11.39 what-if planner
+- **11.37 (part)** Settings → Your account → Number format: the browser's own format,
+  India (lakh and crore grouping: ₹12,34,567; compact ₹1.2Cr), International, UK or
+  European. Amounts and short dates use it everywhere they go through `lib/format`.
+  The choice is kept per browser. Tests check grouping and compact crore. Not done:
+  translated text (the app is English only) and amounts written in emails.
+- **11.39** Savings → What if…: tick changes (Graviton, office hours, right-sizing,
+  idle resources, storage/database/network) and optionally a Compute Savings Plan.
+  It shows the bill of the last 30 days, the savings and the bill after.
+  - Savings come from open findings, which are priced from the customer's bill.
+  - A resource counts once across the chosen changes (the largest saving, or a stacked
+    chain), as on the Savings page.
+  - The Savings Plan is sized on the compute left after the chosen changes.
+  - `POST /api/v1/what-if`. Tests cover overlap, a resolved finding left out,
+    percentages, no compute data, and an unknown lever refused.
+
+### 2026-11-12 — Session 9dd: 11.41 policy as code
+- **11.41** Governance policies now apply in three places, not only the morning
+  inventory check:
+  - **Before deploy:** `POST /api/v1/estimates/terraform` checks the plan's created and
+    changed servers, databases and caches against denied instance types, allowed
+    regions (from the AWS provider's region) and required tags. A new kind,
+    `max_monthly_increase`, applies to the whole plan.
+  - **In CI:** the response gives the violations and `blocked` (any critical one); the
+    comment gets a table; the GitHub Action fails when blocked.
+  - **Live:** each CloudTrail change is checked as Radar reads it (instance type,
+    region, tags from the request). Breaches go to `policy_violation` (inbox, email,
+    Slack/Teams) and show as a badge on the Radar row.
+  - **As YAML:** `GET /api/v1/governance/policies.yaml` exports every policy;
+    `PUT …/policies.yaml` creates or updates by name (`?prune=true` deletes the rest).
+    Validation is the same as the form; files are capped at 200 KB and duplicate names
+    are refused. Governance links the download.
+  - Tests: import, export, prune and a bad amount; plan violations and the blocked
+    table; a clean plan; a live breach alerting once; and the feed.
+
+### 2026-11-12 — Session 9de: 11.18 load test with a 50-million-line bill
+- `tools/loadtest.py`: fills a scratch database (`ccradar_load` in the `make test-pg`
+  container; it refuses any other name). The synthetic year has 50 accounts, 30
+  services, 12 regions and team/env tags. It then runs the application's own queries
+  as the runtime role with row-level security on, timing each and printing the plans of
+  the slowest. 50 million lines took 13 minutes to write and 15 GB.
+- What it showed, and what changed:
+  - **Currency conversion** per line used lookup subqueries that blocked hash
+    aggregation and parallel scans (0.65 s against 0.15 s without). Lines are now summed
+    per day and currency first, then converted (same totals). The daily rollup is
+    checked for whether any conversion is needed at all.
+  - **The daily rollup** passed every row through Python (5 s for 200,000 lines). It is
+    now one `INSERT … SELECT` on the server, a month per statement.
+  - **Tag queries** read the lines (9 to 24 s at 50 million). A new per-tag daily rollup,
+    `cost_daily_tags` (migration 0065, row-level security), answers any query with one
+    tag or virtual tag plus rollup dimensions. Untagged cost is the daily total less
+    the tagged cost. Imports keep it up to date, and so do tag rules and virtual-tag
+    recomputes.
+  - **Out of memory:** the first build of that rollup over a whole year in one statement
+    killed the database server process. Builds now run a month at a time.
+  - **Indexes:** every plan used the organisation-and-date index with partition pruning;
+    none was missing.
+- 50 million lines, as the runtime role:
+
+  | Query | Before | After |
+  |---|---|---|
+  | Cost by service, 30 days | 95 ms | 87 ms |
+  | Cost by account, 12 months | 157 ms | 167 ms |
+  | Cost by tag, 30 days | 9.2 s | 0.15 s |
+  | Tag filter, 90 days | 23.6 s | 0.19 s |
+  | Inventory costs of 500 resources | 113 ms | 278 ms |
+  | Anomaly detection | 71 ms | 56 ms |
+  | Cost by resource, 30 days | 9.6 s | 9.4 s |
+
+- Still slow, by design: grouping by resource reads every line in the range (about 4
+  million for 30 days). A full rebuild of both rollups for 13 months takes 11 minutes;
+  a normal monthly import rebuilds one month (about 50 s at this size).
+- The planner misjudges row counts under row-level security on a single-organisation
+  table. That is a test artefact; a multi-tenant table has proper per-organisation
+  statistics.
+- Tests: the tag rollup gives the same answer as the lines for four query shapes
+  (untagged, previous period, day and month periods), and follows tag rules.
+
+### 2026-11-12 — Session 9df: 10.3 Radar prices Auto Scaling and Redshift
+- **10.3** Radar now prices changes to Auto Scaling groups and Redshift clusters.
+  - **Auto Scaling:** `UpdateAutoScalingGroup` and `SetDesiredCapacity` are priced from
+    the group's last known size and instance type in the inventory. A raised minimum or
+    lowered maximum counts when it forces the size; the group's on-demand/spot mix
+    applies.
+  - **Redshift:** `CreateCluster`, `ResizeCluster`/`ModifyCluster`, `DeleteCluster`,
+    `PauseCluster` (storage still billed) and `ResumeCluster`, from node type and count.
+    `REDSHIFT_NODE_HOUR` holds on-demand list prices for dc2 and ra3, us-east-1, scaled
+    by the region factors.
+  - **Undo:** rules now depend on the service as well as the event name (the same
+    `CreateCluster` exists for EKS and Redshift). Added: Redshift delete with a final
+    snapshot, resize back, and set the desired capacity back.
+  - Tests: growth, a raised floor, all-spot groups, unknown groups and no-op changes;
+    Redshift create, resize and pause; the same event name in EKS; the undo commands.
+
+### 2026-11-12 — Session 9dg: 10.2 Live Radar for Azure and Google Cloud
+- **10.2** `changes/other_clouds.py` scans every Azure and Google Cloud connection every
+  15 minutes (`changes.schedule_other_clouds`), looking back 3 hours.
+  - **Azure:** the Activity Log of each subscription (API 2015-04-01, checked against
+    Microsoft's reference), succeeded operations only, for VMs, disks, public IPs, NAT
+    gateways and SQL databases.
+    - New VMs are looked up with Resource Manager for their size and `timeCreated` (a
+      write more than 30 minutes after creation is an update, recorded unpriced).
+    - Prices come from the public, unauthenticated Azure Retail Prices API:
+      pay-as-you-go Linux; Windows and Spot are excluded. Prices are cached per process,
+      and a failed price lookup is retried on the next scan.
+  - **Google Cloud:** Admin Activity audit logs through Cloud Logging `entries:list`,
+    for each project in the bill.
+    - Successful creates, deletes, stops and starts of instances and disks, and machine
+      type changes. Long operations count once, by their first entry.
+    - New instances are priced from the machine type at us-central1 list rates per
+      vCPU and GB (e2, n1, n2, n2d, t2d, c2; shared-core and custom types too). GPU and
+      other types are unpriced, never guessed.
+  - **Common to both:** changes are recorded like AWS ones (source `azure_activity` or
+    `gcp_activity`), so the Radar feed, alerts, budget guardrails and policies apply. The
+    feed shows each connection's last scan and its problems.
+  - **Setup:** Google Cloud needs `roles/logging.viewer` per project, now in the setup
+    commands. Azure's existing Reader role covers the Activity Log.
+  - **Not yet:** resizes and deletions are not priced on Azure and Google Cloud (there
+    is no inventory of their resources yet; that is 11.22/11.28).
+  - Tests: Azure write, delete and ignored operations, the Linux pay-as-you-go price,
+    re-reads and scan status; Google Cloud paging, first/last entries, a failed call,
+    regions from zones; and the machine-type price table.
+
+### 2026-11-12 — Session 9dh: 11.28 Azure and Google Cloud detectors
+- **11.28** Oversized VMs, reservations and committed-use discounts on Azure and Google
+  Cloud already come from Azure Advisor and Google Recommender (imported daily as
+  advice). What was missing was waste the clouds do not report, so:
+  - **Inventory** (`inventory/other_clouds.py`): managed disks and public IP addresses.
+    - Azure: Resource Manager for each subscription. A disk's `diskState` and an IP's
+      IP configuration or NAT gateway show whether it is used.
+    - Google Cloud: Compute Engine aggregated lists for each billed project. A disk with
+      no users, or a `RESERVED` external address, is unused; internal addresses are free
+      and left out.
+    - Resources missing from a successful collection are marked deleted. Collection runs
+      with the daily advice import; failures are logged and advice still counts.
+  - **Detectors:** `azure.disk_unattached`, `azure.ip_unused`, `gcp.disk_unattached`
+    and `gcp.ip_unused`. Savings come from the bill where it names the resource, else
+    from list prices (per GB by disk type; $3.65 Azure Standard IP; $7.30 for an idle
+    Google address). Findings carry snapshot-then-delete and release commands, with
+    every value shell-quoted.
+  - **Setup:** Google Cloud adds `roles/compute.viewer`; Azure's Reader already covers
+    it.
+  - Tests: Azure (the bill's own cost beats list price, an attached disk and a used IP
+    are skipped, deleted resources are marked gone) and Google Cloud (empty zones,
+    internal addresses, prices, region from zone, commands). The AWS audit checklist
+    test now covers AWS detectors only.
+
+### 2026-11-12 — Session 9di: 11.26 carbon reporting
+- **11.26** `GET /api/v1/carbon?months=6` and a Carbon card on the Executive page give
+  estimated emissions per month, service and region, following the open Cloud Carbon
+  Footprint method (Apache-2.0).
+  - **AWS compute** (instance hours from `BoxUsage`, `SpotUsage`, RDS instance usage):
+    hours × vCPUs (from the size name) × average watts per vCPU at 50% use.
+  - **AWS disks, snapshots and S3:** GB-months × watt-hours per TB-hour, SSD or HDD.
+  - Energy × PUE 1.135 × the region's grid intensity (a world average where unknown).
+  - **Everything else**, and Azure and Google Cloud, at 0.18 kg CO2e per US dollar,
+    shown separately as "from spend" with the share worked out from use. Spend in other
+    currencies is not counted.
+  - Embodied emissions are excluded. The page says these are estimates and points to
+    the providers' own carbon tools for official reporting.
+  - The coefficients are approximate and marked "verify periodically".
+  - Tests: vCPU sizes; usage-based compute and storage against the hand calculation;
+    the spend-based remainder; the Executive card.
+  - Not done: importing the providers' own carbon exports (AWS Customer Carbon Footprint
+    Tool, Google Carbon Footprint export, Azure Emissions Impact API).
+
+### 2026-11-12 — Session 9dj: 11.24 custom dashboards
+- **11.24** Dashboards (new menu item) are named pages of saved Cost Explorer views,
+  each drawn as bars, lines or a table, up to 12 per dashboard.
+  - Stored in the saved-views table (kind `dashboard`, no migration). The view list now
+    returns explorer views only.
+  - `GET/POST /api/v1/dashboards`, `PUT/DELETE /api/v1/dashboards/{id}`. Shared by
+    default; the owner or an admin can change one. A widget may only use views its
+    author can see. A view deleted or made private later simply drops out for the people
+    who cannot see it.
+  - Relative ranges ("last 30 days") move with the date, as in the explorer.
+  - Tests: creating with shared and private views, what another member sees, a view
+    that is not theirs refused, only the owner editing, delete; the page (table widget,
+    empty state, create dialog).
+
+### 2026-11-12 — Session 9dk: 11.36 help centre
+- **11.36** Seven user guides in `docs/guides/` (connecting clouds and services, Live
+  Radar, savings and automatic fixes, budgets and policies (with policies as code and
+  the GitHub Action), Cost Explorer and dashboards, alerts and notifications,
+  Kubernetes) are published as `website/help.html` and `website/help-<name>.html`.
+  - `tools/help_centre.py` reuses the changelog's small Markdown renderer and adds code
+    blocks; `make check` fails when the pages are stale.
+  - Every website page's menu now has Help.
+  - Menu names, the Helm command and the webhook signing were checked against the app,
+    and the guides use the app's real names.
+  - Not done: a link from inside the app (it needs the website's final address, Q7) and
+    screenshots.
+
+### 2026-11-12 — Session 9dl: 11.32 / 11.21 investigating cost changes
+- **11.32** Costs → "Why did cost change?" (`POST /api/v1/costs/investigate`, last 7,
+  14 or 30 billed days, compared with the period before). The evidence is gathered
+  without AI, from the queries the app already uses:
+  - what grew by service, then account, region and resource inside the service that
+    grew most;
+  - the changes recorded around then (Radar, GitHub, manual), costly ones first;
+  - cost anomalies in the period;
+  - open findings on the resources that grew, as proposed fixes (approved like any
+    finding; nothing is changed in a cloud).
+
+  A plain summary of those facts is always shown. With AI turned on for the
+  organisation, Claude rewords it (the existing writer, counted against the plan's AI
+  allowance; facts only when the allowance is used up). It adds no numbers or causes,
+  and the page says when the summary was worded by AI.
+  Tests: the drill-down totals, the related change and fix, AI wording against the
+  facts given, the API without AI, and the page.
+- **11.21** is covered by 11.32. A free-running AI agent that picks its own tools was
+  not built: the fixed pipeline is testable, never invents figures, and sends the AI
+  no cost data beyond the summary sentence.
+
+### 2026-11-12 — Session 9dm: 11.22 Azure and Google Cloud commitments
+- **11.22** Savings → Commitments now lists Azure reservations, Azure savings plans
+  and Google committed use discounts next to the AWS ones (`clouds/other_commitments.py`,
+  the same `commitments` table; no migration):
+  - **Azure**: `Microsoft.Capacity/reservations` and `Microsoft.BillingBenefits/
+    savingsPlans`, with quantity, term, billing plan, hourly commitment and Azure's own
+    utilisation (30-day figure, else 7-day, else 1-day). Both are tenant-level lists
+    and need the optional *Reservations Reader* and *Savings plan Reader* roles (added
+    to the Azure setup help); without them the rest of the connection works and the
+    rows already found are kept, not retired.
+  - **Google Cloud**: resource-based CUDs per billed project
+    (`aggregated/commitments`, covered by Compute Viewer) with vCPU and memory, plan
+    and region. Spend-based (flexible) CUDs sit on the billing account and are not in
+    this API; Google gives no utilisation here, so the column stays blank.
+  - Expired or cancelled ones are retired; the 90/30/7-day expiry alerts are the
+    shared AWS ones. Collected daily with the Azure Advisor / Google Recommender
+    import, and by the page's Refresh button (now "Refresh", for every cloud).
+  Tests: Azure fields, utilisation choice, retirement and a missing role; Google CUD
+  description, term and expiry alerts; the refresh and inventory API.
+  With detectors (11.28), inventory, Radar (10.2/10.3) and now commitments, 11.22 is
+  ticked. `make check` 874 passed / 21 skipped, frontend 178; `make test-pg` 895.
+
+### 2026-11-12 — Session 9dn: 11.20 / 11.29 four more connectors
+- **11.20** Settings → Cloud accounts → Connect a service now also takes Vercel,
+  Cloudflare, DigitalOcean and Linode (Akamai Cloud). Each is read-only, talks only
+  to the vendor's own fixed host and is checked by reading this month's cost when
+  added:
+  - **Vercel**: `GET /v1/billing/charges` (FOCUS 1.3 JSON lines, daily per product;
+    the project from the tags becomes the resource). Team ID (`team_…`) or slug.
+  - **Cloudflare**: `GET /accounts/{id}/billable/usage` (FOCUS-aligned daily rows,
+    one month per request, within its 31-day limit). Cloudflare marks this API alpha
+    and self-serve only for now, so Enterprise accounts may be refused; the error is
+    shown on the connection. This closes the 11.29 Cloudflare gap.
+  - **DigitalOcean**: invoices and their items per product and resource; the current
+    month from the daily invoice preview; monthly granularity.
+  - **Linode**: invoices and items per service and region, with tax as its own `Tax`
+    line; months appear once invoiced (Linode bills in arrears).
+  A shared FOCUS row reader (`_focus_line`) keeps unknown charge or pricing
+  categories inside the allowed values. Help guide, architecture note and provider
+  names updated.
+  Tests (fake vendors): fields and filters for each, paging (DigitalOcean links,
+  Linode pages), the preview month, refusals and bad IDs, and an import through the
+  importer. `make check` 880 passed / 21 skipped, frontend 178; `make test-pg` 901.
+  11.20 stays partly done: 16 sources against Vantage's 30–40. New Relic (GraphQL)
+  and others such as Fastly, Twilio, Elastic Cloud or Oracle Cloud are the next
+  candidates.
+
+### 2026-11-13 — Session 9do: 11.29 New Relic
+- **11.29** New Relic connector (`newrelic`), one NerdGraph request per month with
+  three NRQL queries: daily GB ingested per source (`NrConsumption`, Data Platform),
+  daily core and advanced compute units, and billable full platform and core users
+  (`NrMTDConsumption`). Times are epoch milliseconds, so months are exact UTC months.
+  New Relic's API gives usage, not money (its `estimatedCost` attribute was retired
+  in 2022), so, like Vantage, the cost is usage times the customer's rates:
+  - per GB after the free monthly allowance (used up in day order);
+  - per full platform user after the free seats, per core user;
+  - per compute unit (0 unless entered).
+  Blank rates use list prices (0.40/GB, 100 GB free, 349 full, 49 core, 1 free full
+  seat; to verify periodically). Every line carries `extras.estimate`, and the
+  settings form says the figures are estimates. US or EU data centre; a User key
+  (`NRAK-…`); account ID, region and rates are checked before any call.
+  Tests (fake NerdGraph): free allowance and seats, compute pricing, the EU host, the
+  key header and query window, GraphQL errors and bad settings.
+  `make check` 882 passed / 21 skipped, frontend 178; `make test-pg` 903.
+  11.29 is complete; 11.20 stays partly done at 17 sources.
+
+### 2026-11-13 — Session 9dp: 11.20 connectors, 11.40 benchmarks, 11.37 languages, 11.23 Terraform
+- **11.20** Three more read-only connectors, tested against fake vendors:
+  - **Fastly**: invoices per product and region (cursor paging), coupons as credits;
+    the current month from the month-to-date invoice.
+  - **Elastic Cloud**: itemized organisation costs (v2 billing API) in ECU, converted
+    at 1 USD per ECU unless the customer enters their own rate; ECU kept in extras.
+  - **Grafana Cloud**: billed usage per dimension, split by stack where Grafana
+    attributes the cost (stack labels become tags), the rest unattributed.
+  16 services now, plus 3 clouds and Kubernetes.
+- **11.40** Peer benchmarks (Executive page, `GET /api/v1/benchmarks`,
+  `PUT /api/v1/benchmarks/opt-in`, migration 0067 `benchmark_samples`). Off by
+  default; an admin opts in to share four ratios for the last full month (effective
+  savings rate, waste share, allocated share, EC2 cost per vCPU-hour) and a size band;
+  never amounts or names. Peers show p25/median/p75 only from at least 5
+  organisations, within the size band when it has 5, else across all. Opting out
+  deletes the sample; demo organisations never take part. Nightly job
+  `benchmarks.refresh` keeps samples current and removes withdrawn ones.
+  docs/security.md describes what is shared.
+- **11.37** Translation framework without a new dependency (`lib/i18n.ts`): English
+  text is the key and anything untranslated stays English; the language is kept per
+  browser (Settings → account → Language) and sets `<html lang>`. A draft Hindi
+  catalogue covers the navigation and app frame, marked "draft" in the picker; tests
+  check every navigation label is covered. Which languages to offer, translating the
+  pages themselves, and a native speaker's review are left for the owner.
+- **11.23** `integrations/terraform-provider-ccradar` (Go, terraform-plugin-framework,
+  MPL-2.0): `ccradar_budget`, `ccradar_policy`, `ccradar_virtual_tag`, each with
+  import; JSON attributes for filters, params and rules keep the user's text when the
+  meaning is unchanged and show outside changes as a diff. Endpoint must be https
+  (http only on localhost); key must be an organisation API key. Go tests (schema,
+  client errors, create body, removal on outside delete, drift) run in `make check`
+  when Go is installed and in a new CI job. Not published: the Terraform Registry
+  needs a public repository and a GPG key — owner decision.
+- `make check` 889 passed / 21 skipped, frontend 182, provider ok; `make test-pg` 910.
+
+### 2026-11-13 — Session 9dq: 11.37 English only
+- Owner decision: offer English only for now. The language picker lists English
+  alone, and Settings hides the Language card while there is nothing to choose. A
+  browser that had picked Hindi falls back to English. The Hindi draft
+  (`locales/hi.ts`) and its tests stay in the code, unoffered; offering it later is
+  one line in `LANGUAGES`. Frontend 183 tests pass, typecheck and lint clean.
+
+### 2026-11-17 — Session 9dr: 1.12 demo data, 11.42 SIEM streaming, 11.20 connectors, 11.19 image size
+- **1.12** New seeders: `costs/multicloud_demo.py` (Azure, Google Cloud, Datadog,
+  Snowflake, OpenAI, GitHub bills for 90 days; 8 days of hourly AWS cost with today
+  running hot on Redshift; 30 days of SDK-reported AI usage) and `demo/workspace.py`
+  (teams, company and team budgets, five policies evaluated by the real engine,
+  virtual tags recomputed, shared-cost rules, reliability targets, saved views and a
+  shared dashboard, report schedules, owner rules, a planned Savings Plan, unit costs,
+  invoices and closed months, network attribution, a PromQL query with points, a
+  saved investigation of the failing nightly job, and finding progress that leaves
+  the showcase findings open). Benchmarks show made-up peer figures in the demo,
+  labelled as such. `tests/test_demo_pages.py` checks each page's API has data and
+  that the demo stays read-only. Settings and admin-only pages (API keys, SSO,
+  connections, stop schedules) stay empty in the demo on purpose.
+- **11.42** `audit/streams.py`, `api/audit_streams.py`, migration 0068
+  (`audit_streams`, RLS), job `audit.stream` every minute, plan feature
+  `audit_streaming` (Business, Enterprise), card on Settings → Audit. A cursor over
+  (occurred_at, id) moves only after the receiver accepts a batch; failures retry
+  after 1 min, 5 min, 30 min, 2 h, then every 6 h from the same event; events settle
+  2 minutes before sending. HMAC-SHA256 signature header on every request (syslog:
+  structured data). Sentinel uses the Logs Ingestion API, not the retired HTTP Data
+  Collector API. Public addresses only (checked on save and before every send).
+  9 backend tests, 1 frontend test; docs/security.md updated.
+- **11.20** `connectors/extra.py`: Oracle Cloud (Usage API, request signing), Alibaba
+  Cloud (QueryAccountBill daily, RPC signing), Twilio (leaf categories + remainder, so
+  totals match) as beta; Hetzner (price list × hours), Sentry (events × rates + plan
+  fee), Okta, Slack, Zoom, PagerDuty, Atlassian Jira (seats × price) as alpha
+  estimates. Seat counts are only known now, so past months are skipped instead of
+  emptied (`SkipMonth`). MongoDB Atlas lines now name the service (clusters, backup,
+  data transfer, Search…), carry list price before discount and Atlas tags. Every
+  connector has a maturity shown in the Connect a service dialog. Fivetran and dbt
+  Cloud have no public cost or usage API (Fivetran's cost is in its Platform
+  Connector tables; dbt's models-built count is only in the UI), so they are not
+  built; Atlassian's org users API is deprecated, so Atlassian counts Jira seats from
+  application roles and cannot see Confluence. 15 tests.
+- **11.19** pyarrow is imported lazily (startup no longer loads it). The image
+  removes unused pyarrow parts in the install layer and the build fails if Parquet
+  read/write breaks. The agent uses its own read-only Kubernetes client
+  (`agent/src/ccradar_agent/kube.py`, httpx, re-reads the rotating token, verifies
+  with the cluster CA) instead of the official library, and installs from a bind
+  mount. `kubernetes` removed from both dependency lists. 5 agent tests.
+  Not measured: building the images here hung fetching from Docker Hub, so the savings
+  (about 70 MB in the platform image, about 127 MB in the agent image) are estimates
+  from the files inside the current 839 MB image, not a new build. Run `make image`
+  and the agent build to confirm, including the Parquet check in the Dockerfile.
+- `test_fixes.py::test_auto_clean_up_files_requests_but_never_acts` used a fixed
+  9 November date and failed once more than a week had passed; it now sets the "too
+  new" finding's date relative to now.
+- `make check`: backend 915 passed + the fixed test, 21 skipped; frontend 184; agent 35;
+  provider ok. `make test-pg` 937 passed.

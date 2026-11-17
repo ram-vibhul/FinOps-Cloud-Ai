@@ -10,7 +10,7 @@ import { makeMe, mockApi, renderRoute } from "@/test/render";
  */
 const ROUTES = [
   "/", "/costs", "/costs/explore", "/costs/ai", "/savings", "/kubernetes", "/governance", "/executive",
-  "/settings?tab=general", "/settings?tab=members", "/settings?tab=clouds", "/settings?tab=api-keys", "/setup", "/glossary", "/notifications",
+  "/settings?tab=general", "/settings?tab=members", "/settings?tab=clouds", "/settings?tab=api-keys", "/setup", "/glossary", "/notifications", "/radar",
 ];  // fmt: skip
 
 const CONTROLS = "button, a[href], input:not([type=hidden]), select, textarea, [role=button], [role=link], [role=tab]";

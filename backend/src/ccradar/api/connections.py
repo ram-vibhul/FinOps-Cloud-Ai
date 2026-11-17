@@ -101,7 +101,34 @@ def _out(conn: CloudConnection) -> ConnectionOut:
 
 
 class SaasCreate(BaseModel):
-    provider: Literal["snowflake", "databricks", "datadog", "mongodb_atlas"]
+    provider: Literal[
+        "snowflake",
+        "databricks",
+        "datadog",
+        "mongodb_atlas",
+        "openai",
+        "anthropic",
+        "github",
+        "confluent",
+        "vercel",
+        "cloudflare",
+        "digitalocean",
+        "linode",
+        "newrelic",
+        "fastly",
+        "elastic",
+        "grafana",
+        "oracle",
+        "alibaba",
+        "hetzner",
+        "twilio",
+        "sentry",
+        "okta",
+        "slack",
+        "zoom",
+        "pagerduty",
+        "atlassian",
+    ]
     name: str = Field(min_length=1, max_length=200)
     settings: dict[str, str] = Field(default_factory=dict)
     secret: dict[str, str] = Field(default_factory=dict)
@@ -243,7 +270,7 @@ def create_azure(body: AzureCreate, request: Request, auth: Admin, db: SessionDe
 
 @router.post("/saas", response_model=ConnectionOut, status_code=201)
 def create_saas(body: SaasCreate, request: Request, auth: Admin, db: SessionDep) -> ConnectionOut:
-    """Snowflake, Databricks, Datadog or MongoDB Atlas. Checked by reading this month's cost."""
+    """A SaaS bill (see connectors/saas.py). Checked by reading this month's cost."""
     import json
 
     from ccradar.connectors.saas import CONNECTORS, OPTIONAL, ConnectorError

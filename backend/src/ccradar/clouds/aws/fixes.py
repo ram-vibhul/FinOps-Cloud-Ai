@@ -77,6 +77,7 @@ def policy_document() -> dict[str, Any]:
                 "Effect": "Allow",
                 "Action": [
                     "ec2:StopInstances",
+                    "ec2:StartInstances",  # office-hours schedules (11.35)
                     "ec2:DeleteVolume",
                     "ec2:ReleaseAddress",
                     "ec2:CreateSnapshot",

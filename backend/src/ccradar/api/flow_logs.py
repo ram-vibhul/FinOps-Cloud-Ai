@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Annotated, Any, Literal
 
@@ -18,6 +19,8 @@ from ccradar.costs import flow_logs
 from ccradar.costs.network import CATEGORIES
 from ccradar.db.tenant import set_tenant
 from ccradar.models import CloudConnection, NetworkAttribution
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(tags=["network"])
 Reader = Annotated[AuthContext, require(Permission.READ)]
@@ -88,7 +91,8 @@ def discover_flow_logs(
     for region in billed_regions(db, conn.org_id, conn.account_id):
         try:
             found += flow_logs.discover(gateway.client(session, "ec2", region=region))
-        except Exception:  # noqa: S112 - a region without access: skip it
+        except Exception as error:  # a region without access: skip it
+            log.info("flow log discovery skipped in %s: %s", region, type(error).__name__)
             continue
     unique = {tuple(sorted((k, str(v)) for k, v in f.items() if k != "resource")): f for f in found}
     sources = [{k: v for k, v in f.items() if k != "resource"} for f in unique.values()]

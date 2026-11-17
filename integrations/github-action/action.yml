@@ -1,0 +1,58 @@
+name: CloudCostRadar cost estimate
+description: >-
+  Comment on a pull request with what a Terraform plan or Kubernetes change adds to the
+  monthly bill, priced at your own rates from CloudCostRadar. Read-only.
+branding:
+  icon: dollar-sign
+  color: green
+inputs:
+  base-url:
+    description: Address of your CloudCostRadar (for example https://app.cloudcostradar.com)
+    required: true
+  api-key:
+    description: An organisation API key (Settings, API keys); store it as a secret
+    required: true
+  kind:
+    description: terraform or kubernetes
+    default: terraform
+  plan:
+    description: >-
+      terraform: the JSON from `terraform show -json plan.out`. kubernetes: the changed
+      manifests (YAML or JSON)
+    required: true
+  before:
+    description: kubernetes only, the current manifests to compare with
+    default: ""
+  fail-above:
+    description: Fail the check when the monthly increase is above this amount (empty = never)
+    default: ""
+  comment:
+    description: Post or update one comment on the pull request (needs pull-requests write)
+    default: "true"
+  github-token:
+    description: Token used to comment
+    default: ${{ github.token }}
+outputs:
+  change:
+    description: Monthly cost change
+    value: ${{ steps.estimate.outputs.change }}
+  currency:
+    description: Currency of the amounts
+    value: ${{ steps.estimate.outputs.currency }}
+runs:
+  using: composite
+  steps:
+    - id: estimate
+      shell: bash
+      env:
+        CCRADAR_URL: ${{ inputs.base-url }}
+        CCRADAR_API_KEY: ${{ inputs.api-key }}
+        KIND: ${{ inputs.kind }}
+        PLAN: ${{ inputs.plan }}
+        BEFORE: ${{ inputs.before }}
+        FAIL_ABOVE: ${{ inputs.fail-above }}
+        COMMENT: ${{ inputs.comment }}
+        GH_TOKEN: ${{ inputs.github-token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
+      run: python3 "$GITHUB_ACTION_PATH/estimate.py"

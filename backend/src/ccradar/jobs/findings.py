@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
+from typing import Any
 
 from sqlalchemy import select
 
 from ccradar.db.tenant import set_tenant
 from ccradar.jobs.context import job_context
 from ccradar.jobs.registry import job
+
+log = logging.getLogger(__name__)
 
 
 @job("findings.run_all", queue="maintenance", cron="40 6 * * *")
@@ -106,10 +110,25 @@ def advice_for(connection_id: uuid.UUID, provider: str) -> None:
             conn = session.get(CloudConnection, connection_id)
             if conn is None:
                 return
+            from ccradar.inventory import other_clouds
+
+            client: Any
             if provider == "azure":
-                advisor.collect(session, for_connection(conn), connection_id)
+                client = for_connection(conn)
+                advisor.collect(session, client, connection_id)
             else:
-                recommender.collect(session, gcp_client.for_connection(conn), connection_id)
+                client = gcp_client.for_connection(conn)
+                recommender.collect(session, client, connection_id)
+            try:  # disks and public IPs for the waste detectors (11.28)
+                other_clouds.collect(session, client, connection_id)
+            except Exception as exc:  # no rights yet: advice still counts
+                log.warning("%s inventory: %s", provider, type(exc).__name__)
+            from ccradar.clouds import other_commitments
+
+            try:  # reservations, savings plans and CUDs (11.22)
+                other_commitments.collect(session, client, connection_id)
+            except Exception as exc:
+                log.warning("%s commitments: %s", provider, type(exc).__name__)
         elif provider == "aws":
             collect(session, gateway(), connection_id)
 
@@ -216,6 +235,16 @@ def run_approved_fixes() -> int:
         with ctx.db.session() as session:
             execute(session, gateway(), fix_id)
     return len(ids)
+
+
+@job("fixes.run_schedules", queue="default", cron="*/5 * * * *")
+def run_stop_schedules() -> int:
+    """Every 5 minutes: stop or start servers on approved office-hours schedules (11.35)."""
+    from ccradar.clouds.aws.schedules import run_due
+    from ccradar.jobs.costs import gateway
+
+    with job_context().db.session() as session:
+        return run_due(session, gateway())
 
 
 @job("fixes.file_requests", queue="default", cron="30 8 * * *")

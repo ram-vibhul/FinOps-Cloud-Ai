@@ -34,7 +34,9 @@ def _is_public(address: str) -> bool:
     return ip.is_global and not ip.is_multicast
 
 
-def check_public_https_url(url: str, resolver: Resolver = system_resolver) -> str:
+def check_public_https_url(
+    url: str, resolver: Resolver = system_resolver, ports: tuple[int | None, ...] = (None, 443)
+) -> str:
     parts = urlsplit(url)
     if parts.scheme != "https":
         raise UnsafeURLError("only https:// addresses are allowed")
@@ -43,15 +45,25 @@ def check_public_https_url(url: str, resolver: Resolver = system_resolver) -> st
     host = parts.hostname
     if not host:
         raise UnsafeURLError("address has no host")
-    if parts.port not in (None, 443):
-        raise UnsafeURLError("only the standard HTTPS port is allowed")
+    if parts.port not in ports:
+        raise UnsafeURLError(
+            "only the standard HTTPS port is allowed"
+            if ports == (None, 443)
+            else f"only ports {', '.join(str(p or 443) for p in ports)} are allowed"
+        )
+    public_addresses(host, resolver)
+    return url
+
+
+def public_addresses(host: str, resolver: Resolver = system_resolver) -> list[str]:
+    """The host's addresses, if every one is a public internet address."""
     try:
         addresses = [host] if _looks_like_ip(host) else resolver(host)
     except OSError as exc:
         raise UnsafeURLError(f"cannot resolve {host}") from exc
     if not addresses or not all(_is_public(a) for a in addresses):
         raise UnsafeURLError(f"{host} is not a public internet address")
-    return url
+    return addresses
 
 
 def _looks_like_ip(host: str) -> bool:

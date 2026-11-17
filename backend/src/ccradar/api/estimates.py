@@ -55,7 +55,12 @@ async def terraform(auth: Reader, db: SessionDep, request: Request) -> dict[str,
         raise AppError("This is not a Terraform plan (no resource_changes).", code="bad_plan")
     p = _prices(db, auth)
     result = estimate.terraform(plan, p["prices"], p["currency"])
-    return {**result.to_dict(), "markdown": estimate.markdown(result)}
+    from ccradar.costs.policy_code import markdown as policy_markdown
+    from ccradar.costs.policy_code import plan_violations
+
+    policy = plan_violations(db, plan, result.change)  # 11.41
+    text = estimate.markdown(result) + policy_markdown(policy)
+    return {**result.to_dict(), "policy": policy, "markdown": text}
 
 
 @router.post("/kubernetes")

@@ -9,11 +9,11 @@ from __future__ import annotations
 import uuid
 from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from itertools import islice
 
-from sqlalchemy import delete, func, insert, select
+from sqlalchemy import delete, func, insert, literal, select, text
 from sqlalchemy.orm import Session
 
 from ccradar.db.base import Base, utcnow
@@ -185,8 +185,80 @@ DAILY_KEYS = (
 )
 
 
+TAG_DIMENSIONS = (
+    "provider",
+    "sub_account_id",
+    "service_name",
+    "region",
+    "charge_category",
+    "pricing_category",
+    "billing_currency",
+)
+
+
+def _months(start: date, end: date) -> list[tuple[date, date]]:
+    """``start..end`` cut at month ends."""
+    out, first = [], start
+    while first <= end:
+        nxt = (first.replace(day=28) + timedelta(days=4)).replace(day=1)
+        out.append((first, min(nxt - timedelta(days=1), end)))
+        first = nxt
+    return out
+
+
+def refresh_tag_daily(db: Session, *, org_id: uuid.UUID, start: date, end: date) -> int:
+    """Rebuild the per-tag daily rollup (``cost_daily_tags``) for ``start..end`` from
+    line items, a month per statement: one statement over a year of a 50-million-line
+    bill ran the database server out of memory (11.18)."""
+    return sum(
+        _refresh_tag_month(db, org_id=org_id, start=a, end=b) for a, b in _months(start, end)
+    )
+
+
+def _refresh_tag_month(db: Session, *, org_id: uuid.UUID, start: date, end: date) -> int:
+    postgres = db.get_bind().dialect.name == "postgresql"
+    tags = Base.metadata.tables["cost_daily_tags"]
+    db.execute(
+        delete(tags).where(
+            tags.c.org_id == org_id, tags.c.charge_date >= start, tags.c.charge_date <= end
+        )
+    )
+    dims = ", ".join(f"li.{d}" for d in TAG_DIMENSIONS)
+    new_id = "gen_random_uuid()" if postgres else "lower(hex(randomblob(16)))"
+    value = "left(t.value, 300)" if postgres else "substr(CAST(t.value AS TEXT), 1, 300)"
+    added = 0
+    for column, prefix in (("tags", "tag:"), ("vtags", "vtag:")):
+        each = (
+            f"json_each_text(li.{column}) AS t(key, value)"
+            if postgres
+            else f"json_each(li.{column}) AS t"
+        )
+        sql = (
+            "INSERT INTO cost_daily_tags (id, org_id, charge_date, tag_key, tag_value, "  # noqa: S608 - fixed names
+            f"{', '.join(TAG_DIMENSIONS)}, billed_cost, effective_cost, list_cost) "
+            f"SELECT {new_id}, li.org_id, li.charge_date, :prefix || t.key, {value}, {dims}, "
+            "coalesce(sum(li.billed_cost), 0), coalesce(sum(li.effective_cost), 0), "
+            f"sum(li.list_cost) FROM cost_line_items AS li, {each} "
+            "WHERE li.org_id = :org AND li.charge_date >= :start AND li.charge_date <= :end "
+            "AND length(t.key) <= 130 "
+            f"GROUP BY li.org_id, li.charge_date, t.key, {value}, {dims}"
+        )
+        params: dict[str, object] = {"prefix": prefix, "org": org_id, "start": start, "end": end}
+        if not postgres:  # SQLite stores UUIDs as hex and dates as ISO text
+            params |= {"org": org_id.hex, "start": start.isoformat(), "end": end.isoformat()}
+        result = db.execute(text(sql), params)
+        added += int(getattr(result, "rowcount", 0) or 0)
+    return added
+
+
 def refresh_daily(db: Session, *, org_id: uuid.UUID, start: date, end: date) -> int:
-    """Rebuild the daily rollup for ``start..end`` (inclusive) from line items."""
+    """Rebuild the daily rollups (totals and per tag) for ``start..end`` (inclusive)
+    from line items, a month at a time."""
+    refresh_tag_daily(db, org_id=org_id, start=start, end=end)
+    return sum(_refresh_totals(db, org_id=org_id, start=a, end=b) for a, b in _months(start, end))
+
+
+def _refresh_totals(db: Session, *, org_id: uuid.UUID, start: date, end: date) -> int:
     li = Base.metadata.tables["cost_line_items"]
     daily = Base.metadata.tables["cost_daily"]
     db.execute(
@@ -195,17 +267,26 @@ def refresh_daily(db: Session, *, org_id: uuid.UUID, start: date, end: date) -> 
         )
     )
     keys = [li.c[k] for k in DAILY_KEYS]
-    grouped = db.execute(
-        select(
-            *keys,
-            func.sum(li.c.billed_cost),
-            func.sum(li.c.effective_cost),
-            func.sum(li.c.list_cost),
-            func.count(),
+    sums = (
+        func.coalesce(func.sum(li.c.billed_cost), 0),
+        func.coalesce(func.sum(li.c.effective_cost), 0),
+        func.sum(li.c.list_cost),
+        func.count(),
+    )
+    where = (li.c.org_id == org_id, li.c.charge_date >= start, li.c.charge_date <= end)
+    if db.get_bind().dialect.name == "postgresql":
+        # One statement on the server (11.18): a 50-million-line bill no longer passes
+        # every rollup row through Python (200,000 lines took 5 s that way).
+        grouped_on_server = (
+            select(func.gen_random_uuid(), literal(org_id, type_=daily.c.org_id.type), *keys, *sums)
+            .where(*where)
+            .group_by(*keys)
         )
-        .where(li.c.org_id == org_id, li.c.charge_date >= start, li.c.charge_date <= end)
-        .group_by(*keys)
-    ).all()
+        target = ["id", "org_id", *DAILY_KEYS,
+                  "billed_cost", "effective_cost", "list_cost", "line_count"]  # fmt: skip
+        result = db.execute(insert(daily).from_select(target, grouped_on_server))
+        return int(getattr(result, "rowcount", 0) or 0)
+    grouped = db.execute(select(*keys, *sums).where(*where).group_by(*keys)).all()
     rows = []
     n = len(DAILY_KEYS)
     for raw in grouped:
@@ -225,3 +306,15 @@ def refresh_daily(db: Session, *, org_id: uuid.UUID, start: date, end: date) -> 
     if rows:
         db.execute(insert(daily), rows)
     return len(rows)
+
+
+def refresh_all_tag_daily(db: Session, org_id: uuid.UUID) -> int:
+    """After tags change on existing lines (tag rules, virtual tags): rebuild the whole
+    per-tag rollup of the organisation."""
+    li = Base.metadata.tables["cost_line_items"]
+    first, last = db.execute(
+        select(func.min(li.c.charge_date), func.max(li.c.charge_date)).where(li.c.org_id == org_id)
+    ).one()
+    if first is None:
+        return 0
+    return refresh_tag_daily(db, org_id=org_id, start=first, end=last)

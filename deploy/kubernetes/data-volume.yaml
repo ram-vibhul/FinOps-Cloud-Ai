@@ -1,6 +1,7 @@
 # Uploaded cost files and generated reports, shared by web and worker pods. It needs
 # ReadWriteMany (e.g. EFS, Azure Files, Filestore, NFS); set storageClassName for your
-# cluster. Database data is not here: it lives in PostgreSQL.
+# cluster. Alternatively set CCRADAR_STORAGE_URL=s3://bucket/prefix (11.7): files then
+# live in object storage and this volume only holds temporary files. Database data is not here: it lives in PostgreSQL.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

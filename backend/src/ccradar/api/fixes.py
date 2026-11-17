@@ -5,16 +5,17 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Query, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from ccradar.accounts.roles import Permission
 from ccradar.api.deps import SessionDep, SettingsDep, plan_feature, require
+from ccradar.api.paging import Cursor, keyset, page
 from ccradar.auth.web import AuthContext
 from ccradar.clouds.aws import fixes
 from ccradar.core.errors import AppError, NotFoundError
-from ccradar.models import CloudConnection, Finding, FixAction, User
+from ccradar.models import CloudConnection, Finding, FixAction, StopSchedule, User
 
 router = APIRouter(tags=["automatic fixes"])
 Reader = Annotated[AuthContext, require(Permission.READ)]
@@ -139,11 +140,16 @@ def request_purchase(purchase_id: uuid.UUID, auth: Writer, db: SessionDep) -> di
 
 
 @router.get("/api/v1/fixes")
-def list_fixes(auth: Reader, db: SessionDep) -> list[dict[str, Any]]:
-    return [
-        _out(db, x)
-        for x in db.scalars(select(FixAction).order_by(FixAction.created_at.desc()).limit(200))
-    ]
+def list_fixes(
+    auth: Reader,
+    db: SessionDep,
+    response: Response,
+    cursor: Cursor = None,
+    limit: Annotated[int, Query(ge=1, le=500)] = 200,
+) -> list[dict[str, Any]]:
+    cols = (FixAction.created_at, FixAction.id)
+    rows = db.scalars(keyset(select(FixAction), cursor, *cols).limit(limit + 1)).all()
+    return [_out(db, x) for x in page(rows, limit, response, *cols)]
 
 
 @router.post("/api/v1/fixes/{fix_id}/approve", dependencies=[plan_feature("auto_fixes")])
@@ -184,3 +190,123 @@ def write_access(auth: Reader, db: SessionDep) -> list[dict[str, Any]]:
             }
         )
     return out
+
+
+# --- office-hours schedules (11.35) ---------------------------------------------------
+
+
+class ScheduleIn(BaseModel):
+    connection_id: uuid.UUID
+    name: str = Field(min_length=1, max_length=200)
+    region: str = Field(pattern=r"^[a-z]{2}(-gov)?-[a-z]+-\d$")
+    instance_ids: list[str] = Field(min_length=1, max_length=50)
+    timezone: str = Field(default="UTC", max_length=60)
+    days: list[int] = Field(default_factory=lambda: [0, 1, 2, 3, 4], max_length=7)
+    stop_at: str = "20:00"
+    start_at: str = "08:00"
+    savings_monthly: float = Field(default=0, ge=0, le=10_000_000)
+
+
+def _schedule_out(db: SessionDep, s: StopSchedule) -> dict[str, Any]:
+    def email(uid: uuid.UUID | None) -> str | None:
+        u = db.get(User, uid) if uid else None
+        return u.email if u else None
+
+    state = s.state or {}
+    return {
+        "id": str(s.id),
+        "connection_id": str(s.connection_id),
+        "name": s.name,
+        "region": s.region,
+        "instance_ids": s.instance_ids or [],
+        "timezone": s.timezone,
+        "days": s.days or [],
+        "stop_at": s.stop_at,
+        "start_at": s.start_at,
+        "status": s.status,
+        "savings_monthly": s.savings_monthly,
+        "requested_by": email(s.requested_by_id),
+        "approved_by": email(s.approved_by_id),
+        "stopped_now": state.get("stopped") or [],
+        "log": (state.get("log") or [])[:10],
+    }
+
+
+def _schedule(db: SessionDep, schedule_id: uuid.UUID) -> StopSchedule:
+    s = db.get(StopSchedule, schedule_id)
+    if s is None:
+        raise NotFoundError("Schedule not found.")
+    return s
+
+
+@router.get("/api/v1/schedules")
+def list_schedules(auth: Reader, db: SessionDep) -> list[dict[str, Any]]:
+    rows = db.scalars(select(StopSchedule).order_by(StopSchedule.created_at.desc()))
+    return [_schedule_out(db, s) for s in rows]
+
+
+@router.post("/api/v1/schedules", status_code=201)
+def request_schedule(body: ScheduleIn, auth: Writer, db: SessionDep) -> dict[str, Any]:
+    """Ask for servers to be stopped outside office hours; an administrator approves."""
+    from ccradar.clouds.aws.schedules import validate
+
+    assert auth.org_id is not None  # noqa: S101
+    conn = _conn(db, body.connection_id)
+    if conn.provider != "aws":
+        raise AppError("Schedules need an AWS connection.", code="not_aws")
+    ids = sorted(set(body.instance_ids))
+    try:
+        validate(ids, body.stop_at, body.start_at, body.timezone, sorted(set(body.days)))
+    except ValueError as exc:
+        raise AppError(f"{str(exc)[0].upper()}{str(exc)[1:]}.", code="bad_schedule") from exc
+    s = StopSchedule(
+        org_id=auth.org_id,
+        connection_id=conn.id,
+        name=body.name.strip(),
+        region=body.region,
+        instance_ids=ids,
+        timezone=body.timezone,
+        days=sorted(set(body.days)),
+        stop_at=body.stop_at,
+        start_at=body.start_at,
+        savings_monthly=body.savings_monthly,
+        requested_by_id=auth.user.id,
+        status="requested",
+        state={},
+    )
+    db.add(s)
+    db.flush()
+    return _schedule_out(db, s)
+
+
+@router.post("/api/v1/schedules/{schedule_id}/approve", dependencies=[plan_feature("auto_fixes")])
+def approve_schedule(schedule_id: uuid.UUID, auth: Admin, db: SessionDep) -> dict[str, Any]:
+    s = _schedule(db, schedule_id)
+    conn = _conn(db, s.connection_id)
+    if fixes.settings_of(conn) is None:
+        raise AppError("Turn on automatic fixes for this connection first.", code="fixes_off")
+    s.status, s.approved_by_id = "approved", auth.user.id
+    db.flush()
+    return _schedule_out(db, s)
+
+
+@router.post("/api/v1/schedules/{schedule_id}/{action}")
+def change_schedule(
+    schedule_id: uuid.UUID, action: str, auth: Admin, db: SessionDep
+) -> dict[str, Any]:
+    """pause, resume (needs approval again) or reject."""
+    s = _schedule(db, schedule_id)
+    target = {"pause": "paused", "resume": "requested", "reject": "rejected"}.get(action)
+    if target is None:
+        raise NotFoundError("Unknown action.")
+    s.status = target
+    db.flush()
+    return _schedule_out(db, s)
+
+
+@router.delete("/api/v1/schedules/{schedule_id}", status_code=204)
+def delete_schedule(schedule_id: uuid.UUID, auth: Admin, db: SessionDep) -> Response:
+    """Servers it stopped stay stopped: the schedule's page lists them first."""
+    db.delete(_schedule(db, schedule_id))
+    db.flush()
+    return Response(status_code=204)

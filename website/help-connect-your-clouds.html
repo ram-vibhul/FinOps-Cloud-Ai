@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connect your clouds · CloudCostRadar</title>
+  <meta name="description" content="Bring in your AWS, Azure and Google Cloud bills with read-only access.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header>
+    <a class="logo" href="index.html">CloudCostRadar</a>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="index.html">Product</a></li>
+        <li><a href="pricing.html">Pricing</a></li>
+        <li><a href="getting-started.html">Getting started</a></li>
+        <li><a href="help.html" aria-current="page">Help</a></li>
+        <li><a href="security.html">Security</a></li>
+        <li><a href="support.html">Support</a></li>
+      </ul>
+    </nav>
+  </header>
+  <main id="main">
+    <p><a href="help.html">Help</a></p>
+    <h1>Connect your clouds</h1>
+    <p class="lead">Bring in your AWS, Azure and Google Cloud bills with read-only access.</p>
+<h2>AWS</h2>
+<ul><li>In <strong>Settings → Cloud accounts</strong>, choose <strong>Add AWS account</strong>. CloudCostRadar shows a CloudFormation template that creates a read-only role. It trusts only CloudCostRadar and needs an external ID unique to your connection.</li><li>Run the template in your management (payer) account to see every linked account's costs, or in a single account to see just that one.</li><li>For resource-level detail, turn on a Cost and Usage Report (Data Exports) to S3 and give its bucket in the connection. Without it, CloudCostRadar uses Cost Explorer data by service and account.</li><li>The first costs arrive within minutes; savings findings follow after the first inventory scan.</li></ul>
+<h2>Azure</h2>
+<ul><li>Create an app registration with <strong>Cost Management Reader</strong> on the billing scope and <strong>Reader</strong> on each subscription. <strong>Settings → Cloud accounts</strong> shows the exact <code>az</code> commands.</li><li>Reader also lets Live Radar read the Activity Log and find unattached disks and unused IP addresses.</li></ul>
+<h2>Google Cloud</h2>
+<ul><li>Turn on the BigQuery billing export, then create a service account with the roles listed in <strong>Settings → Cloud accounts</strong> (BigQuery read, Recommender, Compute and Logs Viewer) and upload its key.</li><li>Delete the local copy of the key after uploading it: CloudCostRadar stores it encrypted.</li></ul>
+<h2>Other services</h2>
+<ul><li><strong>Connect a service</strong> (in <strong>Settings → Cloud accounts</strong>) connects other bills, each with a read-only key. Each one is labelled: - <strong>Beta</strong>: real costs from the vendor's billing API: Snowflake, Databricks, Datadog, MongoDB Atlas (per cluster, with services such as backup, data transfer and Search), OpenAI, Anthropic, GitHub, Confluent Cloud, Vercel, DigitalOcean, Linode (Akamai Cloud), Fastly, Elastic Cloud, Grafana Cloud, Oracle Cloud, Alibaba Cloud and Twilio. - <strong>Alpha</strong>: estimates, because the vendor has no billing API (or its API is still in preview). These are New Relic, Sentry and Hetzner Cloud (usage priced from rates or price lists), Okta, Slack, Zoom, PagerDuty and Atlassian Jira (seats times the price you enter, for the current month only), and Cloudflare (whose billing API is itself in preview). Check alpha figures against your invoice. - <strong>Stable</strong>: checked against live accounts. None of the connectors has been checked this way yet.</li><li>Fivetran and dbt Cloud are not connected yet: neither has a public API for cost or usage. Upload their usage export as a file instead.</li><li>You can also upload a CSV or FOCUS file from any provider.</li></ul>
+  </main>
+  <footer>
+    <p>CloudCostRadar is made by Yugiverse. <a href="security.html">Security</a> · <a href="support.html">Support</a> · <a href="changelog.html">What's new</a></p>
+  </footer>
+</body>
+</html>

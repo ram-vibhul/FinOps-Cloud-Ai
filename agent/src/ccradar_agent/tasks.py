@@ -36,26 +36,15 @@ class TaskApi:
     serialize: Callable[[Any], Any]
 
 
-def default_task_api(api_client: Any) -> TaskApi:
-    from kubernetes import client
+def default_task_api(kube: Any) -> TaskApi:
+    """``kube`` is a ``kube.Kube``: GET calls only."""
+    from ccradar_agent.kube import READ_PATHS, identity
 
-    core, apps, batch = (
-        client.CoreV1Api(api_client),
-        client.AppsV1Api(api_client),
-        client.BatchV1Api(api_client),
-    )
     return TaskApi(
-        read_log=core.read_namespaced_pod_log,
-        read={
-            "Pod": core.read_namespaced_pod,
-            "Deployment": apps.read_namespaced_deployment,
-            "StatefulSet": apps.read_namespaced_stateful_set,
-            "DaemonSet": apps.read_namespaced_daemon_set,
-            "Job": batch.read_namespaced_job,
-            "CronJob": batch.read_namespaced_cron_job,
-        },
-        events=core.list_namespaced_event,
-        serialize=api_client.sanitize_for_serialization,
+        read_log=kube.read_log,
+        read={kind: kube.reader(kind) for kind in READ_PATHS},
+        events=kube.events,
+        serialize=identity,
     )
 
 

@@ -184,4 +184,5 @@ def test_catalogue_covers_every_detector_once() -> None:
     from ccradar.findings.registry import load_all
 
     used = [d for c in CHECKS for d in c.detectors]
-    assert sorted(used) == sorted(load_all()) and len({c.id for c in CHECKS}) == len(CHECKS)
+    aws = [d for d in load_all() if not d.startswith(("azure.", "gcp."))]  # an AWS checklist
+    assert sorted(used) == sorted(aws) and len({c.id for c in CHECKS}) == len(CHECKS)

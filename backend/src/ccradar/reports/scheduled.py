@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 import csv
 import io
+import logging
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -21,6 +22,8 @@ from sqlalchemy.orm import Session
 from ccradar.core.email import Email
 from ccradar.db.base import utcnow
 from ccradar.models import Organization, ReportSchedule
+
+log = logging.getLogger(__name__)
 
 KINDS = {
     "cost_summary": "Cost summary",
@@ -303,6 +306,7 @@ def send_due(
         try:
             sent += send(db, org_id, s, deliver)
         except Exception as error:
+            log.warning("scheduled report %s failed", s.id, exc_info=True)
             s.last_error = f"{type(error).__name__}: {error}"[:500]
             db.flush()
     return sent

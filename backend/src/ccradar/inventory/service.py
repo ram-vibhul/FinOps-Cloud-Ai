@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from ccradar.clouds.aws.client import AwsAccessError, AwsGateway
 from ccradar.costs.explorer import tag_aliases
-from ccradar.costs.fx import converted
+from ccradar.costs.fx import needs_conversion, summed_then_converted
 from ccradar.db.base import Base, utcnow
 from ccradar.db.tenant import set_tenant
 from ccradar.inventory.aws import COLLECTOR_TYPES, COLLECTORS, Found
@@ -178,7 +178,8 @@ def _collect_metrics(
     try:
         client = gateway.client(session, "cloudwatch", region=region)
         return metrics.collect(db, client, org_id, resources)
-    except Exception:  # no cloudwatch:GetMetricData, throttled, ...: keep the inventory
+    except Exception as error:  # no cloudwatch:GetMetricData, throttled, ...: keep the inventory
+        log.info("metrics skipped in %s: %s", region, type(error).__name__)
         return 0
 
 
@@ -198,28 +199,23 @@ def resource_costs(
     if currency is None:
         org = db.get(Organization, org_id)
         currency = org.default_currency if org else "USD"
-    amount = converted(
-        table.c.effective_cost,
-        table.c.billing_currency,
-        table.c.charge_date,
-        currency,
-        table.c.org_id,
-    )
     last: date = (
         end
         or db.scalar(select(func.max(table.c.charge_date)).where(table.c.org_id == org_id))
         or utcnow().date()
     )
-    rows = db.execute(
-        select(table.c.resource_id, func.sum(amount))
-        .where(
-            table.c.org_id == org_id,
-            table.c.resource_id.in_(resource_ids),
-            table.c.charge_date > last - timedelta(days=days),
-            table.c.charge_date <= last,
-        )
-        .group_by(table.c.resource_id)
-    ).all()
+    where = [
+        table.c.org_id == org_id,
+        table.c.resource_id.in_(resource_ids),
+        table.c.charge_date > last - timedelta(days=days),
+        table.c.charge_date <= last,
+    ]
+    key = table.c.resource_id.label("resource_id")
+    convert = needs_conversion(db, org_id, last - timedelta(days=days), last, currency)
+    _, (outer,), amount = summed_then_converted(
+        table, table.c.effective_cost, where, [key], currency, convert=convert, by_day=False
+    )
+    rows = db.execute(select(outer, func.sum(amount)).group_by(outer)).all()
     return {r: round(float(v), 2) for r, v in rows if v is not None}
 
 

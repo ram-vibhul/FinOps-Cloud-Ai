@@ -72,3 +72,24 @@ def ensure_partitions(
             savepoint.rollback()
             log.warning("could not create partition %s: %s", name, exc)
     return created
+
+
+def add_future_partitions(conn: Connection, *, today: date, months_ahead: int = 12) -> list[str]:
+    """Monthly job (11.8): create the next months' partitions through the narrow
+    ``ccradar_add_cost_partition`` function, so the runtime role needs no rights to
+    create tables. Returns the partitions it created."""
+    created = []
+    start = today.replace(day=1)
+    for offset in range(months_ahead + 1):
+        month = _add_months(start, offset)
+        try:
+            with conn.begin_nested():
+                made = conn.execute(
+                    text("SELECT ccradar_add_cost_partition(:m)"), {"m": month}
+                ).scalar()
+        except Exception as exc:
+            log.warning("could not add partition for %s: %s", month, exc)
+            continue
+        if made:
+            created.append(partition_name(month))
+    return created

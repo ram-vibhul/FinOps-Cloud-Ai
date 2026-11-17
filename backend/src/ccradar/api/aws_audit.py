@@ -6,12 +6,13 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Response
 from pydantic import BaseModel
 from sqlalchemy import select
 
 from ccradar.accounts.roles import Permission
 from ccradar.api.deps import SessionDep, require
+from ccradar.api.paging import Cursor, keyset, page
 from ccradar.auth.web import AuthContext
 from ccradar.aws_audit.catalogue import AREAS, CHECKS
 from ccradar.aws_audit.service import run_audit
@@ -73,15 +74,21 @@ def catalogue(auth: Reader) -> dict[str, Any]:
 
 @router.get("", response_model=list[RunOut])
 def list_runs(
-    auth: Reader, db: SessionDep, limit: Annotated[int, Query(ge=1, le=100)] = 20
+    auth: Reader,
+    db: SessionDep,
+    response: Response,
+    cursor: Cursor = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> list[RunOut]:
-    rows = db.execute(
-        select(AuditRun, User.name, User.email)
-        .outerjoin(User, User.id == AuditRun.requested_by_id)
-        .order_by(AuditRun.started_at.desc())
-        .limit(limit)
-    ).all()
-    return [_run_out(r, (name or email) if r.requested_by_id else None) for r, name, email in rows]
+    cols = (AuditRun.started_at, AuditRun.id)
+    stmt = select(AuditRun, User.name, User.email).outerjoin(
+        User, User.id == AuditRun.requested_by_id
+    )
+    rows = db.execute(keyset(stmt, cursor, *cols).limit(limit + 1)).all()
+    return [
+        _run_out(r, (name or email) if r.requested_by_id else None)
+        for r, name, email in page(rows, limit, response, *cols, of=lambda row: row[0])
+    ]
 
 
 @router.post("", response_model=RunOut, status_code=201)

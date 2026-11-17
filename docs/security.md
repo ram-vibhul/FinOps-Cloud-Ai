@@ -29,6 +29,15 @@ unless `CCRADAR_ALLOW_PRIVILEGED_DB_ROLE=true` (not recommended).
   secrets are encrypted at rest.
 - Automatic fixes need a separate role the customer creates, owner approval for each
   change and every safety check passing.
+- Office-hours schedules (stop and start non-production servers) use the same fixes
+  role and need an administrator's approval for each schedule. Only servers
+  CloudCostRadar stopped are started again, and servers tagged `ccradar-protect` or in an
+  Auto Scaling group are never touched. The role's template gained `ec2:StartInstances`
+  for this. A role created from an older template can still stop servers, but starting
+  them is refused by AWS and shows as an error on the schedule until the stack is
+  updated.
+- Radar's "How to undo" shows AWS CLI commands for a person to run; CloudCostRadar never
+  runs them.
 
 ## Network
 
@@ -56,6 +65,43 @@ Sign-in, anonymous, per-user/API-key and write limits are on by default (see the
 Logs are JSON lines with a request id; secrets and webhook addresses are redacted. Each
 organisation has an audit log of changes, kept for its retention setting (default 365
 days) and exportable as CSV.
+
+### Streaming the audit log to a SIEM
+
+Admins can stream the audit log (Settings → Audit) to Splunk (HTTP Event Collector),
+Microsoft Sentinel (Azure Monitor Logs Ingestion API), Datadog Logs, a syslog server over
+TLS (RFC 5424/5425, port 6514 by default) or any HTTPS webhook. Business and Enterprise
+plans include it.
+
+- **Delivery.** A job sends new events every minute, in batches of up to 500. Each stream
+  keeps its place in the log and moves on only after the receiver accepts a batch. If the
+  receiver is down, it retries after 1 minute, 5 minutes, 30 minutes, 2 hours, then every
+  6 hours, starting from the same event, so nothing is skipped. Events newer than two
+  minutes wait for the next run, so a change that commits late is not missed. A new
+  stream starts with new events, or with everything still kept if you choose back-fill.
+- **Signing.** Every HTTP request carries
+  `X-CloudCostRadar-Signature: t=<unix seconds>,v1=<hex>`. The hex is HMAC-SHA256, with
+  the stream's signing secret, over `"<t>.<raw body>"` (the same scheme as outgoing
+  webhooks). Syslog messages carry the HMAC of their JSON body as
+  `[ccradar@32473 sig="<hex>"]`. The signing secret is shown once and can be rotated.
+- **Secrets.** Tokens, keys and client secrets are encrypted at rest and never shown
+  again.
+- **Addresses.** Only public internet addresses are allowed. They are checked when you
+  save a stream and again before every send, and redirects are not followed.
+- **Sentinel.** Uses an Entra app (client credentials) with the Monitoring Metrics
+  Publisher role on the data collection rule. The older HTTP Data Collector API is not
+  used because Microsoft retired it in September 2026.
+
+SOC 2 and ISO 27001 certification need a paid audit and have not been done.
+
+## Peer benchmarks
+
+Off by default. When an admin opts in, four ratios for the last full month are shared:
+effective savings rate, waste share, share of spend with a team, and EC2 cost per
+vCPU-hour, plus a size band (small, medium or large). No amounts, names, accounts,
+resources or tags. Other organisations see only percentiles, and only from at least
+five organisations. Opting out deletes the shared ratios at once. Demo organisations
+never take part.
 
 ## Licences (self-hosted)
 

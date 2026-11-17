@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Budgets and policies · CloudCostRadar</title>
+  <meta name="description" content="Keep spend within limits and catch costly changes before and as they happen.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header>
+    <a class="logo" href="index.html">CloudCostRadar</a>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="index.html">Product</a></li>
+        <li><a href="pricing.html">Pricing</a></li>
+        <li><a href="getting-started.html">Getting started</a></li>
+        <li><a href="help.html" aria-current="page">Help</a></li>
+        <li><a href="security.html">Security</a></li>
+        <li><a href="support.html">Support</a></li>
+      </ul>
+    </nav>
+  </header>
+  <main id="main">
+    <p><a href="help.html">Help</a></p>
+    <h1>Budgets and policies</h1>
+    <p class="lead">Keep spend within limits and catch costly changes before and as they happen.</p>
+<h2>Budgets</h2>
+<ul><li><strong>Governance → Budgets</strong>: set an amount per month, quarter or year for any slice of spend (account, service, region, team or tag), with alert thresholds and a forecast warning.</li><li>Budgets can be nested: a team budget inside a department budget.</li></ul>
+<h2>Policies</h2>
+<ul><li><strong>Governance → Policies</strong>: required tags, allowed regions, denied instance types, Kubernetes requests and the largest monthly increase allowed in one change.</li><li>Policies are checked every morning against your resources, on every change Live Radar sees, and on Terraform plans in CI. <strong>Critical</strong> policies fail the CI check.</li></ul>
+<h2>Policies as code</h2>
+<ul><li>Download your policies as YAML from the Policies page and keep them in your repository. Send changes back with:</li></ul>
+<pre><code>curl -X PUT https://YOUR-ADDRESS/api/v1/governance/policies.yaml \
+  -H &quot;Authorization: Bearer $CCRADAR_API_KEY&quot; --data-binary @policies.yaml</code></pre>
+<ul><li>Add <code>?prune=true</code> to delete policies that are no longer in the file.</li></ul>
+<h2>Cost comments on pull requests</h2>
+<ul><li>The CloudCostRadar GitHub Action posts what a Terraform plan adds to the monthly bill, priced at your own rates, and the policies it breaks. See <code>integrations/github-action</code> for the workflow.</li></ul>
+  </main>
+  <footer>
+    <p>CloudCostRadar is made by Yugiverse. <a href="security.html">Security</a> · <a href="support.html">Support</a> · <a href="changelog.html">What's new</a></p>
+  </footer>
+</body>
+</html>

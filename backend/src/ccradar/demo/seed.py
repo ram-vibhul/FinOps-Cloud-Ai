@@ -69,6 +69,8 @@ SEEDER_MODULES = (
     "ccradar.k8s.demo",
     "ccradar.findings.demo",
     "ccradar.aws_audit.demo",
+    "ccradar.costs.multicloud_demo",
+    "ccradar.demo.workspace",
 )
 
 

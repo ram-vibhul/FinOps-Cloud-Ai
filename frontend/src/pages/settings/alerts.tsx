@@ -81,6 +81,13 @@ function AlertForm({ initial, canEdit }: { initial: AlertSettings; canEdit: bool
                 onChange={(e) => setForm({ ...form, same_day_over_pct: Number(e.target.value) })} />
               % above the usual (needs hourly data from the billing export)
             </label>
+            <label className="flex flex-wrap items-center gap-2">
+              <input type="checkbox" checked={form.radar_alerts ?? true} onChange={(e) => setForm({ ...form, radar_alerts: e.target.checked })} />
+              Live Radar: alert within minutes when one change adds at least
+              <Input aria-label="Radar alert from (a month)" type="number" min={0} className="h-7 w-24" value={form.radar_min_monthly ?? 100}
+                onChange={(e) => setForm({ ...form, radar_min_monthly: Number(e.target.value) })} />
+              a month to the run rate
+            </label>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={form.weekly_digest_email ?? false} disabled={!canEdit}
                 onChange={(e) => setForm({ ...form, weekly_digest_email: e.target.checked })} />

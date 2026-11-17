@@ -1,0 +1,28 @@
+{
+  "source": "AWS public on-demand Linux EC2 prices; median ratio to us-east-1",
+  "generated": "2026-11-12",
+  "factors": {
+    "af-south-1": 1.333,
+    "ap-east-1": 1.324,
+    "ap-northeast-1": 1.259,
+    "ap-northeast-2": 1.206,
+    "ap-northeast-3": 1.259,
+    "ap-south-1": 1.032,
+    "ap-south-2": 1.032,
+    "ap-southeast-1": 1.206,
+    "ap-southeast-2": 1.25,
+    "ca-central-1": 1.1,
+    "eu-central-1": 1.198,
+    "eu-north-1": 1.063,
+    "eu-south-1": 1.174,
+    "eu-west-1": 1.115,
+    "eu-west-2": 1.174,
+    "eu-west-3": 1.174,
+    "me-south-1": 1.231,
+    "sa-east-1": 1.593,
+    "us-east-1": 1.0,
+    "us-east-2": 1.0,
+    "us-west-1": 1.17,
+    "us-west-2": 1.0
+  }
+}

@@ -63,6 +63,7 @@ DETECTOR_MODULES = (
     "ccradar.findings.aws_db_perf",
     "ccradar.findings.upgrades",
     "ccradar.findings.ai",
+    "ccradar.findings.other_clouds",
     "ccradar.findings.advice",  # last: merges with everything above
 )
 

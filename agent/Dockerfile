@@ -16,8 +16,11 @@ LABEL org.opencontainers.image.title="CloudCostRadar agent" \
       org.opencontainers.image.licenses="LicenseRef-Proprietary" \
       org.opencontainers.image.version="${VERSION}"
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
-COPY --from=wheels /wheels /wheels
-RUN pip install --no-index --find-links=/wheels cloudcostradar-agent && rm -rf /wheels
+# The agent talks to the Kubernetes API with its own small read-only client (kube.py)
+# instead of the official client library (about 127 MB), and installs from a bind
+# mount so the wheels never become a layer of their own (11.19).
+RUN --mount=type=bind,from=wheels,source=/wheels,target=/wheels \
+    pip install --no-index --find-links=/wheels cloudcostradar-agent
 COPY LICENSE THIRD_PARTY_NOTICES.md /opt/ccradar/
 USER 10001:10001
 ENTRYPOINT ["cloudcostradar-agent"]

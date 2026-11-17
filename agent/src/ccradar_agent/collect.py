@@ -11,31 +11,11 @@ PAGE = 500
 Lister = Callable[..., Any]
 
 
-def default_listers(api_client: Any) -> dict[str, Lister]:
-    from kubernetes import client
+def default_listers(kube: Any) -> dict[str, Lister]:
+    """List calls for every kind the agent reads (``kube`` is a ``kube.Kube``)."""
+    from ccradar_agent.kube import LIST_PATHS
 
-    core = client.CoreV1Api(api_client)
-    apps = client.AppsV1Api(api_client)
-    batch = client.BatchV1Api(api_client)
-    autoscaling = client.AutoscalingV2Api(api_client)
-    return {
-        "Namespace": core.list_namespace,
-        "Node": core.list_node,
-        "Pod": core.list_pod_for_all_namespaces,
-        "Service": core.list_service_for_all_namespaces,
-        "PersistentVolumeClaim": core.list_persistent_volume_claim_for_all_namespaces,
-        "Deployment": apps.list_deployment_for_all_namespaces,
-        "ReplicaSet": apps.list_replica_set_for_all_namespaces,
-        "StatefulSet": apps.list_stateful_set_for_all_namespaces,
-        "DaemonSet": apps.list_daemon_set_for_all_namespaces,
-        "Job": batch.list_job_for_all_namespaces,
-        "CronJob": batch.list_cron_job_for_all_namespaces,
-        "HorizontalPodAutoscaler": autoscaling.list_horizontal_pod_autoscaler_for_all_namespaces,
-        "Event": core.list_event_for_all_namespaces,
-        "PodMetrics": lambda **kw: client.CustomObjectsApi(api_client).list_cluster_custom_object(
-            "metrics.k8s.io", "v1beta1", "pods", **kw
-        ),
-    }
+    return {kind: kube.lister(kind) for kind in LIST_PATHS}
 
 
 class Collector:
@@ -65,10 +45,9 @@ class Collector:
             kwargs: dict[str, Any] = {"limit": PAGE}
             if cont:
                 kwargs["_continue"] = cont
-            page = self.listers[kind](**kwargs)
-            for item in page.items or []:
+            items, cont = _items(self.listers[kind](**kwargs))
+            for item in items:
                 yield self.serialize(item)
-            cont = getattr(page.metadata, "_continue", None) if page.metadata else None
             if not cont:
                 return
 

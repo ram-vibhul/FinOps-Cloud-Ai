@@ -9,6 +9,7 @@ const InvestigationPage = lazy(() => import("@/pages/kubernetes/investigate").th
 const AiSpendPage = lazy(() => import("@/pages/costs/ai").then((m) => ({ default: m.AiSpendPage })));
 const NetworkCostsPage = lazy(() => import("@/pages/costs/network").then((m) => ({ default: m.NetworkCostsPage })));
 const CommitmentsPage = lazy(() => import("@/pages/savings/commitments-page").then((m) => ({ default: m.CommitmentsPage })));
+const DashboardsPage = lazy(() => import("@/pages/dashboards").then((m) => ({ default: m.DashboardsPage })));
 const ExecutivePage = lazy(() => import("@/pages/executive").then((m) => ({ default: m.ExecutivePage })));
 const GovernancePage = lazy(() => import("@/pages/governance").then((m) => ({ default: m.GovernancePage })));
 const UpgradesPage = lazy(() => import("@/pages/savings/upgrades").then((m) => ({ default: m.UpgradesPage })));
@@ -19,30 +20,32 @@ const KubernetesCostsPage = lazy(() => import("@/pages/costs/kubernetes").then((
 const VirtualTagsPage = lazy(() => import("@/pages/costs/vtags").then((m) => ({ default: m.VirtualTagsPage })));
 const ResourcesPage = lazy(() => import("@/pages/costs/resources").then((m) => ({ default: m.ResourcesPage })));
 const DataQualityPage = lazy(() => import("@/pages/costs/quality").then((m) => ({ default: m.DataQualityPage })));
+// Every page loads on demand (11.11): the first page only downloads what it shows.
+const GlossaryPage = lazy(() => import("@/pages/glossary").then((m) => ({ default: m.GlossaryPage })));
+const RadarPage = lazy(() => import("@/pages/radar").then((m) => ({ default: m.RadarPage })));
+const NotificationsPage = lazy(() => import("@/pages/notifications").then((m) => ({ default: m.NotificationsPage })));
+const InvitePage = lazy(() => import("@/pages/invite").then((m) => ({ default: m.InvitePage })));
+const PartnerInvitePage = lazy(() => import("@/pages/partner-invite").then((m) => ({ default: m.PartnerInvitePage })));
+const OverviewPage = lazy(() => import("@/pages/overview").then((m) => ({ default: m.OverviewPage })));
+const SettingsPage = lazy(() => import("@/pages/settings").then((m) => ({ default: m.SettingsPage })));
+const SetupPage = lazy(() => import("@/pages/setup").then((m) => ({ default: m.SetupPage })));
+const WelcomePage = lazy(() => import("@/pages/welcome").then((m) => ({ default: m.WelcomePage })));
 const ExplorerPage = lazy(() => import("@/pages/costs/explorer").then((m) => ({ default: m.ExplorerPage })));
-import { GlossaryPage } from "@/pages/glossary";
-import { NotificationsPage } from "@/pages/notifications";
-import { InvitePage } from "@/pages/invite";
-import { PartnerInvitePage } from "@/pages/partner-invite";
 import { NotFoundPage } from "@/pages/not-found";
-import { OverviewPage } from "@/pages/overview";
 import { SectionPage } from "@/pages/section";
-import { SettingsPage } from "@/pages/settings";
-import { SetupPage } from "@/pages/setup";
 import { SignInPage } from "@/pages/sign-in";
-import { WelcomePage } from "@/pages/welcome";
 import { AppShell } from "./app-shell";
 import { NAV_ITEMS } from "./nav";
 import { RequireSession } from "./require-session";
 
 export const routes: RouteObject[] = [
   { path: "/sign-in", element: <SignInPage /> },
-  { path: "/invite/:token", element: <InvitePage /> },
+  { path: "/invite/:token", element: <Suspense fallback={<FullPageSpinner label="Loading" />}><InvitePage /></Suspense> },
   {
     path: "/partner-invite/:code",
     element: (
       <RequireSession needsOrg={false}>
-        <PartnerInvitePage />
+        <Suspense fallback={<FullPageSpinner label="Loading" />}><PartnerInvitePage /></Suspense>
       </RequireSession>
     ),
   },
@@ -50,7 +53,7 @@ export const routes: RouteObject[] = [
     path: "/welcome",
     element: (
       <RequireSession needsOrg={false}>
-        <WelcomePage />
+        <Suspense fallback={<FullPageSpinner label="Loading" />}><WelcomePage /></Suspense>
       </RequireSession>
     ),
   },
@@ -61,11 +64,12 @@ export const routes: RouteObject[] = [
       </RequireSession>
     ),
     children: [
-      { index: true, element: <OverviewPage /> },
-      { path: "settings", element: <SettingsPage /> },
-      { path: "setup", element: <SetupPage /> },
-      { path: "glossary", element: <GlossaryPage /> },
-      { path: "notifications", element: <NotificationsPage /> },
+      { index: true, element: <Suspense fallback={<FullPageSpinner label="Loading" />}><OverviewPage /></Suspense> },
+      { path: "settings", element: <Suspense fallback={<FullPageSpinner label="Loading settings" />}><SettingsPage /></Suspense> },
+      { path: "setup", element: <Suspense fallback={<FullPageSpinner label="Loading" />}><SetupPage /></Suspense> },
+      { path: "glossary", element: <Suspense fallback={<FullPageSpinner label="Loading" />}><GlossaryPage /></Suspense> },
+      { path: "radar", element: <Suspense fallback={<FullPageSpinner label="Loading radar" />}><RadarPage /></Suspense> },
+      { path: "notifications", element: <Suspense fallback={<FullPageSpinner label="Loading notifications" />}><NotificationsPage /></Suspense> },
       {
         path: "kubernetes/investigate",
         element: (
@@ -103,6 +107,14 @@ export const routes: RouteObject[] = [
         element: (
           <Suspense fallback={<FullPageSpinner label="Loading commitments" />}>
             <CommitmentsPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: "dashboards",
+        element: (
+          <Suspense fallback={<FullPageSpinner label="Loading dashboards" />}>
+            <DashboardsPage />
           </Suspense>
         ),
       },
@@ -202,7 +214,7 @@ export const routes: RouteObject[] = [
           </Suspense>
         ),
       },
-      ...NAV_ITEMS.filter((i) => !["/", "/settings", "/costs", "/kubernetes", "/savings", "/governance", "/executive"].includes(i.to)).map((item) => ({
+      ...NAV_ITEMS.filter((i) => !["/", "/settings", "/costs", "/kubernetes", "/savings", "/governance", "/executive", "/radar", "/dashboards"].includes(i.to)).map((item) => ({
         path: item.to.slice(1),
         element: <SectionPage item={item} />,
       })),

@@ -249,6 +249,9 @@ def test_auto_clean_up_files_requests_but_never_acts(client: TestClient, db: Dat
         old = s.get(Finding, env["f"]["vol-1"])
         assert old is not None
         old.first_seen_at = datetime.now(UTC) - timedelta(days=10)  # idle for over a week
+        new = s.get(Finding, env["f"]["eipalloc-1"])
+        assert new is not None
+        new.first_seen_at = datetime.now(UTC) - timedelta(days=1)  # not a week yet
         conn = s.get(CloudConnection, env["conn"])
         assert conn is not None
         filed = fixes.auto_request(s, conn)

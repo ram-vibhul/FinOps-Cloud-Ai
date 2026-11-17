@@ -40,9 +40,23 @@ RUN groupadd --system --gid 10001 ccradar \
  && useradd --system --uid 10001 --gid ccradar --home-dir /app --shell /usr/sbin/nologin ccradar \
  && mkdir -p /data /app && chown ccradar:ccradar /data
 # Install from the wheels stage without copying the wheels into a layer of their own
-# (a later `rm` would not shrink the image).
+# (a later `rm` would not shrink the image). In the same layer, drop the parts of
+# pyarrow that CloudCostRadar never uses (Arrow Flight, Substrait, the S3/Azure/GCS
+# file systems, its own tests, C++ headers and Cython sources): about 70 MB (11.19).
+# pyarrow loads those parts only on request, and the last line fails the build if
+# reading and writing Parquet no longer works.
 RUN --mount=type=bind,from=wheels,source=/wheels,target=/wheels \
-    pip install --no-index --find-links=/wheels ccradar
+    pip install --no-index --find-links=/wheels ccradar \
+ && cd "$(python -c 'import os, pyarrow; print(os.path.dirname(pyarrow.__file__))')" \
+ && rm -rf tests include src \
+ && rm -f _flight.*.so libarrow_flight.so* libarrow_python_flight.so* \
+          _substrait.*.so libarrow_substrait.so* \
+          _s3fs.*.so libarrow_s3.so* _azurefs.*.so _gcsfs.*.so \
+          _pyarrow_cpp_tests.*.so \
+ && find . -name '*.pxd' -delete -o -name '*.pyx' -delete -o -name '*.pxi' -delete \
+ && python -c "import io, pyarrow as pa, pyarrow.parquet as pq, pyarrow.dataset, pyarrow.fs; \
+b = io.BytesIO(); pq.write_table(pa.table({'a': [1, 2]}), b); b.seek(0); \
+assert pq.ParquetFile(b).read().num_rows == 2"
 COPY --from=ui /ui/dist /app/ui
 COPY LICENSE THIRD_PARTY_NOTICES.md /app/
 WORKDIR /app

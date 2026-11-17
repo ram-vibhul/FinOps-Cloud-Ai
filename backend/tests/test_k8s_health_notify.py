@@ -223,8 +223,9 @@ def test_detection_job_skips_the_demo(db: Database, settings) -> None:
         set_tenant(s, bypass=True)
         for cl in s.scalars(select(K8sCluster)):
             cl.last_seen_at = utcnow()  # make it look live: still skipped
+        seeded = len(s.scalars(select(K8sInvestigation)).all())  # the demo's saved example
     configure_jobs(JobContext(settings=settings, db=db, storage=None))  # type: ignore[arg-type]
     assert detect_health() == 0
     with db.session() as s:
         set_tenant(s, bypass=True)
-        assert s.scalars(select(K8sInvestigation)).all() == []
+        assert len(s.scalars(select(K8sInvestigation)).all()) == seeded

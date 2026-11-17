@@ -6,12 +6,13 @@ import uuid
 from datetime import date, datetime
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Query, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from ccradar.accounts.roles import Permission
 from ccradar.api.deps import SessionDep, require
+from ccradar.api.paging import Cursor, keyset, page
 from ccradar.auth.web import AuthContext
 from ccradar.core.errors import NotFoundError
 from ccradar.costs.anomalies import AlertSettings, alert_settings
@@ -52,15 +53,19 @@ class AnomalyPatch(BaseModel):
 def list_anomalies(
     auth: Reader,
     db: SessionDep,
+    response: Response,
     status: Annotated[
         Literal["open", "acknowledged", "expected", "resolved", "all"], Query()
     ] = "open",
+    cursor: Cursor = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> list[AnomalyOut]:
-    stmt = select(CostAnomaly).order_by(CostAnomaly.last_day.desc(), CostAnomaly.impact.desc())
+    stmt = select(CostAnomaly)
     if status != "all":
         stmt = stmt.where(CostAnomaly.status == status)
-    rows = list(db.scalars(stmt.limit(limit)))
+    cols = (CostAnomaly.last_day, CostAnomaly.impact, CostAnomaly.id)
+    found = db.scalars(keyset(stmt, cursor, *cols).limit(limit + 1)).all()
+    rows = page(found, limit, response, *cols)
     names = dict(db.execute(select(CloudAccount.external_id, CloudAccount.name)).all())
     out = []
     for a in rows:

@@ -3,11 +3,14 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from typing import Any
 
 from ccradar.inventory.aws import Found, _pages, _tags
 from ccradar.inventory.aws_compute import _code
+
+log = logging.getLogger(__name__)
 
 MAX_BUCKETS = 1000
 MAX_CHILDREN = 200
@@ -18,7 +21,10 @@ def _try(call: Any, missing: str, **kw: Any) -> tuple[dict[str, Any] | None, boo
     try:
         return call(**kw), True
     except Exception as error:
-        return None, _code(error) == missing
+        known = _code(error) == missing
+        if not known:
+            log.debug("lookup failed: %s", _code(error) or type(error).__name__)
+        return None, known
 
 
 def _lifecycle(rules: list[dict[str, Any]]) -> dict[str, Any]:

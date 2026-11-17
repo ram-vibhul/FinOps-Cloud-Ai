@@ -70,7 +70,8 @@ filesystem and no capabilities.
    in (it becomes a Secret; never commit it).
 3. Set the image tag in `kustomization.yaml` and the host, ingress class and TLS secret
    in `ingress.yaml`. The data volume needs a `ReadWriteMany` storage class (EFS, Azure
-   Files, Filestore, NFS) because web and worker pods share uploaded files.
+   Files, Filestore, NFS) because web and worker pods share uploaded files, unless you
+   set `CCRADAR_STORAGE_URL=s3://bucket/prefix` to keep them in object storage.
 4. `kubectl apply -k deploy/kubernetes`
 5. Upgrades: change the tag, delete the finished `ccradar-migrate` Job, apply again.
 

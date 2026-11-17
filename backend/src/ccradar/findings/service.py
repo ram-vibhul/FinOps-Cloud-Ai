@@ -90,7 +90,8 @@ def run(db: Session, org_id: uuid.UUID, only: list[str] | None = None) -> dict[s
                 items = targets.apply(db, name, d.func(db, org_id, currency))
                 results[name] = _store(db, org_id, name, d.category, items)
         except Exception as error:
-            log.warning("detector %s failed: %s", name, type(error).__name__)
+            # A failing detector is a bug: keep the stack trace in the log (11.10).
+            log.warning("detector %s failed: %s", name, type(error).__name__, exc_info=True)
             results[name] = {"error": type(error).__name__}
     from ccradar.findings import pipeline
     from ccradar.findings.advice import annotate

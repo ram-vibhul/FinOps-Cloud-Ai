@@ -73,3 +73,19 @@ def test_image_keeps_data_in_the_volume() -> None:
     # and the container crashed at start (found running deploy/compose/local.yaml).
     dockerfile = (ROOT / "Dockerfile").read_text()
     assert "CCRADAR_DATA_DIR=/data" in dockerfile and 'VOLUME ["/data"]' in dockerfile
+
+
+def test_forwarded_headers_are_not_trusted_from_anyone() -> None:
+    # 11.3: with "*", any pod could fake its client IP and get past the rate limits.
+    web = next(
+        d
+        for d in docs()
+        if d.get("kind") == "Deployment" and d["metadata"]["name"] == "ccradar-web"
+    )
+    env = {e["name"]: e["value"] for e in web["spec"]["template"]["spec"]["containers"][0]["env"]}
+    trusted = env["CCRADAR_FORWARDED_ALLOW_IPS"]
+    assert "*" not in trusted and trusted
+    import ipaddress
+
+    for net in trusted.split(","):
+        assert ipaddress.ip_network(net).is_private, net

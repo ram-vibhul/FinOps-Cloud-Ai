@@ -14,7 +14,7 @@ from ccradar.models.ai_usage import AiUsageEvent, AiUsageKey
 from ccradar.models.allocation import AllocationRule
 from ccradar.models.anomalies import CostAnomaly
 from ccradar.models.api_keys import OrgApiKey
-from ccradar.models.audit import AuditEvent
+from ccradar.models.audit import AuditEvent, AuditStream
 from ccradar.models.aws_audit import AuditResult, AuditRun
 from ccradar.models.billing import Subscription
 from ccradar.models.budgets import Budget
@@ -27,12 +27,19 @@ from ccradar.models.commitments import (
     PurchasePolicy,
 )
 from ccradar.models.connections import CloudConnection
-from ccradar.models.costs import CloudAccount, CostDaily, CostImportRun, CostLineItem
+from ccradar.models.costs import (
+    BenchmarkSample,
+    CloudAccount,
+    CostDaily,
+    CostDailyTag,
+    CostImportRun,
+    CostLineItem,
+)
 from ccradar.models.custom_roles import CustomRole
 from ccradar.models.elevation import ElevatedAccess
 from ccradar.models.files import FileImport
 from ccradar.models.findings import Finding, FindingEvent, OwnerRule, Suppression
-from ccradar.models.fixes import FixAction
+from ccradar.models.fixes import FixAction, StopSchedule
 from ccradar.models.fx import ExchangeRate
 from ccradar.models.fx_overrides import FxOverride
 from ccradar.models.governance import Policy, PolicyViolation
@@ -76,6 +83,8 @@ __all__ = [
     "AuditEvent",
     "AuditResult",
     "AuditRun",
+    "AuditStream",
+    "BenchmarkSample",
     "Budget",
     "ChangeEvent",
     "CloudAccount",
@@ -86,6 +95,7 @@ __all__ = [
     "Contract",
     "CostAnomaly",
     "CostDaily",
+    "CostDailyTag",
     "CostHourly",
     "CostImportRun",
     "CostLineItem",
@@ -135,6 +145,7 @@ __all__ = [
     "ReportSchedule",
     "ResourceMetric",
     "SavedView",
+    "StopSchedule",
     "Subscription",
     "Suppression",
     "Team",

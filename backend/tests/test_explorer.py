@@ -93,7 +93,7 @@ def test_group_by_service_uses_rollup(env) -> None:
 
 def test_group_by_tag_and_untagged(env) -> None:
     r = explore(env, group_by=["tag:team"], granularity="total")
-    assert r["source"] == "line_items"
+    assert r["source"] == "tag_rollup"  # 11.18: the per-tag daily rollup, not the lines
     assert {g["label"]: g["total"] for g in r["groups"]} == {
         "payments": 100.0,
         "search": 60.0,
@@ -218,3 +218,54 @@ def test_accounts_labelled_with_names(env) -> None:
     r = explore(env, group_by=["account"], granularity="day")
     assert r["groups"][0]["label"] == "Production (1)" and r["groups"][0]["key"] == ["1"]
     assert r["series"][0]["label"] == "Production (1)"
+
+
+def test_tag_rollup_matches_the_line_items(env) -> None:
+    """11.18: every tag query the per-tag rollup answers gives the line-level result,
+    untagged cost and the previous period included; tag rules keep it in step."""
+    from ccradar.costs import explorer as ex
+    from ccradar.costs.tagrules import reapply
+    from ccradar.db.tenant import set_tenant
+    from ccradar.models import Organization
+
+    cases = [
+        (["tag:team"], {}, "total"),
+        (["tag:team", "service"], {}, "day"),
+        (["service"], {"tag:env": ["prod"]}, "month"),
+        (["tag:env"], {"region": ["ap-south-1"]}, "total"),
+    ]
+
+    def both(group_by, filters, granularity):
+        with env["db"].session() as s:
+            set_tenant(s, org_id=env["org"])
+            out = []
+            for tag_dim, lines in (
+                (None, True),
+                (ex._tag_rollup_dim(group_by + list(filters), filters), False),
+            ):
+                since = START - timedelta(days=10)
+                rows = ex._grouped(s, env["org"], "effective", filters, group_by, tag_dim, lines,
+                                   since, END, granularity, "USD", False)  # fmt: skip
+                agg: dict = {}
+                for p, values, amount in rows:
+                    key = (p, tuple(ex._label(d, values[i]) for i, d in enumerate(group_by)))
+                    agg[key] = round(agg.get(key, 0) + amount, 6)
+                out.append(agg)
+            return out
+
+    for group_by, filters, granularity in cases:
+        assert ex._tag_rollup_dim(group_by + list(filters), filters) is not None
+        by_lines, by_rollup = both(group_by, filters, granularity)
+        assert by_rollup == by_lines, (group_by, filters)
+    with env["db"].session() as s:
+        set_tenant(s, org_id=env["org"])
+        org = s.get(Organization, env["org"])
+        assert org is not None
+        org.settings = {**org.settings, "tag_rules": [
+            {"kind": "value", "key": "team", "from": ["search"], "to": "discovery"}]}  # fmt: skip
+        s.flush()
+        assert reapply(s, env["org"]) > 0
+    labels = {
+        g["label"] for g in explore(env, group_by=["tag:team"], granularity="total")["groups"]
+    }
+    assert labels == {"payments", "discovery", "(untagged)"}

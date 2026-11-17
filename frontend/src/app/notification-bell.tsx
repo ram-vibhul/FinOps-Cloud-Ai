@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { api, type InboxItem } from "@/lib/api";
 import { timeAgo } from "@/lib/time-ago";
+import { usePoll } from "@/lib/use-poll";
 import { cn } from "@/lib/utils";
 
 const POLL_MS = 60_000;
@@ -27,11 +28,10 @@ export function NotificationBell() {
   }, []);
 
   useEffect(() => {
-    // oxlint-disable-next-line react/set-state-in-effect -- polling the unread count
+    // oxlint-disable-next-line react/set-state-in-effect -- the first unread count
     void refreshCount();
-    const timer = setInterval(() => void refreshCount(), POLL_MS);
-    return () => clearInterval(timer);
   }, [refreshCount]);
+  usePoll(() => void refreshCount(), POLL_MS);
 
   async function onOpenChange(isOpen: boolean) {
     if (!isOpen) return;

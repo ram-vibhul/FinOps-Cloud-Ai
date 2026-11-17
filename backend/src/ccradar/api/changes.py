@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from ccradar.accounts.roles import Permission
 from ccradar.api.deps import SessionDep, SettingsDep, require
+from ccradar.api.paging import Cursor, keyset, page
 from ccradar.auth.web import AuthContext
 from ccradar.changes import github
 from ccradar.changes.service import ChangeIn, cost_effect, record, related_events
@@ -62,20 +63,64 @@ def create_change(body: ChangeIn, auth: Writer, db: SessionDep) -> ChangeOut:
     return _out(db, auth.org_id, event, with_effect=False)
 
 
+@router.get("/api/v1/radar")
+def live_radar(
+    auth: Reader, db: SessionDep, hours: Annotated[int, Query(ge=1, le=720)] = 24
+) -> dict[str, Any]:
+    """Live Radar (10.1): recent infrastructure changes priced as a monthly run-rate
+    change, before they reach the bill."""
+    from ccradar.changes import radar
+
+    assert auth.org_id is not None  # noqa: S101
+    return radar.feed(db, auth.org_id, hours)
+
+
+class ExpectedIn(BaseModel):
+    expected: bool = True
+    note: str | None = Field(default=None, max_length=500)
+
+
+@router.put("/api/v1/radar/{change_id}/expected")
+def mark_expected(
+    change_id: uuid.UUID, body: ExpectedIn, auth: Writer, db: SessionDep
+) -> dict[str, Any]:
+    """Mark a Radar change as expected, or not (11.31): the button in Slack and Teams
+    opens the Radar, where a signed-in person confirms."""
+    event = db.get(ChangeEvent, change_id)
+    if event is None:
+        raise NotFoundError("Change not found.")
+    attributes = dict(event.attributes or {})
+    if body.expected:
+        attributes["expected"] = {
+            "by": auth.user.name or auth.user.email,
+            "at": utcnow().isoformat(),
+            "note": body.note,
+        }
+    else:
+        attributes.pop("expected", None)
+    event.attributes = attributes
+    db.flush()
+    return {"id": str(event.id), "expected": attributes.get("expected")}
+
+
 @router.get("/api/v1/changes", response_model=list[ChangeOut])
 def list_changes(
     auth: Reader,
     db: SessionDep,
+    response: Response,
     days: Annotated[int, Query(ge=1, le=400)] = 30,
     service: str | None = None,
+    cursor: Cursor = None,
+    limit: Annotated[int, Query(ge=1, le=500)] = 200,
 ) -> list[ChangeOut]:
     assert auth.org_id is not None  # noqa: S101
     since = utcnow() - timedelta(days=days)
     stmt = select(ChangeEvent).where(ChangeEvent.occurred_at >= since)
     if service:
         stmt = stmt.where(ChangeEvent.service == service)
-    rows = db.scalars(stmt.order_by(ChangeEvent.occurred_at.desc()).limit(200)).all()
-    return [_out(db, auth.org_id, e, with_effect=True) for e in rows]
+    cols = (ChangeEvent.occurred_at, ChangeEvent.id)
+    rows = db.scalars(keyset(stmt, cursor, *cols).limit(limit + 1)).all()
+    return [_out(db, auth.org_id, e, with_effect=True) for e in page(rows, limit, response, *cols)]
 
 
 @router.delete("/api/v1/changes/{change_id}", status_code=204)

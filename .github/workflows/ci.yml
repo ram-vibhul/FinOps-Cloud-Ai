@@ -81,6 +81,40 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  e2e:
+    name: Browser tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14.10"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "26.13.0"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: python -m venv backend/.venv && backend/.venv/bin/pip install -e backend
+      - run: npm ci --no-audit --no-fund
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run build && npm run e2e
+        working-directory: frontend
+
+  terraform-provider:
+    name: Terraform provider
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: integrations/terraform-provider-ccradar
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Go comes with the runner image; go.mod's toolchain line fetches the exact version.
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go test ./...
+
   licences:
     name: Third-party licences
     runs-on: ubuntu-24.04
@@ -121,25 +155,7 @@ jobs:
           curl -fs localhost:8000/api/v1/meta
           curl -fs localhost:8000/ | grep -q '<div id="root">'
           docker logs k
-      - name: Compose smoke test (web, worker, PostgreSQL, backup)
+      - name: Compose smoke test (web, worker, PostgreSQL, scheduled jobs, backup)
         run: |
           docker rm -f k
-          cat > .env <<ENV
-          CCRADAR_IMAGE=ccradar:ci
-          CCRADAR_DEPLOYMENT_MODE=self_hosted
-          CCRADAR_BASE_URL=http://localhost:8000
-          CCRADAR_SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(48))")
-          CCRADAR_ENCRYPTION_KEYS=$(python3 -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())")
-          POSTGRES_PASSWORD=$(python3 -c "import secrets; print(secrets.token_hex(16))")
-          CCRADAR_DB_APP_PASSWORD=$(python3 -c "import secrets; print(secrets.token_hex(16))")
-          ENV
-          sed -i 's/^ *//' .env
-          docker compose up -d --no-build
-          for i in $(seq 1 60); do curl -fs localhost:8000/readyz && break; sleep 2; done
-          curl -fs localhost:8000/readyz
-          test "$(docker compose ps worker --format '{{.State}}')" = running
-          docker compose run --rm -T migrate ccradar backup create /data/smoke.tar.gz
-          docker compose run --rm -T migrate ccradar backup verify /data/smoke.tar.gz
-          ! docker compose logs worker | grep -q 'ended with status: Error'
-          docker compose logs --tail 50
-          docker compose down -v
+          SMOKE_IMAGE=ccradar:ci tools/smoke.sh

@@ -38,7 +38,7 @@
       "name": "Business",
       "features": [
         "kubernetes", "api_keys", "ai", "webhooks_out", "work_integrations",
-        "sso", "scim", "custom_roles", "mcp", "auto_fixes"
+        "sso", "scim", "audit_streaming", "custom_roles", "mcp", "auto_fixes"
       ],
       "limits": {
         "members": 100,
@@ -55,7 +55,7 @@
       "name": "Enterprise",
       "features": [
         "kubernetes", "api_keys", "ai", "webhooks_out", "work_integrations",
-        "sso", "scim", "custom_roles", "mcp", "auto_fixes", "partner"
+        "sso", "scim", "audit_streaming", "custom_roles", "mcp", "auto_fixes", "partner"
       ],
       "limits": {
         "members": null,

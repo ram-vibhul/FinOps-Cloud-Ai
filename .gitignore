@@ -18,3 +18,10 @@ backend/data/
 *.key
 *.licence
 deploy/kubernetes/ccradar.env
+
+# Playwright output (11.9)
+frontend/test-results/
+frontend/playwright-report/
+
+# Terraform provider build output
+integrations/terraform-provider-ccradar/terraform-provider-ccradar

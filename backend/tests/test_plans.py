@@ -159,3 +159,32 @@ def test_local_mode_has_everything(client: TestClient, db: Database) -> None:
     assert out["plan"]["id"] == "unlimited" and out["source"] == "local"
     assert all(f["included"] for f in out["features"])
     assert all(x["limit"] is None for x in out["limits"])
+
+
+def test_plan_is_cached_per_session_but_never_stale(settings: Settings, db: Database) -> None:
+    from sqlalchemy import event as sa_event
+
+    from ccradar.billing import subscriptions
+
+    settings.deployment_mode = DeploymentMode.SAAS
+    org_id, _ = make_org(db, "Acme", "o@acme.com")
+    queries: list[str] = []
+    with db.session() as s:
+        set_tenant(s, org_id=org_id)
+        o = s.get(Organization, org_id)
+        assert o is not None
+        engine = s.get_bind()
+        listener = lambda *a: queries.append(a[2])  # noqa: E731
+        sa_event.listen(engine, "before_cursor_execute", listener)
+        try:
+            assert plans.plan_for(o, settings).id == "free"
+            first = len(queries)
+            for _ in range(4):
+                assert plans.plan_for(o, settings).id == "free"
+            assert len(queries) == first  # the next calls hit no database
+            sub = subscriptions.activate(s, o, "team", "monthly")  # changes, then flushes
+            assert plans.plan_for(o, settings).id == "team"
+            subscriptions.end(sub)  # changed but not yet saved: the cache is bypassed
+            assert plans.plan_for(o, settings).id == "free"
+        finally:
+            sa_event.remove(engine, "before_cursor_execute", listener)

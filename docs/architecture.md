@@ -37,7 +37,7 @@ browser ──HTTPS──▶ web (FastAPI + the built React UI)
 | `api/` | HTTP routes, one module per area; dependencies in `api/deps.py` (auth, roles, plan features) |
 | `accounts/`, `auth/` | Organisations, members, roles and custom roles, SSO (OIDC), SCIM, API keys, sessions |
 | `clouds/` | AWS, Azure and Google Cloud clients, importers, advice, permission checks, fixes |
-| `connectors/` | SaaS cost connectors (Snowflake, Databricks, Datadog, MongoDB Atlas) |
+| `connectors/` | SaaS cost connectors (Snowflake, Databricks, Datadog, MongoDB Atlas, AI providers, GitHub, Confluent, Vercel, Cloudflare, DigitalOcean, Linode, New Relic, Fastly, Elastic, Grafana; `extra.py`: Oracle Cloud, Alibaba Cloud, Hetzner, Twilio, Sentry and seat-priced Okta, Slack, Zoom, PagerDuty, Atlassian), each labelled alpha or beta |
 | `costs/` | The cost model, imports, explorer, anomalies, budgets, forecasts, reports |
 | `findings/` | Savings detectors and their lifecycle |
 | `k8s/` | Kubernetes costs, usage, health and investigations |

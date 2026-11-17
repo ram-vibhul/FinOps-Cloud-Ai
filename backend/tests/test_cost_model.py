@@ -250,10 +250,11 @@ def test_demo_costs(db: Database) -> None:
         org_id = org.id
     with db.session() as s:
         set_tenant(s, org_id=org_id)
-        days = s.scalar(select(func.count(func.distinct(CostDaily.charge_date))))
-        accounts = s.scalar(select(func.count(func.distinct(CostDaily.sub_account_id))))
+        aws = CostDaily.provider == "aws"
+        days = s.scalar(select(func.count(func.distinct(CostDaily.charge_date))).where(aws))
+        accounts = s.scalar(select(func.count(func.distinct(CostDaily.sub_account_id))).where(aws))
         runs = s.scalars(select(CostImportRun.status)).all()
-        total = Decimal(str(s.scalar(select(func.sum(CostDaily.effective_cost)))))
+        total = Decimal(str(s.scalar(select(func.sum(CostDaily.effective_cost)).where(aws))))
     assert days == 90 and accounts == 5
     assert set(runs) == {"succeeded"}
     assert Decimal(300_000) < total < Decimal(800_000)

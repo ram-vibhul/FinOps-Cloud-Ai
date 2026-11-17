@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -9,6 +10,8 @@ from pathlib import Path
 from sqlalchemy import Engine, create_engine, event, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
+
+log = logging.getLogger(__name__)
 
 
 def _sqlite_pragmas(dbapi_connection, _record) -> None:  # type: ignore[no-untyped-def]
@@ -60,7 +63,8 @@ class Database:
         try:
             with self.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
-        except Exception:
+        except Exception as error:
+            log.warning("database ping failed: %s: %s", type(error).__name__, error)
             return False
         return True
 

@@ -119,7 +119,13 @@ def _parser() -> argparse.ArgumentParser:
     wh.add_argument("--max-age", type=int, default=900, help="seconds (default 900)")
     bak = sub.add_parser("backup", help="back up the database and files, or verify a backup")
     bak.add_argument("action", choices=["create", "verify"])
-    bak.add_argument("file", nargs="?", help="create: where to write it; verify: the backup")
+    bak.add_argument(
+        "file", nargs="?", help="create: where to write it; verify: the backup (file or s3://…)"
+    )
+    bak.add_argument(
+        "--encrypt", action="store_true",
+        help="encrypt with the passphrase in CCRADAR_BACKUP_PASSPHRASE",
+    )  # fmt: skip
     res = sub.add_parser("restore", help="replace the database and files with a backup")
     res.add_argument("file")
     res.add_argument("--yes", action="store_true", help="confirm: current data is replaced")
@@ -144,38 +150,41 @@ def _worker_health(args: argparse.Namespace) -> int:
 
 def _backup(args: argparse.Namespace) -> int:
     from datetime import UTC, datetime
-    from pathlib import Path
 
     from ccradar import backup
+    from ccradar.backup_crypto import BackupCryptoError, passphrase_from_env
 
     settings = get_settings()
     try:
         if args.action == "verify":
             if not args.file:
-                print("give the backup file to verify", file=sys.stderr)
+                print("give the backup to verify (a file or s3://bucket/key)", file=sys.stderr)
                 return 2
-            manifest = backup.verify(Path(args.file))
+            manifest = backup.verify(
+                args.file, passphrase=passphrase_from_env(False), settings=settings
+            )
             print(
                 f"backup is readable: {manifest['database']}, "
-                f"CloudCostRadar {manifest['ccradar_version']}, made {manifest['created_at']}, "
-                f"{manifest['files']} files"
+                f"CloudCostRadar {manifest.get('ccradar_version')}, "
+                f"made {manifest['created_at']}, {manifest['files']} files"
             )
             return 0
         stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
-        out = Path(args.file or f"ccradar-backup-{stamp}.tar.gz")
-        manifest = backup.create(settings, out)
-    except (backup.BackupError, OSError) as exc:
+        out = args.file or f"ccradar-backup-{stamp}.tar.gz"
+        passphrase = passphrase_from_env(args.encrypt)
+        manifest = backup.create(settings, out, passphrase=passphrase if args.encrypt else None)
+    except (backup.BackupError, BackupCryptoError, OSError) as exc:
         print(f"backup failed: {exc}", file=sys.stderr)
         return 1
-    print(f"backup written to {out} ({manifest['database']}, {manifest['files']} files)")
+    note = ", encrypted" if manifest.get("encrypted") else ""
+    print(f"backup written to {out} ({manifest['database']}, {manifest['files']} files{note})")
     print(backup.KEY_REMINDER, file=sys.stderr)
     return 0
 
 
 def _restore(args: argparse.Namespace) -> int:
-    from pathlib import Path
-
     from ccradar import backup
+    from ccradar.backup_crypto import BackupCryptoError, passphrase_from_env
 
     if not args.yes:
         print(
@@ -185,8 +194,8 @@ def _restore(args: argparse.Namespace) -> int:
         )
         return 2
     try:
-        manifest = backup.restore(get_settings(), Path(args.file))
-    except (backup.BackupError, OSError) as exc:
+        manifest = backup.restore(get_settings(), args.file, passphrase=passphrase_from_env(False))
+    except (backup.BackupError, BackupCryptoError, OSError) as exc:
         print(f"restore failed: {exc}", file=sys.stderr)
         return 1
     print(f"restored the backup made {manifest['created_at']}; start CloudCostRadar again")
@@ -386,7 +395,12 @@ def run_worker() -> int:
         JobContext(
             settings=settings,
             db=Database(settings.database_url),
-            storage=build_storage(settings.data_dir),
+            storage=build_storage(
+                settings.data_dir,
+                settings.storage_url,
+                settings.storage_endpoint_url,
+                settings.aws_region,
+            ),
         )
     )
     load_all_jobs()

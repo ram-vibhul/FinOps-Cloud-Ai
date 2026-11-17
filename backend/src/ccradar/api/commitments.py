@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import date, datetime
 from typing import Annotated, Any, Literal
@@ -18,6 +19,7 @@ from ccradar.db.base import utcnow
 from ccradar.findings.commitments import latest
 from ccradar.models import CloudConnection, Commitment, Contract
 
+log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/commitments", tags=["commitments"])
 Reader = Annotated[AuthContext, require(Permission.READ)]
 Admin = Annotated[AuthContext, require(Permission.MANAGE_CONNECTIONS)]
@@ -41,7 +43,8 @@ def get_commitments(auth: Reader, db: SessionDep) -> dict[str, Any]:
 
 @router.post("/refresh")
 def refresh(auth: Admin, db: SessionDep, request: Request) -> dict[str, Any]:
-    """Take a new snapshot now for every AWS connection (Cost Explorer: ~8 calls each)."""
+    """Take a new snapshot now for every AWS connection (Cost Explorer: ~8 calls each), and
+    list Azure and Google Cloud commitments."""
     from ccradar.clouds.aws.commitment_job import snapshot
 
     ids = [
@@ -56,7 +59,28 @@ def refresh(auth: Admin, db: SessionDep, request: Request) -> dict[str, Any]:
 
     taken = sum(snapshot(db, request.app.state.aws, cid) is not None for cid in ids)
     listed = sum(collect(db, request.app.state.aws, cid).get("count", 0) for cid in ids)
-    return {"snapshots": taken, "commitments": listed}
+    return {"snapshots": taken, "commitments": listed + _other_clouds(db)}
+
+
+def _other_clouds(db: Any) -> int:
+    """Azure reservations and savings plans, Google committed use discounts (11.22)."""
+    from ccradar.clouds import other_commitments
+    from ccradar.clouds.azure.client import for_connection as azure_client
+    from ccradar.clouds.gcp.client import for_connection as gcp_client
+
+    conns = db.scalars(
+        select(CloudConnection).where(
+            CloudConnection.provider.in_(("azure", "gcp")), CloudConnection.status == "active"
+        )
+    ).all()
+    found = 0
+    for c in conns:
+        try:
+            client = azure_client(c) if c.provider == "azure" else gcp_client(c)
+            found += other_commitments.collect(db, client, c.id).get("count", 0)
+        except Exception as exc:  # a broken connection must not stop the others
+            log.info("%s commitments: %s", c.provider, type(exc).__name__)
+    return found
 
 
 class CommitmentOut(BaseModel):

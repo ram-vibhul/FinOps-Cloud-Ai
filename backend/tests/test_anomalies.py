@@ -191,6 +191,8 @@ def test_api_list_update_and_settings(client: TestClient, db: Database) -> None:
         "same_day_warnings": True,
         "same_day_over_pct": 30.0,
         "weekly_digest_email": False,
+        "radar_alerts": True,
+        "radar_min_monthly": 100.0,
     }
     assert c.get("/api/v1/org/alert-settings").json() == saved
     trail = c.get("/api/v1/org/audit-events", params={"action": "cost_anomaly"}).json()["items"]

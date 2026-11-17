@@ -28,6 +28,21 @@ runtime role that cannot read everything.
 - The file is created readable by its owner only: it contains your cost data and
   encrypted secrets.
 
+### Encrypted, and straight to object storage
+
+```bash
+export CCRADAR_BACKUP_PASSPHRASE='a long passphrase from your password manager'
+ccradar backup create s3://my-backups/ccradar/$(date +%F).tar.gz.enc --encrypt
+```
+
+- `--encrypt` uses AES-256-GCM with a key derived from the passphrase (scrypt). The
+  passphrase is only read from `CCRADAR_BACKUP_PASSPHRASE` (never type it on the command
+  line) and must be at least 12 characters. **Store it with the encryption keys:
+  without it the backup cannot be opened.** A cut-short or altered file is refused.
+- Any destination can be a file or `s3://bucket/key` (AWS S3, or an S3-compatible
+  store with `CCRADAR_STORAGE_ENDPOINT_URL`); credentials come from the standard AWS
+  chain. `verify` and `restore` accept the same forms.
+
 Check a backup any time:
 
 ```bash

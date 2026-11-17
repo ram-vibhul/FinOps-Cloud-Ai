@@ -20,6 +20,7 @@ self-hosted installation runs the free tier."""
 from __future__ import annotations
 
 import base64
+import functools
 import json
 import logging
 from dataclasses import dataclass, field
@@ -137,8 +138,15 @@ def current(db: Session | None, settings: Settings) -> tuple[Licence | None, str
     text = installed_text(db, settings)
     if not text:
         return None, None
+    return _checked(text.strip(), PUBLIC_KEYS)
+
+
+@functools.lru_cache(maxsize=16)
+def _checked(text: str, keys: tuple[str, ...]) -> tuple[Licence | None, str | None]:
+    """Signature checks are remembered per key text (11.12); the built-in keys are part of
+    the cache key, so a key rotation (or a test's own key) is never mixed up."""
     try:
-        return decode(text), None
+        return decode(text, keys), None
     except LicenceError as exc:
         return None, str(exc)
 

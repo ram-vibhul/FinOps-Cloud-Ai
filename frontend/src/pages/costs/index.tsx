@@ -1,4 +1,5 @@
 import { ArrowDownRight, ArrowUpRight, ReceiptText } from "lucide-react";
+import { InvestigateCard } from "./investigate";
 import { Link } from "react-router";
 import { Term } from "@/components/term";
 import { useState } from "react";
@@ -165,6 +166,7 @@ export function CostsPage() {
           </div>
         </>
       )}
+      <InvestigateCard />
     </div>
   );
 }

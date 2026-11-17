@@ -140,3 +140,45 @@ class CostDaily(TenantMixin, Base):
     effective_cost: Mapped[Decimal] = mapped_column(Money)
     list_cost: Mapped[Decimal | None] = mapped_column(Money)
     line_count: Mapped[int] = mapped_column(Integer)
+
+
+class CostDailyTag(TenantMixin, Base):
+    """Daily rollup per tag (11.18): the cost of lines carrying ``tag_key`` with the
+    value ``tag_value``, per day and rollup dimension. Lets "cost by team" and tag
+    filters skip the line items (9 s instead of 0.1 s on a 50-million-line bill).
+    ``tag_key`` is ``tag:<key>`` or ``vtag:<key>``; lines without the key are not here
+    (the explorer takes them as the daily total minus the tagged cost)."""
+
+    __tablename__ = "cost_daily_tags"
+    __table_args__ = (Index("ix_cost_daily_tags_org_key_date", "org_id", "tag_key", "charge_date"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    charge_date: Mapped[date] = mapped_column(Date)
+    tag_key: Mapped[str] = mapped_column(String(140))
+    tag_value: Mapped[str | None] = mapped_column(String(300))
+    provider: Mapped[str] = mapped_column(String(30))
+    sub_account_id: Mapped[str | None] = mapped_column(String(100))
+    service_name: Mapped[str] = mapped_column(String(200))
+    region: Mapped[str | None] = mapped_column(String(60))
+    charge_category: Mapped[str] = mapped_column(String(20))
+    pricing_category: Mapped[str | None] = mapped_column(String(20))
+    billing_currency: Mapped[str] = mapped_column(String(3))
+    billed_cost: Mapped[Decimal] = mapped_column(Money)
+    effective_cost: Mapped[Decimal] = mapped_column(Money)
+    list_cost: Mapped[Decimal | None] = mapped_column(Money)
+
+
+class BenchmarkSample(Base):
+    """One opted-in organisation's figures for peer benchmarks (11.40). Not
+    tenant-scoped: it is read only to compute percentiles across organisations, and
+    the API never returns another organisation's row; it is deleted on opting out."""
+
+    __tablename__ = "benchmark_samples"
+
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True
+    )
+    month: Mapped[date] = mapped_column(Date, index=True)
+    size_band: Mapped[str] = mapped_column(String(20))
+    metrics: Mapped[dict] = mapped_column(JSON, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

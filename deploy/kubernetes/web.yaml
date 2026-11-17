@@ -34,8 +34,10 @@ spec:
           env:
             - { name: CCRADAR_SKIP_MIGRATE, value: "1" }  # the migrate Job does it
             - { name: CCRADAR_DATA_DIR, value: /data }
-            # Trust X-Forwarded-* from the ingress controller (set to its pod range).
-            - { name: CCRADAR_FORWARDED_ALLOW_IPS, value: "*" }
+            # Trust X-Forwarded-For only from private (in-cluster) addresses, so clients
+            # cannot fake their IP past the rate limits. Narrow it to your ingress
+            # controller's pod range (e.g. "10.42.0.0/16") if you can. Never use "*".
+            - { name: CCRADAR_FORWARDED_ALLOW_IPS, value: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16" }
           readinessProbe:
             httpGet: { path: /readyz, port: http }
             periodSeconds: 10

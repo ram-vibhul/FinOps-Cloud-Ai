@@ -5,6 +5,7 @@ from two Cost Explorer calls (about 0.01 USD each)."""
 
 from __future__ import annotations
 
+import logging
 import uuid
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
@@ -22,6 +23,8 @@ from ccradar.db.tenant import set_tenant
 from ccradar.inventory.aws import _pages
 from ccradar.models import CloudConnection, Commitment, Contract, CostDaily
 
+log = logging.getLogger(__name__)
+
 ALERT_DAYS = (90, 30, 7)
 KIND_LABELS = {
     "savings_plan": "Savings Plan",
@@ -30,6 +33,9 @@ KIND_LABELS = {
     "elasticache_ri": "ElastiCache reservation",
     "opensearch_ri": "OpenSearch reservation",
     "redshift_ri": "Redshift reservation",
+    "azure_reservation": "Azure reservation",
+    "azure_savings_plan": "Azure savings plan",
+    "gcp_cud": "Google committed use discount",
 }
 
 
@@ -216,8 +222,8 @@ def utilisation(ce: Any, today: date) -> dict[str, float]:
                 pct = _f((d.get("Utilization") or {}).get("UtilizationPercentage"))
                 if d.get("SavingsPlanArn") and pct is not None:
                     out[d["SavingsPlanArn"]] = pct
-    except Exception:  # noqa: S110 - utilisation is optional
-        pass
+    except Exception as error:  # utilisation is optional
+        log.info("Savings Plans utilisation unavailable: %s", type(error).__name__)
     try:
         resp = ce.get_reservation_utilization(
             TimePeriod=period, GroupBy=[{"Type": "DIMENSION", "Key": "SUBSCRIPTION_ID"}]
@@ -229,8 +235,8 @@ def utilisation(ce: Any, today: date) -> dict[str, float]:
                 rid = attrs.get("reservationId") or attrs.get("leaseId") or g.get("Value")
                 if rid and pct is not None:
                     out[str(rid)] = pct
-    except Exception:  # noqa: S110
-        pass
+    except Exception as error:  # utilisation is optional
+        log.info("reservation utilisation unavailable: %s", type(error).__name__)
     return out
 
 
@@ -245,6 +251,7 @@ def _fetch(
         complete.add("savings_plan")
     except Exception as error:
         errors["savingsplans"] = type(error).__name__
+        log.info("Savings Plans inventory unavailable: %s", type(error).__name__)
     for service, fn in REGIONAL:
         ok = True
         for region in regions:
@@ -252,6 +259,9 @@ def _fetch(
                 items += list(fn(gateway.client(session, service, region=region), region))
             except Exception as error:
                 errors[f"{service}:{region}"] = type(error).__name__
+                log.info(
+                    "%s reservations in %s unavailable: %s", service, region, type(error).__name__
+                )
                 ok = False
         if ok:
             complete.add(fn.__name__.split("_", 1)[0] + "_ri")
@@ -260,6 +270,7 @@ def _fetch(
         util = utilisation(gateway.client(session, "ce", region="us-east-1"), utcnow().date())
     except Exception as error:
         errors["ce"] = type(error).__name__
+        log.info("commitment utilisation unavailable: %s", type(error).__name__)
     return items, errors, complete, util
 
 

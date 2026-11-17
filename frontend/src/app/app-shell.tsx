@@ -5,6 +5,7 @@ import { NavLink, Outlet } from "react-router";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
+import { t } from "@/lib/i18n";
 import { useMe } from "@/lib/session";
 import { useLoad } from "@/lib/use-load";
 import { cn } from "@/lib/utils";
@@ -51,7 +52,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
           }
         >
           <Icon className="size-4" aria-hidden />
-          {label}
+          {t(label)}
         </NavLink>
       ))}
     </nav>
@@ -66,7 +67,7 @@ export function AppShell() {
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2"
       >
-        Skip to content
+        {t("Skip to content")}
       </a>
       <aside className="hidden w-60 shrink-0 print:hidden flex-col gap-6 border-r bg-sidebar p-4 md:flex">
         <Logo />
@@ -79,11 +80,11 @@ export function AppShell() {
             aria-describedby={undefined}
             className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col gap-6 border-r bg-sidebar p-4 md:hidden"
           >
-            <Dialog.Title className="sr-only">Navigation</Dialog.Title>
+            <Dialog.Title className="sr-only">{t("Navigation")}</Dialog.Title>
             <div className="flex items-center justify-between">
               <Logo />
               <Dialog.Close asChild>
-                <Button variant="ghost" size="icon" aria-label="Close navigation">
+                <Button variant="ghost" size="icon" aria-label={t("Close navigation")}>
                   <X />
                 </Button>
               </Dialog.Close>
@@ -95,7 +96,7 @@ export function AppShell() {
       </Dialog.Root>
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex print:hidden h-14 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur">
-          <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation" onClick={() => setOpen(true)}>
+          <Button variant="ghost" size="icon" className="md:hidden" aria-label={t("Open navigation")} onClick={() => setOpen(true)}>
             <Menu />
           </Button>
           <div className="md:hidden">

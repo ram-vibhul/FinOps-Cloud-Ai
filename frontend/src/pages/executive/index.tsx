@@ -7,6 +7,8 @@ import { api } from "@/lib/api";
 import { money } from "@/lib/format";
 import { useMe } from "@/lib/session";
 import { useLoad } from "@/lib/use-load";
+import { BenchmarksCard } from "./benchmarks";
+import { CarbonCard } from "./carbon";
 
 function Tile({ label, value, note, to }: { label: string; value: string; note?: string; to?: string }) {
   const body = (
@@ -96,6 +98,8 @@ export function ExecutivePage() {
           </CardContent>
         </Card>
       )}
+      <BenchmarksCard />
+      <CarbonCard />
     </div>
   );
 }

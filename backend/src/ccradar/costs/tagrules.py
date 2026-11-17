@@ -98,6 +98,10 @@ def reapply(db: Session, org_id: uuid.UUID, batch: int = 2000) -> int:
                 changed += 1
         last = (rows[-1][1], rows[-1][0])
     db.flush()
+    if changed:
+        from ccradar.costs.ingest import refresh_all_tag_daily
+
+        refresh_all_tag_daily(db, org_id)  # keep the per-tag rollup in step
     return changed
 
 

@@ -6,13 +6,14 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Query, Request, Response
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 
 from ccradar.accounts.roles import Permission
 from ccradar.ai.writer import TextWriter
 from ccradar.api.deps import SessionDep, require
+from ccradar.api.paging import Cursor, keyset, page
 from ccradar.auth.web import AuthContext
 from ccradar.core.errors import AppError, NotFoundError
 from ccradar.costs.anomalies import alert_settings
@@ -156,12 +157,20 @@ def create_investigation(
 
 
 @router.get("/investigations")
-def list_investigations(auth: Reader, db: SessionDep) -> list[dict[str, Any]]:
+def list_investigations(
+    auth: Reader,
+    db: SessionDep,
+    response: Response,
+    cursor: Cursor = None,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+) -> list[dict[str, Any]]:
     names = dict(db.execute(select(K8sCluster.id, K8sCluster.name)).all())
-    rows = db.scalars(
-        select(K8sInvestigation).order_by(K8sInvestigation.created_at.desc()).limit(100)
-    )
-    return [{k: v for k, v in _out(i, names).items() if k != "result"} for i in rows]
+    cols = (K8sInvestigation.created_at, K8sInvestigation.id)
+    rows = db.scalars(keyset(select(K8sInvestigation), cursor, *cols).limit(limit + 1)).all()
+    return [
+        {k: v for k, v in _out(i, names).items() if k != "result"}
+        for i in page(rows, limit, response, *cols)
+    ]
 
 
 @router.get("/investigations/{investigation_id}")

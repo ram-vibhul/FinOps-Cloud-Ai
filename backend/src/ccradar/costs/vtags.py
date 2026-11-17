@@ -173,6 +173,10 @@ def recompute(db: Session, org_id: uuid.UUID, batch: int = 2000) -> int:
         tail = tuple(rows[-1])
         last = (tail[1], tail[0])
     db.flush()
+    if changed:
+        from ccradar.costs.ingest import refresh_all_tag_daily
+
+        refresh_all_tag_daily(db, org_id)  # keep the per-tag rollup in step
     return changed
 
 

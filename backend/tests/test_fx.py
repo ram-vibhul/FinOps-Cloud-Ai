@@ -155,3 +155,25 @@ def test_summary_reports_unconverted(mixed, monkeypatch: pytest.MonkeyPatch) -> 
 def test_rates_are_global_not_tenant_data(mixed) -> None:
     with mixed["db"].session() as s:
         assert s.scalar(select(func.count()).select_from(ExchangeRate)) == 6 * 3
+
+
+def test_line_level_queries_sum_then_convert(mixed) -> None:
+    """11.18: lines are summed per day and currency before conversion; totals match, and
+    an organisation with one currency skips conversion without changing the answer."""
+    c = sign_in_client(mixed["c"], mixed["db"], mixed["owner"], mixed["org"])
+    body = {"start": "2026-11-01", "end": "2026-11-06", "group_by": ["service", "usage_type"]}
+    r = c.post("/api/v1/costs/explore", json=body).json()
+    assert r["source"] == "line_items"
+    totals = {g["label"]: g["total"] for g in r["groups"]}
+    assert totals == {"EC2 · (none)": 5400.0, "VMs · (none)": 2700.0}
+    assert r["series"][0]["values"] == [900.0] * 6  # per day, converted
+    usd = c.post("/api/v1/costs/explore", json={**body, "currency": "USD"}).json()
+    assert {g["label"]: g["total"] for g in usd["groups"]} == {
+        "EC2 · (none)": 60.0,
+        "VMs · (none)": 30.0,
+    }
+    jpy_only = c.post(
+        "/api/v1/costs/explore",
+        json={**body, "currency": "JPY", "filters": {"service": ["GCE"]}},
+    ).json()
+    assert jpy_only["total"] == 30.0  # all in JPY already: no rate needed

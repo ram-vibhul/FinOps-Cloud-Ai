@@ -38,6 +38,11 @@ last used. Requests with a key need no CSRF token.
   Common codes: `not_found`, `forbidden`, `demo_read_only`, `plan_feature`, `plan_limit`,
   `rate_limited`, `validation_error`.
 - Long lists such as the audit log and notifications are paged (`next_cursor`, `next_before`).
+- Lists that grow (changes, anomalies, fixes, access requests, file imports, audit runs,
+  Kubernetes investigations, webhook deliveries) return a plain array of up to `limit`
+  rows, newest first. When more exist the response has an `X-Next-Cursor` header; pass
+  it back as `?cursor=` for the next page. Cursors are positions, not page numbers, so
+  rows added meanwhile are neither skipped nor repeated.
 
 ## Rate limits
 
@@ -50,6 +55,7 @@ Per key: `CCRADAR_RATE_LIMIT_USER_PER_MINUTE` requests and
 
 | Endpoint | What |
 |---|---|
+| `GET /api/v1/radar?hours=24` | Live Radar: recent changes priced as a monthly run-rate change, and what is not in the bill yet |
 | `GET /api/v1/costs/summary` | This month, forecast and trend |
 | `POST /api/v1/costs/explore` | Group and filter costs (dimensions, granularity, period) |
 | `GET /api/v1/findings` | Savings, ranked; filter by category, status, owner |
@@ -76,3 +82,12 @@ approvals waiting, imports, …) to your HTTPS endpoint:
 can answer questions about your costs. Tools: `cost_summary`, `explore_costs`,
 `top_cost_changes`, `list_savings`, `list_anomalies`, `budgets`; keys allowed to start
 investigations also get `create_investigation`. Everything else is read-only.
+
+## Terraform
+
+`integrations/terraform-provider-ccradar` is a Terraform provider for budgets
+(`ccradar_budget`), policies (`ccradar_policy`) and virtual tags
+(`ccradar_virtual_tag`). It uses the endpoints above with an admin-scope API key
+(`CCRADAR_API_KEY`) and your address (`CCRADAR_ENDPOINT`). Policies can also be kept
+as one YAML file with `GET`/`PUT /api/v1/governance/policies.yaml`. The provider is
+not yet published to the Terraform Registry; build it from the folder (see its README).

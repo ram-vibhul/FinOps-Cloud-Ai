@@ -54,6 +54,12 @@ class Settings(BaseSettings):
     # Called every 5 minutes by the worker (an Uptime Kuma "push" URL), so monitoring
     # notices when background jobs stop. Unset = no heartbeat.
     heartbeat_url: str | None = None
+    # Where uploaded cost files and generated reports are kept (11.7): unset = the data
+    # folder (web and worker must then share it), or s3://bucket/prefix for AWS S3 or an
+    # S3-compatible store. Credentials come from the standard AWS chain.
+    storage_url: str | None = Field(default=None, pattern=r"^s3://[^/]+(/.*)?$")
+    # Endpoint of an S3-compatible store (MinIO, Cloudflare R2…); unset = AWS S3.
+    storage_endpoint_url: str | None = None
     # Payment webhooks (B.5): the signing secrets from the Razorpay and Stripe dashboards.
     # Unset = that provider's webhook endpoint answers 404.
     razorpay_webhook_secret: SecretStr | None = None

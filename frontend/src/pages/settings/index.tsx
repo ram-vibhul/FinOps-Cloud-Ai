@@ -9,6 +9,8 @@ import { ClustersTab } from "./clusters";
 import { OwnerZone } from "./danger";
 import { RetentionCard } from "./retention";
 import { FxOverridesCard } from "./fx";
+import { LanguageCard } from "./language";
+import { NumberFormatCard } from "./number-format";
 import { GeneralTab } from "./general";
 import { MembersTab } from "./members";
 import { NotificationsTab } from "./notifications";
@@ -18,6 +20,7 @@ import { ElevatedAccessCard } from "./elevated-access";
 import { PartnerApplyCard, PartnerLinkCard, PartnerTab } from "./partner";
 import { DomainsCard, TeamsCard } from "./teams";
 import { OutgoingWebhooksCard } from "./webhooks-out";
+import { AuditStreamsCard } from "./audit-streams";
 import { WorkIntegrationsTab } from "./work";
 import { OwnershipTab } from "./ownership";
 import { PlanTab } from "./plan";
@@ -66,8 +69,10 @@ export function SettingsPage() {
         <TabsContent value="plan" className="mt-4">
           <PlanTab />
         </TabsContent>
-        <TabsContent value="account" className="mt-4">
+        <TabsContent value="account" className="mt-4 flex flex-col gap-4">
           <AccountTab />
+          <NumberFormatCard />
+          <LanguageCard />
         </TabsContent>
         <TabsContent value="clouds" className="mt-4">
           <CloudsTab />
@@ -116,7 +121,8 @@ export function SettingsPage() {
           </TabsContent>
         )}
         {isAdmin && (
-          <TabsContent value="audit" className="mt-4">
+          <TabsContent value="audit" className="mt-4 flex flex-col gap-4">
+            <AuditStreamsCard />
             <AuditTab />
           </TabsContent>
         )}

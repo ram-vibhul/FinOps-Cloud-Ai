@@ -13,6 +13,8 @@ Every setting is an environment variable with the `CCRADAR_` prefix (also read f
 | `CCRADAR_PAYMENT_GRACE_DAYS` | `14` | Failed payments (B.16): days a past-due subscription keeps its plan before it moves to the free plan. The payment provider retries the charge meanwhile. |
 | `CCRADAR_ERROR_TRACKING_DSN` | *(secret, unset)* | Error tracking (D.9): a Sentry-protocol DSN, e.g. of a self-hosted GlitchTip. Unset = off. Reports are scrubbed of personal data and secrets. |
 | `CCRADAR_HEARTBEAT_URL` | *(unset)* | Called every 5 minutes by the worker (an Uptime Kuma "push" URL), so monitoring notices when background jobs stop. Unset = no heartbeat. |
+| `CCRADAR_STORAGE_URL` | *(unset)* | Where uploaded cost files and generated reports are kept (11.7): unset = the data folder (web and worker must then share it), or s3://bucket/prefix for AWS S3 or an S3-compatible store. Credentials come from the standard AWS chain. |
+| `CCRADAR_STORAGE_ENDPOINT_URL` | *(unset)* | Endpoint of an S3-compatible store (MinIO, Cloudflare R2…); unset = AWS S3. |
 | `CCRADAR_RAZORPAY_WEBHOOK_SECRET` | *(secret, unset)* | Payment webhooks (B.5): the signing secrets from the Razorpay and Stripe dashboards. Unset = that provider's webhook endpoint answers 404. |
 | `CCRADAR_STRIPE_WEBHOOK_SECRET` | *(secret, unset)* | Stripe webhook signing secret (whsec_…), see above. |
 | `CCRADAR_LICENCE_KEY` | *(secret, unset)* | Self-hosted licence (B.6): the key itself, or a file holding it. It can also be installed with `ccradar licence install` or by a platform admin in the UI. |

@@ -6,12 +6,13 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Query, Request, Response
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 
 from ccradar.accounts.roles import Permission
 from ccradar.api.deps import SessionDep, plan_feature, require
+from ccradar.api.paging import Cursor, keyset, page
 from ccradar.auth.web import AuthContext
 from ccradar.core import webhooks_out
 from ccradar.core.errors import AppError, NotFoundError
@@ -159,17 +160,19 @@ def test_hook(hook_id: uuid.UUID, request: Request, auth: Admin, db: SessionDep)
 
 
 @router.get("/{hook_id}/deliveries")
-def deliveries(hook_id: uuid.UUID, auth: Admin, db: SessionDep) -> list[dict[str, Any]]:
+def deliveries(
+    hook_id: uuid.UUID,
+    auth: Admin,
+    db: SessionDep,
+    response: Response,
+    cursor: Cursor = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> list[dict[str, Any]]:
     _get(db, hook_id)
-    return [
-        _delivery_out(d)
-        for d in db.scalars(
-            select(WebhookDelivery)
-            .where(WebhookDelivery.webhook_id == hook_id)
-            .order_by(WebhookDelivery.created_at.desc())
-            .limit(50)
-        )
-    ]
+    cols = (WebhookDelivery.created_at, WebhookDelivery.id)
+    stmt = select(WebhookDelivery).where(WebhookDelivery.webhook_id == hook_id)
+    rows = db.scalars(keyset(stmt, cursor, *cols).limit(limit + 1)).all()
+    return [_delivery_out(d) for d in page(rows, limit, response, *cols)]
 
 
 @router.post("/deliveries/{delivery_id}/retry")

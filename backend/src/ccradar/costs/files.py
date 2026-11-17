@@ -19,7 +19,6 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-import pyarrow.parquet as pq
 from sqlalchemy.orm import Session
 
 from ccradar.core.errors import AppError
@@ -135,6 +134,8 @@ def iter_rows(storage: Storage, key: str, file_type: str) -> Iterator[dict[str, 
         with tempfile.NamedTemporaryFile(suffix=".parquet") as tmp:
             tmp.write(data)
             tmp.flush()
+            import pyarrow.parquet as pq  # heavy: loaded only for Parquet files
+
             for batch in pq.ParquetFile(tmp.name).iter_batches(batch_size=50_000):
                 yield from batch.to_pylist()
         return
@@ -149,6 +150,8 @@ def read_columns(
         with tempfile.NamedTemporaryFile(suffix=".parquet") as tmp:
             tmp.write(storage.get(key))
             tmp.flush()
+            import pyarrow.parquet as pq
+
             parquet = pq.ParquetFile(tmp.name)
             columns = list(parquet.schema_arrow.names)
             sample = next(parquet.iter_batches(batch_size=5), None)

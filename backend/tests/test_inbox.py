@@ -163,3 +163,46 @@ def test_old_notifications_follow_the_retention_setting(db: Database) -> None:
     with db.session() as s:
         assert apply_retention(s)["notifications"] == 1
     assert inbox_of(db, owner) == [("budget_alert", "New")]
+
+
+def test_with_a_worker_delivery_is_a_job_queued_on_commit(
+    db: Database, settings, monkeypatch
+) -> None:
+    """11.13: with a separate worker, notify() only queues a job once the transaction
+    commits; a rolled-back change notifies nobody; the job delivers to everyone."""
+    import pytest
+
+    from ccradar.core import notify as notify_module
+    from ccradar.jobs.context import JobContext, configure_jobs
+    from ccradar.jobs.email import fan_out_notifications
+
+    class Recorder:
+        def __init__(self) -> None:
+            self.jobs: list[tuple[str, dict]] = []
+
+        def enqueue(self, name: str, **kwargs) -> None:
+            self.jobs.append((name, kwargs))
+
+    runner = Recorder()
+    monkeypatch.setattr(notify_module, "_background_runner", lambda: runner)
+    org_id, owner = make_org(db, "Acme", "o@acme.com")
+    viewer = add_to_org(db, org_id, "v@acme.com", Role.VIEWER)
+    with db.session() as s:
+        set_tenant(s, org_id=org_id)
+        notify(s, "budget_alert", [Message(title="Over budget", text="Details")])
+        assert runner.jobs == []  # nothing leaves before the change is saved
+    assert inbox_of(db, owner) == []
+    ((name, job),) = runner.jobs
+    assert name == "notifications.fan_out" and job["org_id"] == str(org_id)
+    assert job["messages"][0]["title"] == "Over budget"
+
+    with pytest.raises(RuntimeError), db.session() as s:
+        set_tenant(s, org_id=org_id)
+        notify(s, "budget_alert", [Message(title="Never saved", text="x")])
+        raise RuntimeError
+    assert len(runner.jobs) == 1  # the rolled-back one was dropped
+
+    configure_jobs(JobContext(settings=settings, db=db, storage=None))  # type: ignore[arg-type]
+    fan_out_notifications(**job)
+    for who in (owner, viewer):
+        assert inbox_of(db, who) == [("budget_alert", "Over budget")]

@@ -132,3 +132,36 @@ def test_demo_is_not_snapshotted(db: Database) -> None:
         metering.snapshot_all(s, day=date(2026, 1, 1))
         set_tenant(s, org_id=demo.id)
         assert metering.history(s, 3650) == []
+
+
+def test_api_calls_are_written_in_batches_and_never_lost(
+    settings: Settings, db: Database, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(metering, "_BATCHES", {})
+    monkeypatch.setattr(metering, "FLUSH_SECONDS", 3600.0)  # only the call count triggers
+    org_id, _ = make_org(db, "Acme", "o@acme.com")
+    today = utcnow().date()
+
+    def saved() -> int:
+        with db.session() as s:
+            set_tenant(s, org_id=org_id)
+            return metering.counted(s, "api_calls", today)
+
+    with db.session() as s:
+        set_tenant(s, org_id=org_id)
+        for _ in range(25):
+            metering.record_api_call(s, settings, org_id)
+        assert metering.api_calls_today(s) == 25  # saved + this process's unsaved calls
+    assert saved() == 20 and metering.unsaved_api_calls(org_id) == 5  # one write for 20 calls
+
+    # A request that fails after a write: the write is rolled back, the calls stay pending.
+    with pytest.raises(RuntimeError), db.session() as s:
+        set_tenant(s, org_id=org_id)
+        for _ in range(15):
+            metering.record_api_call(s, settings, org_id)
+        raise RuntimeError("the request failed")
+    assert saved() == 20 and metering.unsaved_api_calls(org_id) == 20
+    with db.session() as s:
+        set_tenant(s, org_id=org_id)
+        metering.record_api_call(s, settings, org_id)  # 21 pending: written now
+    assert saved() == 41 and metering.unsaved_api_calls(org_id) == 0

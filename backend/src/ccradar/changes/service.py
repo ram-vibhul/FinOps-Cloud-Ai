@@ -56,6 +56,14 @@ def record(
     )
     values = change.model_dump(exclude={"occurred_at", "external_id"})
     if existing is not None:
+        # A change keeps the price it was given when first seen (Live Radar): a later
+        # re-read may no longer find what it needs, e.g. a deleted resource's size.
+        first = (existing.attributes or {}).get("impact")
+        if first and "impact" not in values["attributes"]:
+            values["attributes"] = {**values["attributes"], "impact": first}
+        expected = (existing.attributes or {}).get("expected")
+        if expected:  # set by a person (11.31): a re-read must not drop it
+            values["attributes"] = {**values["attributes"], "expected": expected}
         for key, value in values.items():
             setattr(existing, key, value)
         existing.occurred_at = occurred

@@ -55,3 +55,18 @@ def worker_healthy(max_age_seconds: int = 900, path: str = HEARTBEAT_FILE) -> bo
     except (OSError, ValueError):
         return False
     return time.time() - beat <= max_age_seconds
+
+
+@job("costs.ensure_partitions", queue="maintenance", cron="17 2 1 * *")
+def ensure_cost_partitions() -> list[str]:
+    """Monthly (11.8): keep a year of future cost partitions, even if the installation is
+    not upgraded (migrations used to be the only place they were created)."""
+    from datetime import date
+
+    from ccradar.costs.partitions import add_future_partitions
+
+    ctx = job_context()
+    if not ctx.settings.is_postgres:
+        return []
+    with ctx.db.engine.begin() as conn:
+        return add_future_partitions(conn, today=date.today())

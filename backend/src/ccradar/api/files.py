@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import uuid
 from datetime import datetime
@@ -13,10 +14,13 @@ from sqlalchemy import select
 
 from ccradar.accounts.roles import Permission
 from ccradar.api.deps import SessionDep, require
+from ccradar.api.paging import Cursor, keyset, page
 from ccradar.auth.web import AuthContext
 from ccradar.core.errors import AppError, NotFoundError
 from ccradar.costs import files, focus
 from ccradar.models import FileImport
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/imports/files", tags=["file imports"])
 Reader = Annotated[AuthContext, require(Permission.READ)]
@@ -103,6 +107,7 @@ async def upload(
     try:
         columns, _ = files.read_columns(storage, key, file_type)
     except Exception as exc:
+        log.info("upload %s unreadable: %s: %s", record.id, type(exc).__name__, str(exc)[:200])
         storage.delete(key)
         raise AppError(
             "The file could not be read as CSV or Parquet.", code="unreadable_file"
@@ -115,9 +120,16 @@ async def upload(
 
 
 @router.get("", response_model=list[FileImportOut])
-def list_uploads(auth: Reader, db: SessionDep) -> list[FileImportOut]:
-    rows = db.scalars(select(FileImport).order_by(FileImport.created_at.desc()).limit(50))
-    return [_out(r) for r in rows]
+def list_uploads(
+    auth: Reader,
+    db: SessionDep,
+    response: Response,
+    cursor: Cursor = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> list[FileImportOut]:
+    cols = (FileImport.created_at, FileImport.id)
+    rows = db.scalars(keyset(select(FileImport), cursor, *cols).limit(limit + 1)).all()
+    return [_out(r) for r in page(rows, limit, response, *cols)]
 
 
 @router.get("/{import_id}/preview", response_model=Preview)

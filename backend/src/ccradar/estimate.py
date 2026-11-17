@@ -53,6 +53,15 @@ DB_FACTOR = 1.78  # RDS on-demand is roughly this much above EC2 for the same si
 MULTI_AZ = 2.0
 CACHE_FACTOR = 2.0  # ElastiCache nodes cost about twice the same EC2 size
 SPOT_FACTOR = 0.35
+# Redshift on-demand, per node-hour, USD, us-east-1 (10.3; please verify periodically).
+REDSHIFT_NODE_HOUR = {
+    "dc2.large": 0.25,
+    "dc2.8xlarge": 4.80,
+    "ra3.large": 0.543,
+    "ra3.xlplus": 1.086,
+    "ra3.4xlarge": 3.26,
+    "ra3.16xlarge": 13.04,
+}
 # Kubernetes requests (same defaults as the cluster cost model).
 K8S_CPU_HOUR = 0.031611
 K8S_GIB_HOUR = 0.004237
