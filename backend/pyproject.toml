@@ -14,7 +14,7 @@ dependencies = [
   "procrastinate==3.10.0",
   "httpx==0.28.1",
   "boto3==1.43.124",
-  "anthropic==2.5.0",
+  "anthropic==2.6.0",
   "pyjwt==2.15.1",
   "cryptography==50.0.2",
   "psycopg[binary]==3.3.8",
