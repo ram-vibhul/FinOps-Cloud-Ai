@@ -21,7 +21,7 @@ dependencies = [
   "pyarrow==26.0.1",
   "reportlab==5.1.0",
   "pyyaml==6.0.3",
-  "sentry-sdk==2.74.0",  # MIT; error tracking, off unless CCRADAR_ERROR_TRACKING_DSN (D.9)
+  "sentry-sdk==2.75.0",  # MIT; error tracking, off unless CCRADAR_ERROR_TRACKING_DSN (D.9)
 ]
 
 [project.optional-dependencies]
